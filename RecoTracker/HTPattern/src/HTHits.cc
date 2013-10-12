@@ -8,6 +8,7 @@ HTHitsSpher::HTHitsSpher(const HTHits3D &hits3d, float z0, unsigned int etabins)
     z0_(z0),
     rho_(&hits3d.rho_),
     phi_(&hits3d.phi_),
+    z_(&hits3d.z_),
     hit_(&hits3d.hit_),
     layermask_(&hits3d.layermask_)
 {

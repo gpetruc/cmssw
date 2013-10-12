@@ -10,6 +10,10 @@ namespace {
     std::map<std::string, TTree *> trees3D_;
     Float_t rho_, z_, z0_, phi_; 
     Int_t layermask_;
+
+    std::map<std::string, TTree *> treesTk_;
+    Float_t ptTk_,etaTk_,phiTk_,zTk_;
+    Int_t hitsTk_,layers3dTk_,hpTk_; 
 }
 void
 HTDebugger::dumpHTHits3D(const std::string &name, const HTHits3D &hits, double zref)
@@ -33,6 +37,34 @@ HTDebugger::dumpHTHits3D(const std::string &name, const HTHits3D &hits, double z
         tree->Fill();
     }
 }
+void
+HTDebugger::dumpTracks(const std::string &name, const std::vector<reco::Track> & tracks)
+{
+    TTree * & tree = treesTk_[name];
+    if (tree == 0) {
+        edm::Service<TFileService> fs;
+        tree = fs->make<TTree>( name.c_str()  , name.c_str() );
+        tree->Branch("z",&zTk_,"z/F");
+        tree->Branch("phi",&phiTk_,"phi/F");
+        tree->Branch("pt",&ptTk_,"pt/F");
+        tree->Branch("eta",&etaTk_,"eta/F");
+        tree->Branch("hits",&hitsTk_,"hits/I");
+        tree->Branch("layers3d",&layers3dTk_,"layers3d/I");
+        tree->Branch("hp",&hpTk_,"hp/I");
+    }
+    for (auto tk : tracks) {
+        ptTk_ = tk.pt();
+        etaTk_ = tk.eta();
+        phiTk_ = tk.phi(); if (phiTk_ < 0) phiTk_ += 2*M_PI;
+        zTk_ = tk.vertex().Z();
+        hitsTk_ = tk.hitPattern().numberOfValidHits();
+        layers3dTk_ = tk.hitPattern().numberOfValidPixelHits() + tk.hitPattern().numberOfValidStripLayersWithMonoAndStereo(); 
+        hpTk_ = tk.quality(reco::Track::highPurity); 
+        tree->Fill();
+    }
+}
+
+
 
 void
 HTDebugger::dumpHTHitsSpher(const std::string &name, const HTHitsSpher &hits) {
@@ -74,4 +106,55 @@ HTDebugger::dumpHTHitMap(const std::string &name, const HTHitMap &map)
         }
     } 
 
+}
+
+namespace {
+    void addHits(const HTCell &cell, const HTHitsSpher &hits, TGraph *gep, TGraph *grz, unsigned int &nhits)  {
+        gep->Set(nhits+cell.nhits());
+        grz->Set(nhits+cell.nhits());
+        for (unsigned int h : cell.hits()) {
+            gep->SetPoint(nhits, hits.eta(h), hits.phi(h));
+            grz->SetPoint(nhits, hits.rho(h), hits.z(h));
+            nhits++;
+        }
+    }
+}
+void
+HTDebugger::dumpHTClusters(const std::string &name, const HTHitMap &map, const HTHitsSpher &hits) 
+{
+    edm::Service<TFileService> fs;
+    char ptitle[1024];
+    char pname[1024];
+    sprintf(ptitle, "%s (etabins %d, phibins %d);i#eta;i#phi", name.c_str(), map.etabins(), map.phibins());
+    sprintf(pname, "%s_layers", name.c_str());
+    TH2D *layers = fs->make<TH2D>(pname, ptitle, map.etabins(), -3., 3., map.phibins(), 0, 2*M_PI );
+    sprintf(pname, "%s_hits_etaphi", name.c_str());
+    TObjArray *geps = new TObjArray(); geps->SetName(pname);
+    sprintf(pname, "%s_hits_rhoz", name.c_str());
+    TObjArray *grzs = new TObjArray(); grzs->SetName(pname);
+    geps->SetOwner(true);
+    grzs->SetOwner(true);
+    unsigned int neta = map.etabins(), nphi = map.phibins();
+    unsigned int color = 1;
+    for (auto & cluster : map.clusters()) {
+        unsigned int ieta = cluster.ieta(), iphi = cluster.iphi();
+        layers->SetBinContent(ieta+1, iphi+1, cluster.nlayers());
+        unsigned int nhits = 0;
+        TGraph *gep = new TGraph(); 
+        TGraph *grz = new TGraph(); 
+        addHits(map.get(ieta, iphi), hits, gep, grz, nhits);
+        if (ieta > 0) addHits(map.get(ieta-1, iphi), hits, gep, grz, nhits); 
+        if (ieta < neta-1)  addHits(map.get(ieta+1, iphi), hits, gep, grz, nhits);
+        addHits(map.get(ieta, (iphi > 0 ? iphi : nphi - 1  )), hits, gep, grz, nhits);
+        addHits(map.get(ieta, (iphi + 1 < nphi ? iphi+1 : 0)), hits, gep, grz, nhits);
+        grz->SetMarkerStyle(7);
+        gep->SetMarkerStyle(7);
+        grz->SetMarkerColor(color);
+        gep->SetMarkerColor(color);
+        grzs->AddLast(grz);
+        geps->AddLast(gep);
+        color++; if (color == 10) color = 1;
+    }
+    fs->getBareDirectory()->WriteTObject(geps, 0, "SingleKey");
+    fs->getBareDirectory()->WriteTObject(grzs, 0, "SingleKey");
 }
