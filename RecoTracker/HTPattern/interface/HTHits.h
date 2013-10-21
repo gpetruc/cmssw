@@ -8,7 +8,7 @@ class HTHitsSpher;
 
 class HTHits3D {
     public:
-        HTHits3D() : size_(0) {}
+        HTHits3D(double x0, double y0) : x0_(x0), y0_(y0), size_(0) {}
         void reserve(int size) {
             hit_.reserve(size);
             rho_.reserve(size);
@@ -30,8 +30,11 @@ class HTHits3D {
         const TrackingRecHit * hit(int i) const { return hit_[i]; }
         int   layermask(int i) const { return layermask_[i]; }
         unsigned int size() const { return size_; }
+        float x0() const { return x0_; }
+        float y0() const { return y0_; }
         friend class HTHitsSpher;
     protected:
+        float x0_, y0_;
         unsigned int size_;
         std::vector<float> rho_, phi_, z_;
         std::vector<const TrackingRecHit *> hit_;
@@ -54,11 +57,13 @@ class HTHitsSpher {
         unsigned int etabins() const { return etabins_; }
         unsigned int phibins() const { return phibins_; }
         float alpha() const { return alpha_; }
+        float x0() const { return x0_; }
+        float y0() const { return y0_; }
         float z0() const { return z0_; }
     protected:
         unsigned int size_, etabins_, phibins_;
         float etascale_, phiscale_;
-        float z0_, alpha_;
+        float x0_, y0_, z0_, alpha_;
         const std::vector<float> *rho_, *phi_, *z_;
         std::vector<float> eta_;
         std::vector<int>   ieta_;

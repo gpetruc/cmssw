@@ -5,6 +5,8 @@ HTHitsSpher::HTHitsSpher(const HTHits3D &hits3d, float z0, unsigned int etabins)
     size_(hits3d.size_),
     etabins_(etabins),
     etascale_(etabins/6.0),
+    x0_(hits3d.x0()),
+    y0_(hits3d.y0()),
     z0_(z0),
     rho_(&hits3d.rho_),
     phi_(&hits3d.phi_),

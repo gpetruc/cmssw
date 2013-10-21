@@ -61,6 +61,9 @@ HTDebugger::dumpTracks(const std::string &name, const std::vector<reco::Track> &
         layers3dTk_ = tk.hitPattern().numberOfValidPixelHits() + tk.hitPattern().numberOfValidStripLayersWithMonoAndStereo(); 
         hpTk_ = tk.quality(reco::Track::highPurity); 
         tree->Fill();
+        if (ptTk_ > 2 && hpTk_) {
+           printf("Track pt %8.4f, eta %+5.3f, phi %+5.3f, q %+2d\n", ptTk_, etaTk_, phiTk_, tk.charge()); 
+        }
     }
 }
 
@@ -160,3 +163,4 @@ HTDebugger::dumpHTClusters(const std::string &name, const HTHitMap &map, const H
     fs->getBareDirectory()->WriteTObject(geps, 0, "SingleKey");
     fs->getBareDirectory()->WriteTObject(grzs, 0, "SingleKey");
 }
+
