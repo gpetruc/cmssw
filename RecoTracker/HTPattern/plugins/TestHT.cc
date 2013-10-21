@@ -32,6 +32,7 @@
 #include "RecoTracker/HTPattern/interface/HTHits.h"
 #include "RecoTracker/HTPattern/interface/HTHitMap.h"
 #include "RecoTracker/HTPattern/plugins/HTDebugger.h"
+#include "RecoTracker/HTPattern/interface/TrackCandidateBuilderFromCluster.h"
 
 
 
@@ -60,8 +61,11 @@ class TestHT : public edm::EDProducer {
 
       uint32_t etabins2d_, etabins3d_, phibins2d_, phibins3d_;
       uint32_t layerSeedCut2d_, layerSeedCut3d_;
+      uint32_t layerCut2d_, layerCut3d_;
+      uint32_t layerMoreCut_;
       edm::ESHandle<TrackerGeometry> geometry_;
       edm::ESHandle<TrackerTopology> tTopo_;
+      TrackCandidateBuilderFromCluster tcBuilder_;
 };
 
 TestHT::TestHT(const edm::ParameterSet & iConfig) :
@@ -76,7 +80,10 @@ TestHT::TestHT(const edm::ParameterSet & iConfig) :
     phibins2d_(iConfig.getParameter<uint32_t>("phibins2d")),
     phibins3d_(iConfig.getParameter<uint32_t>("phibins3d")),
     layerSeedCut2d_(iConfig.getParameter<uint32_t>("layerSeedCut2d")),
-    layerSeedCut3d_(iConfig.getParameter<uint32_t>("layerSeedCut3d"))
+    layerSeedCut3d_(iConfig.getParameter<uint32_t>("layerSeedCut3d")),
+    layerCut2d_(iConfig.getParameter<uint32_t>("layerCut2d")),
+    layerCut3d_(iConfig.getParameter<uint32_t>("layerCut3d")),
+    layerMoreCut_(iConfig.getParameter<uint32_t>("layerMoreCut"))
 {
     produces<TrackCandidateCollection>();  
 }
@@ -118,29 +125,47 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
     // Now we just do one step
     HTHitMap map3d(etabins3d_,phibins3d_);
     HTHitMap map2d(etabins2d_,phibins2d_);
-    std::vector<bool> mask(hits3d.size(), false);
+    std::vector<bool> mask3d(hits3d.size(), false);
+    std::vector<bool> mask2d(hits2d.size(), false);
+    int etashift = std::round(log(double(etabins3d_)/etabins2d_)/std::log(2));
+    int phishift = std::round(log(double(phibins3d_)/phibins2d_)/std::log(2));
     for(const reco::Vertex &vtx : *vertices) {
         HTHitsSpher hits3ds(hits3d, vtx.z(), etabins3d_);
         hits3ds.filliphi(0.f, phibins3d_);
         HTHitsSpher hits2ds(hits2d, vtx.z(), etabins2d_);
         hits2ds.filliphi(0.f, phibins2d_);
+
+        tcBuilder_.setHits(hits3ds, hits2ds, map3d, map2d, mask3d, mask3d, etashift, phishift);
+
         HTDebugger::dumpHTHitsSpher(prefix+"spher3d", hits3ds);
         HTDebugger::dumpHTHitsSpher(prefix+"spher2d", hits2ds);
         // fill the maps
         for (unsigned int i = 0; i < hits3ds.size(); ++i) {
-            if (mask[i]) continue;
+            if (mask3d[i]) continue;
             map3d.addHit(hits3ds.ieta(i), hits3ds.iphi(i), i, hits3ds.layermask(i), layerSeedCut3d_);
         }
         // fill the maps
         for (unsigned int i = 0; i < hits2ds.size(); ++i) {
-            if (mask[i]) continue;
+            if (mask2d[i]) continue;
             map2d.addHit(hits2ds.ieta(i), hits2ds.iphi(i), i, hits2ds.layermask(i), layerSeedCut2d_);
         }
+        // clusterize
+        map3d.clusterize();
+        map2d.clusterize();
+
         // analzye
         HTDebugger::dumpHTHitMap(prefix+"map3d", map3d);
         HTDebugger::dumpHTHitMap(prefix+"map2d", map2d);
-        HTDebugger::dumpHTClusters(prefix+"c3d", map3d, hits3ds);
-        HTDebugger::dumpHTClusters(prefix+"c2d", map2d, hits2ds);
+        HTDebugger::dumpHTClusters(prefix+"c3d", map3d, hits3ds, layerCut3d_);
+        HTDebugger::dumpHTClusters(prefix+"c2d", map2d, hits2ds, layerCut2d_);
+
+        // Recover more layers from 2D map
+        for (auto & cluster : map3d.clusters()) {
+            cluster.addMoreCell(map2d.get(cluster.ieta() >> etashift, cluster.iphi() >> phishift));
+            if (cluster.nmorelayers() >= layerMoreCut_) tcBuilder_.run(cluster);
+        }
+        HTDebugger::dumpHTClusters(prefix+"c3dp", map3d, hits3ds, layerSeedCut3d_, layerMoreCut_);
+
         // clear the map
         for (unsigned int i = 0; i < hits3ds.size(); ++i) {
              map3d.clear(hits3ds.ieta(i), hits3ds.iphi(i));
@@ -171,9 +196,9 @@ TestHT::getPixelHits3D(const edm::Event & iEvent,  const reco::BeamSpot &bspot, 
         const GeomDet* geomDet = geometry_->idToDet(DetId(id));
 	unsigned int layer = tTopo_->layer(DetId(id));
         unsigned int layermask = 1 << (layer-1);
-        for (auto hit : ds) {
+        for (auto const &hit : ds) {
             GlobalVector gp = geomDet->surface().toGlobal( hit.localPosition() ) - bspotPosition;
-            hits3d.push_back(hit, gp.perp(), gp.phi(), gp.z(), layermask);
+            hits3d.push_back(&hit, gp.perp(), gp.phi(), gp.z(), layermask);
         }
    } 
 }
@@ -190,9 +215,9 @@ TestHT::getStripHits3D(const edm::Event & iEvent,  const reco::BeamSpot &bspot, 
         const GeomDet* geomDet = geometry_->idToDet(DetId(id));
 	unsigned int layer = tTopo_->layer(DetId(id)) + 3;
         unsigned int layermask = 1 << (layer-1);
-        for (auto hit : ds) {
+        for (auto const &hit : ds) {
             GlobalVector gp = geomDet->surface().toGlobal( hit.localPosition() ) - bspotPosition;
-            hits3d.push_back(hit, gp.perp(), gp.phi(), gp.z(), layermask);
+            hits3d.push_back(&hit, gp.perp(), gp.phi(), gp.z(), layermask);
         }
    }
 }
@@ -209,9 +234,9 @@ TestHT::getStripHits2D(const edm::Event & iEvent,  const reco::BeamSpot &bspot, 
         const GeomDet* geomDet = geometry_->idToDet(DetId(id));
 	unsigned int layer = tTopo_->layer(DetId(id)) + 3;
         unsigned int layermask = 1 << (layer-1);
-        for (auto hit : ds) {
+        for (auto const &hit : ds) {
             GlobalVector gp = geomDet->surface().toGlobal( hit.localPosition() ) - bspotPosition;
-            hits3d.push_back(hit, gp.perp(), gp.phi(), gp.z(), layermask);
+            hits3d.push_back(&hit, gp.perp(), gp.phi(), gp.z(), layermask);
         }
    }
 }

@@ -16,9 +16,9 @@ class HTHits3D {
             z_.reserve(size);
             layermask_.reserve(size);
         }
-        void push_back(const TrackingRecHit &hit, double rho, double phi, double z, int layermask) {
+        void push_back(const TrackingRecHit *hit, double rho, double phi, double z, int layermask) {
             size_++;
-            hit_.push_back(&hit);
+            hit_.push_back(hit);
             rho_.push_back(rho);
             phi_.push_back(phi < 0 ? phi + float(2*M_PI) : phi);
             z_.push_back(z);

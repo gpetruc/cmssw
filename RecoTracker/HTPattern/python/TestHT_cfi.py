@@ -18,8 +18,11 @@ testHT = cms.EDProducer("TestHT",
     etabins3d = cms.uint32(128),
     phibins3d = cms.uint32(64),
     # clustering
-    layerSeedCut2d = cms.uint32(5),
-    layerSeedCut3d = cms.uint32(4),
+    layerSeedCut2d = cms.uint32(4),
+    layerSeedCut3d = cms.uint32(3),
+    layerCut2d     = cms.uint32(5),
+    layerCut3d     = cms.uint32(5),
+    layerMoreCut   = cms.uint32(5),
     # for debugging
     tracks = cms.InputTag("generalTracks"),
 )

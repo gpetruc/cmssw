@@ -120,7 +120,7 @@ namespace {
     }
 }
 void
-HTDebugger::dumpHTClusters(const std::string &name, const HTHitMap &map, const HTHitsSpher &hits) 
+HTDebugger::dumpHTClusters(const std::string &name, const HTHitMap &map, const HTHitsSpher &hits, unsigned int minlayers, unsigned int minmorelayers) 
 {
     edm::Service<TFileService> fs;
     char ptitle[1024];
@@ -134,19 +134,21 @@ HTDebugger::dumpHTClusters(const std::string &name, const HTHitMap &map, const H
     TObjArray *grzs = new TObjArray(); grzs->SetName(pname);
     geps->SetOwner(true);
     grzs->SetOwner(true);
-    unsigned int neta = map.etabins(), nphi = map.phibins();
     unsigned int color = 1;
+    std::array<const HTCell *, 8> cells; unsigned int ncells;
     for (auto & cluster : map.clusters()) {
+        if (cluster.nlayers() < minlayers) continue;
+        if (cluster.nmorelayers() < minmorelayers) continue;
         unsigned int ieta = cluster.ieta(), iphi = cluster.iphi();
-        layers->SetBinContent(ieta+1, iphi+1, cluster.nlayers());
+        layers->SetBinContent(ieta+1, iphi+1, minlayers ? cluster.nlayers() : cluster.nmorelayers());
         unsigned int nhits = 0;
         TGraph *gep = new TGraph(); 
         TGraph *grz = new TGraph(); 
         addHits(map.get(ieta, iphi), hits, gep, grz, nhits);
-        if (ieta > 0) addHits(map.get(ieta-1, iphi), hits, gep, grz, nhits); 
-        if (ieta < neta-1)  addHits(map.get(ieta+1, iphi), hits, gep, grz, nhits);
-        addHits(map.get(ieta, (iphi > 0 ? iphi : nphi - 1  )), hits, gep, grz, nhits);
-        addHits(map.get(ieta, (iphi + 1 < nphi ? iphi+1 : 0)), hits, gep, grz, nhits);
+        map.getNeighbours(ieta, iphi, cells, ncells);
+        for (unsigned int i = 0; i < ncells; ++i) {
+            addHits(*cells[i], hits, gep, grz, nhits);
+        }
         grz->SetMarkerStyle(7);
         gep->SetMarkerStyle(7);
         grz->SetMarkerColor(color);
