@@ -47,9 +47,9 @@ TrackCandidateBuilderFromCluster::init(const edm::EventSetup& es, const SeedComp
 void
 TrackCandidateBuilderFromCluster::run(const HTCluster &cluster, TrajectorySeedCollection & seedCollection, TrajectorySeedCollection *seedsFromAllClusters) 
 {
-    printf("\n --- Cluster with %d seed layers, %d hi-res layers, %d layers --- \n", cluster.nseedlayers(), cluster.nlayers(), cluster.nmorelayers());
     std::vector<ClusteredHit> hits; hits.reserve(50);
     const HTCell &seed = mapHiRes_->get(cluster.ieta(), cluster.iphi());
+    printf("\n --- Cluster #%03d with %d seed layers, %d hi-res layers, %d layers --- \n", seed.icluster(), cluster.nseedlayers(), cluster.nlayers(), cluster.nmorelayers());
     for (int hit : seed.hits()) {
         if ((*maskHiRes_)[hit]) continue;
         hits.push_back(ClusteredHit(*hitsHiRes_, hit, mask2layer(hitsHiRes_->layermask(hit))));
@@ -110,26 +110,44 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster, TrajectorySeedCo
         printf("starting microcluster %d with pair %3d, %3d: (%+5.3f,%+5.3f, ly %2d)  (%+5.3f,%+5.3f ly %2d)\n", microclusters, i1,i2, hits[i1].eta,hits[i1].phi,hits[i1].layer, hits[i2].eta,hits[i2].phi,hits[i2].layer);
         microcluster[i1] = microcluster[i1] = microclusters;
         // apply pt correction from two hits
-        double alphacorr = (hits[i1].phi - hits[i2].phi)/(hits[i1].rho - hits[i2].rho);
+        float alphacorr = (hits[i1].phi - hits[i2].phi)/(hits[i1].rho - hits[i2].rho);
         // apply eta correction (approximate)
-        double betacorr  = (hits[i1].eta - hits[i2].eta)/(hits[i1].rho - hits[i2].rho);
-        double phi0 = hits[i1].phi - alphacorr*hits[i1].phi;
-        double eta0 = hits[i1].eta - betacorr*hits[i1].eta; 
+        float betacorr  = (hits[i1].eta - hits[i2].eta)/(hits[i1].rho - hits[i2].rho);
+        float phi0 = hits[i1].phi - alphacorr*hits[i1].phi;
+        float eta0 = hits[i1].eta - betacorr*hits[i1].eta; 
+        std::array<int, 6> mchits4refit;
+        mchits4refit[0] = i1; mchits4refit[1] = i2;
         unsigned int microclusternhits = 2;
-        std::fill(layerhits.begin(), layerhits.end(), -1);
-        std::fill(layerdist.begin(), layerdist.end(), dcCut_);
-        layerhits[hits[i1].layer] = i1;
-        layerhits[hits[i2].layer] = i2;
-        layerdist[hits[i1].layer] = 0.f;
-        layerdist[hits[i2].layer] = 0.f;
-        for (unsigned int i3 = 0; i3 < nhits; ++i3) {
-            if (microcluster[i3]) continue;
-            float dc = hits[i3].dist2d(eta0,phi0,alphacorr,betacorr);
-            //printf("\thit %2d (%+5.3f,%+5.3f, ly %2d): d2d(0) %.4f, d2dc(0) %.4f\n",i3, hits[i3].eta,hits[i3].phi,hits[i3].layer, hits[i3].dist2d(eta0,phi0,0.f,0.f), dc);
-            if (dc > layerdist[hits[i3].layer]) continue;
-            if (layerhits[i3] == -1) microclusternhits++;
-            layerdist[hits[i3].layer] = dc;
-            layerhits[hits[i3].layer] = i3;
+        for (int iteration = 1; iteration <= 2; ++iteration) {
+            printf("   iteration %d: eta0,phi0 = %+5.3f,%+5.3f     alphacorr = %+8.5f, betacorr = %+8.5f\n", iteration, eta0, phi0, alphacorr, betacorr);
+            microclusternhits = 2;
+            std::fill(layerhits.begin(), layerhits.end(), -1);
+            std::fill(layerdist.begin(), layerdist.end(), dcCut_);
+            layerhits[hits[i1].layer] = i1;
+            layerhits[hits[i2].layer] = i2;
+            layerdist[hits[i1].layer] = 0.f;
+            layerdist[hits[i2].layer] = 0.f;
+            for (unsigned int i3 = 0; i3 < nhits; ++i3) {
+                if (microcluster[i3]) continue;
+                float dc = hits[i3].dist2d(eta0,phi0,alphacorr,betacorr);
+                printf("\thit %2d (%+5.3f,%+5.3f, ly %2d): d2d(0) %.4f, d2dc(0) %.4f\n",i3, hits[i3].eta,hits[i3].phi,hits[i3].layer, hits[i3].dist2d(eta0,phi0,0.f,0.f), dc);
+                if (dc > layerdist[hits[i3].layer]) continue;
+                if (layerhits[hits[i3].layer] == -1) {
+                    microclusternhits++;
+                    if (iteration == 1) {
+                        mchits4refit[microclusternhits-1] = i3;
+                        if (microclusternhits == mchits4refit.size()) {
+                            break;
+                        }
+                    }
+                }
+                layerdist[hits[i3].layer] = dc;
+                layerhits[hits[i3].layer] = i3;
+            }
+            if (iteration == 1) {
+                if (microclusternhits == 2) break; // nothing to refit
+                refitAlphaBetaCorr(hits, &mchits4refit[0], microclusternhits, alphacorr, betacorr, phi0, eta0);
+            }
         }
         printf("microcluster %d (%d hits)\n", microclusters, microclusternhits);
         for (unsigned int il = 0; il < layerhits.size(); ++il) {
@@ -158,11 +176,17 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster, TrajectorySeedCo
                   propagator_->propagate(fts,  tracker_->idToDet(hit->geographicalId())->surface())
                 : propagator_->propagate(tsos, tracker_->idToDet(hit->geographicalId())->surface());
             if (!state.isValid()) { printf ("\tfailed propagation\n"); break; }
+            //printf("\t\t propagated state: 1/p = %+9.5f +/- %9.5f,  pt = %7.2f +/- %7.2f\n", 
+            //                state.globalParameters().signedInverseMomentum(), std::sqrt(state.curvilinearError().matrix()(0,0)),
+            //                state.globalMomentum().perp(), TrajectoryStateAccessor(*state.freeState()).inversePtError()*state.globalMomentum().perp2());
             TransientTrackingRecHit::RecHitPointer tth = hitBuilder_->build(hit);
             tth = tth->clone(state);
             TrajectoryStateOnSurface updated = updator.update(state, *tth);
             if (!updated.isValid()) { printf("\tfailed update\n"); break; }
             tsos = updated;
+            //printf("\t\t updated    state: 1/p = %+9.5f +/- %9.5f,  pt = %7.2f +/- %7.2f\n", 
+            //                tsos.globalParameters().signedInverseMomentum(), std::sqrt(tsos.curvilinearError().matrix()(0,0)),
+            //                tsos.globalMomentum().perp(), TrajectoryStateAccessor(*tsos.freeState()).inversePtError()*tsos.globalMomentum().perp2());
             seedHits.push_back(tth->hit()->clone());
             lasthit = hit;
             myhits++;
@@ -185,8 +209,8 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster, TrajectorySeedCo
 FreeTrajectoryState
 TrackCandidateBuilderFromCluster::startingState(float eta0, float phi0, float alpha) const 
 {
-    // alpha = 0.003 * B[T] / pT[GeV] -->
-    float pt = std::abs(alpha ? 0.003f * bfield_->nominalValue() / alpha : 100.0f); 
+    // alpha = 0.5 * 0.003 * B[T] / pT[GeV] -->
+    float pt = std::abs(alpha ? 0.5 * 0.003f * bfield_->inTesla(GlobalPoint(0.,0.,0.)).z() / alpha : 100.0f); 
     ROOT::Math::CylindricalEta3D<double> p3d(pt, eta0, phi0);
     GlobalPoint  x(hitsHiRes_->x0(), hitsHiRes_->y0(), hitsHiRes_->z0());
     GlobalVector p(p3d.x(), p3d.y(), p3d.z());
@@ -200,7 +224,7 @@ TrackCandidateBuilderFromCluster::startingState(float eta0, float phi0, float al
 }
 
 void
-TrackCandidateBuilderFromCluster::dumpAsSeed(const std::vector<ClusteredHit> &cluster, TrajectorySeedCollection &seedCollection)
+TrackCandidateBuilderFromCluster::dumpAsSeed(const std::vector<ClusteredHit> &cluster, TrajectorySeedCollection &seedCollection) const 
 {
     edm::OwnVector<TrackingRecHit> seedHits; 
     seedHits.reserve(cluster.size());
@@ -210,4 +234,29 @@ TrackCandidateBuilderFromCluster::dumpAsSeed(const std::vector<ClusteredHit> &cl
     PTrajectoryStateOnDet const & PTraj = trajectoryStateTransform::persistentState(tsos, cluster.front().hit->geographicalId().rawId());
     TrajectorySeed seed(PTraj,std::move(seedHits),alongMomentum);
     seedCollection.push_back(seed);
+}
+
+void 
+TrackCandidateBuilderFromCluster::refitAlphaBetaCorr(const std::vector<ClusteredHit> &cluster, const int *ihits, unsigned int nhits, float &alphacorr, float &betacorr, float &phi0, float &eta0) const {
+    // Linear fits:
+    //    eta - eta0 = p[0] + p[1]*rho
+    //    phi - phi0 = p[0] + p[1]*rho
+    AlgebraicSymMatrix22 rhoij; AlgebraicVector2 etai, phii;
+    for (unsigned int i = 0; i < nhits; ++i) {
+        const ClusteredHit &hit = cluster[ihits[i]];
+        rhoij(0,0) += 1;
+        rhoij(0,1) += hit.rho;
+        rhoij(1,1) += hit.rho*hit.rho;
+        etai(0) += (hit.eta-eta0);
+        etai(1) += (hit.eta-eta0)*hit.rho;
+        phii(0) += (hit.phi-phi0);
+        phii(1) += (hit.phi-phi0)*hit.rho;
+    }
+    if (!rhoij.Invert()) return;
+    AlgebraicVector2 dphi = rhoij*phii; 
+    AlgebraicVector2 deta = rhoij*etai; 
+    phi0 += dphi[0];
+    alphacorr = dphi[1];
+    eta0 += deta[0];
+    betacorr = deta[1];
 }

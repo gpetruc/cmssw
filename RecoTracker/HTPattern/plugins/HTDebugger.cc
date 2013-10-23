@@ -38,7 +38,7 @@ HTDebugger::dumpHTHits3D(const std::string &name, const HTHits3D &hits, double z
     }
 }
 void
-HTDebugger::dumpTracks(const std::string &name, const std::vector<reco::Track> & tracks)
+HTDebugger::dumpTracks(const std::string &name, const std::vector<reco::Track> & tracks, double pT)
 {
     TTree * & tree = treesTk_[name];
     if (tree == 0) {
@@ -58,11 +58,13 @@ HTDebugger::dumpTracks(const std::string &name, const std::vector<reco::Track> &
         phiTk_ = tk.phi(); if (phiTk_ < 0) phiTk_ += 2*M_PI;
         zTk_ = tk.vertex().Z();
         hitsTk_ = tk.hitPattern().numberOfValidHits();
-        layers3dTk_ = tk.hitPattern().numberOfValidPixelHits() + tk.hitPattern().numberOfValidStripLayersWithMonoAndStereo(); 
+        layers3dTk_ = tk.hitPattern().pixelLayersWithMeasurement() + tk.hitPattern().numberOfValidStripLayersWithMonoAndStereo(); 
         hpTk_ = tk.quality(reco::Track::highPurity); 
-        tree->Fill();
-        if (ptTk_ > 2 && hpTk_) {
-           printf("Track pt %8.4f, eta %+5.3f, phi %+5.3f, q %+2d\n", ptTk_, etaTk_, phiTk_, tk.charge()); 
+        if (pT == 0) {
+            tree->Fill();
+            if (ptTk_ > 0.5 && hpTk_) {
+                printf("Track pt %8.4f, eta %+5.3f, phi %+5.3f, q %+2d, hits %2d, 3d layers %2d, vz %+5.3f\n", ptTk_, etaTk_, phiTk_, tk.charge(), hitsTk_, layers3dTk_, zTk_); 
+            }
         }
     }
 }

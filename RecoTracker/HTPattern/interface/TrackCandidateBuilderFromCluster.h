@@ -41,13 +41,11 @@ class TrackCandidateBuilderFromCluster {
                 return dphi + std::abs(eta-other.eta);
             }
             float dist2d(float eta0, float phi0, float alpha, float beta) {
-                float dphi = std::abs(phi+alpha*rho-phi0); 
+                float dphi = std::abs(phi-alpha*rho-phi0); 
                 if (dphi > float(M_PI)) dphi = float(2*M_PI) - dphi;
-                return dphi + std::abs(eta+beta*rho - eta0);
+                return dphi + std::abs(eta-beta*rho - eta0);
             }
         };
-        FreeTrajectoryState startingState(float eta0, float phi0, float alpha) const ;
-        void dumpAsSeed(const std::vector<ClusteredHit> &cluster, TrajectorySeedCollection &seedCollection);
     protected:
         // --- Parameters ---
         std::string propagatorLabel_, hitBuilderLabel_;
@@ -66,6 +64,11 @@ class TrackCandidateBuilderFromCluster {
         const HTHitMap *mapHiRes_,  *mapLowRes_;
         std::vector<bool> *maskHiRes_, *maskLowRes_;
         unsigned int etashift_, phishift_;
+
+        // --- Helper Functions ---
+        FreeTrajectoryState startingState(float eta0, float phi0, float alpha) const ;
+        void refitAlphaBetaCorr(const std::vector<ClusteredHit> &cluster, const int *ihits, unsigned int nhits, float &alphacorr, float &betacorr, float &phi0, float &eta0) const ; 
+        void dumpAsSeed(const std::vector<ClusteredHit> &cluster, TrajectorySeedCollection &seedCollection) const ;
          
 };
 

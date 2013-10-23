@@ -23,6 +23,8 @@ testHTSeeds = cms.EDProducer("TestHT",
     layerCut2d     = cms.uint32(5),
     layerCut3d     = cms.uint32(5),
     layerMoreCut   = cms.uint32(5),
+    # pt clustering
+    ptSteps = cms.vdouble(0.0, 1.0, 0.5),
     # seed builder
     seedBuilderConfig = cms.PSet(
         propagator = cms.string('PropagatorWithMaterial'),
@@ -39,13 +41,14 @@ testHTSeeds = cms.EDProducer("TestHT",
         ),
     ),
     # for debugging
-    debugger = cms.untracked.bool(False),
+    debugger = cms.untracked.bool(True),
     tracks = cms.InputTag("generalTracks"),
 )
 
 import RecoTracker.CkfPattern.CkfTrackCandidates_cfi
 testHTCandidates = RecoTracker.CkfPattern.CkfTrackCandidates_cfi.ckfTrackCandidates.clone(
     src = cms.InputTag("testHTSeeds"),
+    TrajectoryBuilder = cms.string('initialStepTrajectoryBuilder'),
 )
 import RecoTracker.TrackProducer.TrackProducer_cfi
 testHTTracks = RecoTracker.TrackProducer.TrackProducer_cfi.TrackProducer.clone(

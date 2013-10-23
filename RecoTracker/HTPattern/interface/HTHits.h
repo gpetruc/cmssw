@@ -47,7 +47,13 @@ class HTHitsSpher {
         float eta(int i) const { return eta_[i]; }
         int   ieta(int i) const { return ieta_[i]; }
         float rho(int i) const { return (*rho_)[i]; }
-        float phi(int i) const { return (*phi_)[i]; }
+        float phi0(int i) const { return (*phi_)[i]; }
+        float phi(int i) const { 
+            float philoop = phi0(i) - alpha()*rho(i);
+            while (philoop < 0) philoop += float(2*M_PI);
+            while (philoop > float(2*M_PI)) philoop -= float(2*M_PI);
+            return philoop;
+        }
         float z(int i) const { return (*z_)[i]; }
         int   iphi(int i) const { return iphi_[i]; }
         const TrackingRecHit * hit(int i) const { return (*hit_)[i]; }

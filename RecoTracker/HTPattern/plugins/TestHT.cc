@@ -34,6 +34,8 @@
 #include "RecoTracker/HTPattern/plugins/HTDebugger.h"
 #include "RecoTracker/HTPattern/interface/TrackCandidateBuilderFromCluster.h"
 #include "DataFormats/TrajectorySeed/interface/TrajectorySeedCollection.h"
+#include "MagneticField/Engine/interface/MagneticField.h"
+#include "MagneticField/Records/interface/IdealMagneticFieldRecord.h"
 
 
 
@@ -60,14 +62,22 @@ class TestHT : public edm::EDProducer {
       edm::EDGetTokenT<reco::BeamSpot> beamSpot_;
       edm::EDGetTokenT<std::vector<reco::Track> > tracks_;
 
+      // Configurables
       uint32_t etabins2d_, etabins3d_, phibins2d_, phibins3d_;
       uint32_t layerSeedCut2d_, layerSeedCut3d_;
       uint32_t layerCut2d_, layerCut3d_;
       uint32_t layerMoreCut_;
-      edm::ESHandle<TrackerGeometry> geometry_;
-      edm::ESHandle<TrackerTopology> tTopo_;
+      std::vector<double> ptSteps_;
+
+      // Helpers
       TrackCandidateBuilderFromCluster tcBuilder_;
 
+      // EventSetup stuff
+      edm::ESHandle<TrackerGeometry> geometry_;
+      edm::ESHandle<TrackerTopology> tTopo_;
+      edm::ESHandle<MagneticField> bfield_;
+
+      // Debugging
       bool debugger_;
 };
 
@@ -87,6 +97,7 @@ TestHT::TestHT(const edm::ParameterSet & iConfig) :
     layerCut2d_(iConfig.getParameter<uint32_t>("layerCut2d")),
     layerCut3d_(iConfig.getParameter<uint32_t>("layerCut3d")),
     layerMoreCut_(iConfig.getParameter<uint32_t>("layerMoreCut")),
+    ptSteps_(iConfig.getParameter<std::vector<double> >("ptSteps")),
     tcBuilder_(iConfig.getParameter<edm::ParameterSet>("seedBuilderConfig")),
     debugger_(iConfig.getUntrackedParameter<bool>("debugger",false))
 {
@@ -108,6 +119,11 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
 
     //Retrieve tracker topology from geometry
     iSetup.get<IdealGeometryRecord>().get(tTopo_);
+
+    //Retrieve magnetic field
+    iSetup.get<IdealMagneticFieldRecord>().get(bfield_);
+    double bfield = bfield_->inTesla(GlobalPoint(0.,0.,0.)).z();
+    std::cout << "Magnetic field: " << bfield << std::endl;
 
     // initialize the builder
     tcBuilder_.init(iSetup, nullptr);
@@ -142,51 +158,74 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
     int etashift = std::round(log(double(etabins3d_)/etabins2d_)/std::log(2));
     int phishift = std::round(log(double(phibins3d_)/phibins2d_)/std::log(2));
     for(const reco::Vertex &vtx : *vertices) {
-        HTHitsSpher hits3ds(hits3d, vtx.z(), etabins3d_);
-        hits3ds.filliphi(0.f, phibins3d_);
-        HTHitsSpher hits2ds(hits2d, vtx.z(), etabins2d_);
-        hits2ds.filliphi(0.f, phibins2d_);
 
-        tcBuilder_.setHits(hits3ds, hits2ds, map3d, map2d, mask3d, mask3d, etashift, phishift);
+        for (double ptStep : ptSteps_) {
+            if (ptStep != 0 && bfield == 0) continue;
 
-        if (debugger_) HTDebugger::dumpHTHitsSpher(prefix+"spher3d", hits3ds);
-        if (debugger_) HTDebugger::dumpHTHitsSpher(prefix+"spher2d", hits2ds);
-        // fill the maps
-        for (unsigned int i = 0; i < hits3ds.size(); ++i) {
-            if (mask3d[i]) continue;
-            map3d.addHit(hits3ds.ieta(i), hits3ds.iphi(i), i, hits3ds.layermask(i), layerSeedCut3d_);
-        }
-        // fill the maps
-        for (unsigned int i = 0; i < hits2ds.size(); ++i) {
-            if (mask2d[i]) continue;
-            map2d.addHit(hits2ds.ieta(i), hits2ds.iphi(i), i, hits2ds.layermask(i), layerSeedCut2d_);
-        }
-        // clusterize
-        map3d.clusterize();
-        map2d.clusterize();
+            for (int ptsign = +1; ptsign > -2; ptsign -= 2) {
+                if (ptStep == 0 && ptsign < 0) continue;
 
-        // analzye
-        if (debugger_) HTDebugger::dumpHTHitMap(prefix+"map3d", map3d);
-        if (debugger_) HTDebugger::dumpHTHitMap(prefix+"map2d", map2d);
-        if (debugger_) HTDebugger::dumpHTClusters(prefix+"c3d", map3d, hits3ds, layerCut3d_);
-        if (debugger_) HTDebugger::dumpHTClusters(prefix+"c2d", map2d, hits2ds, layerCut2d_);
+                sprintf(evid, "r%d_l%d_e%d_pT%c%03d_", iEvent.id().run(), iEvent.id().luminosityBlock(), iEvent.id().event(), ptsign > 0 ? 'p' : 'm', int(ptStep*100));
+                std::string prefix(evid);
 
-        // Recover more layers from 2D map
-        for (auto & cluster : map3d.clusters()) {
-            cluster.addMoreCell(map2d.get(cluster.ieta() >> etashift, cluster.iphi() >> phishift));
-            if (cluster.nmorelayers() >= layerMoreCut_) tcBuilder_.run(cluster, *out, &*outCl);
-        }
-        if (debugger_) HTDebugger::dumpHTClusters(prefix+"c3dp", map3d, hits3ds, layerSeedCut3d_, layerMoreCut_);
+                float alpha = ptStep ? 0.5 * 0.003 * bfield / ptStep * ptsign : 0;
 
-        // clear the map
-        for (unsigned int i = 0; i < hits3ds.size(); ++i) {
-             map3d.clear(hits3ds.ieta(i), hits3ds.iphi(i));
+                printf("\n========== HT iteration with pT = %+.2f, alpha = %+.5f ==========\n", ptStep*ptsign, alpha);
+
+                HTHitsSpher hits3ds(hits3d, vtx.z(), etabins3d_);
+                hits3ds.filliphi(alpha, phibins3d_);
+                HTHitsSpher hits2ds(hits2d, vtx.z(), etabins2d_);
+                hits2ds.filliphi(alpha, phibins2d_);
+
+                tcBuilder_.setHits(hits3ds, hits2ds, map3d, map2d, mask3d, mask2d, etashift, phishift);
+
+                if (debugger_) HTDebugger::dumpHTHitsSpher(prefix+"spher3d", hits3ds);
+                if (debugger_) HTDebugger::dumpHTHitsSpher(prefix+"spher2d", hits2ds);
+                // fill the maps
+                for (unsigned int i = 0; i < hits3ds.size(); ++i) {
+                    if (mask3d[i]) continue;
+                    map3d.addHit(hits3ds.ieta(i), hits3ds.iphi(i), i, hits3ds.layermask(i), layerSeedCut3d_);
+                }
+                // fill the maps
+                for (unsigned int i = 0; i < hits2ds.size(); ++i) {
+                    if (mask2d[i]) continue;
+                    map2d.addHit(hits2ds.ieta(i), hits2ds.iphi(i), i, hits2ds.layermask(i), layerSeedCut2d_);
+                }
+                // clusterize
+                map3d.clusterize();
+                map2d.clusterize();
+
+                // analzye
+                if (debugger_) HTDebugger::dumpHTHitMap(prefix+"map3d", map3d);
+                if (debugger_) HTDebugger::dumpHTHitMap(prefix+"map2d", map2d);
+                if (debugger_) HTDebugger::dumpHTClusters(prefix+"c3d", map3d, hits3ds, layerCut3d_);
+                if (debugger_) HTDebugger::dumpHTClusters(prefix+"c2d", map2d, hits2ds, layerCut2d_);
+
+                // Recover more layers from 2D map
+                for (auto & cluster : map3d.clusters()) {
+                    cluster.addMoreCell(map2d.get(cluster.ieta() >> etashift, cluster.iphi() >> phishift));
+                    const HTCell &cell = map3d.get(cluster.ieta(),cluster.iphi());
+                    printf("cluster #%03d: eta %+5.3f, phi %+5.3f, %d seed layers, %d hi-res layers, %d layers\n",
+                        cell.icluster(),
+                        hits3ds.eta(cell.hits().front()), hits3d.phi(cell.hits().front()),
+                        cluster.nseedlayers(), cluster.nlayers(), cluster.nmorelayers());
+                }
+                for (auto & cluster : map3d.clusters()) {
+                    if (cluster.nmorelayers() >= layerMoreCut_) tcBuilder_.run(cluster, *out, &*outCl);
+                }
+                if (debugger_) HTDebugger::dumpHTClusters(prefix+"c3dp", map3d, hits3ds, layerSeedCut3d_, layerMoreCut_);
+
+                // clear the map
+                for (unsigned int i = 0; i < hits3ds.size(); ++i) {
+                    map3d.clear(hits3ds.ieta(i), hits3ds.iphi(i));
+                }
+                map3d.clearClusters();
+                for (unsigned int i = 0; i < hits2ds.size(); ++i) {
+                    map2d.clear(hits2ds.ieta(i), hits2ds.iphi(i));
+                }
+                map2d.clearClusters();
+            }
         }
-        map3d.clearClusters();
-        for (unsigned int i = 0; i < hits2ds.size(); ++i) {
-             map2d.clear(hits2ds.ieta(i), hits2ds.iphi(i));
-        }
-        map2d.clearClusters();
         break;
     }
 

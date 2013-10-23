@@ -3,7 +3,7 @@
 #include "DataFormats/TrackReco/interface/Track.h"
 
 namespace HTDebugger {
-    void dumpTracks(const std::string &name, const std::vector<reco::Track> & tracks) ;
+    void dumpTracks(const std::string &name, const std::vector<reco::Track> & tracks, double pT=0) ;
     void dumpHTHits3D(const std::string &name, const HTHits3D &hits, double zref) ;
     void dumpHTHitsSpher(const std::string &name, const HTHitsSpher &hits) ;
     void dumpHTHitMap(const std::string &name, const HTHitMap &map);

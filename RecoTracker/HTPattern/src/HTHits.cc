@@ -30,10 +30,7 @@ HTHitsSpher::filliphi(float alpha, unsigned int phibins)
     phiscale_ = phibins/(2*M_PI);
     iphi_.resize(size_);
     for (unsigned int i = 0; i < size_; ++i) {
-        float philoop = phi(i) - alpha * rho(i);
-        while (philoop < 0) philoop += float(2*M_PI);
-        while (philoop > float(2*M_PI)) philoop -= float(2*M_PI);
-        iphi_[i] = std::floor( philoop * phiscale_ );
+        iphi_[i] = std::floor( phi(i) * phiscale_ );
     }
 }
 
