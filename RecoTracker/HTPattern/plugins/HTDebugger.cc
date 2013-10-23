@@ -40,6 +40,7 @@ HTDebugger::dumpHTHits3D(const std::string &name, const HTHits3D &hits, double z
 void
 HTDebugger::dumpTracks(const std::string &name, const std::vector<reco::Track> & tracks, double pT)
 {
+    
     TTree * & tree = treesTk_[name];
     if (tree == 0) {
         edm::Service<TFileService> fs;
@@ -52,7 +53,11 @@ HTDebugger::dumpTracks(const std::string &name, const std::vector<reco::Track> &
         tree->Branch("layers3d",&layers3dTk_,"layers3d/I");
         tree->Branch("hp",&hpTk_,"hp/I");
     }
-    for (auto tk : tracks) {
+    std::vector<std::pair<float, const reco::Track *> > tksorted;
+    for (const reco::Track & tk : tracks) tksorted.push_back(std::make_pair(tk.eta(),&tk));
+    std::sort(tksorted.begin(),tksorted.end());
+    for (auto tkp : tksorted) {
+        const reco::Track &tk = *tkp.second;
         ptTk_ = tk.pt();
         etaTk_ = tk.eta();
         phiTk_ = tk.phi(); if (phiTk_ < 0) phiTk_ += 2*M_PI;

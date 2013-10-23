@@ -9,14 +9,25 @@
 #include "TrackingTools/GeomPropagators/interface/Propagator.h"
 #include "Geometry/TrackerGeometryBuilder/interface/TrackerGeometry.h"
 #include "DataFormats/TrajectorySeed/interface/TrajectorySeedCollection.h"
+#include "DataFormats/TrackCandidate/interface/TrackCandidateCollection.h"
 #include "TrackingTools/TransientTrackingRecHit/interface/TransientTrackingRecHitBuilder.h"
+#include "TrackingTools/KalmanUpdators/interface/Chi2MeasurementEstimatorBase.h"
+#include "TrackingTools/DetLayers/interface/NavigationSetter.h"
+#include "TrackingTools/DetLayers/interface/NavigationSchool.h"
+#include "RecoTracker/CkfPattern/interface/BaseCkfTrajectoryBuilder.h"
+#include "TrackingTools/TrajectoryCleaning/interface/TrajectoryCleaner.h"
+#include "RecoTracker/Record/interface/NavigationSchoolRecord.h"
+#include "RecoTracker/MeasurementDet/interface/MeasurementTrackerEvent.h"
+#include "RecoTracker/CkfPattern/interface/TransientInitialStateEstimator.h"
 
 
 class TrackCandidateBuilderFromCluster {
     public:
         TrackCandidateBuilderFromCluster(const edm::ParameterSet &iConfig) ;
+        ~TrackCandidateBuilderFromCluster() { delete initialStateEstimator_; }
 
-        void init(const edm::EventSetup& es, const SeedComparitor *ifilter) ;
+        void init(const edm::EventSetup& es, const MeasurementTrackerEvent &evt, const SeedComparitor *ifilter) ;
+        void done();
         void setHits(const HTHitsSpher  &hitsHiRes, const HTHitsSpher &hitsLowRes, 
                      const HTHitMap     &mapHiRes,  const HTHitMap    &mapLowRes,
                      std::vector<bool>  &maskHiRes,  std::vector<bool>     &maskLowRes,
@@ -26,7 +37,7 @@ class TrackCandidateBuilderFromCluster {
             maskHiRes_ = &maskHiRes; maskLowRes_ = &maskLowRes;
             etashift_ = etashift; phishift_ = phishift;
         }
-        void run(const HTCluster &cluster, TrajectorySeedCollection & seedCollection, TrajectorySeedCollection *seedsFromAllClusters=0) ;
+        void run(const HTCluster &cluster, TrackCandidateCollection & tcCollection, TrajectorySeedCollection & seedCollection, TrajectorySeedCollection *seedsFromAllClusters=0) ;
 
         struct ClusteredHit {
             ClusteredHit(const HTHitsSpher &hits, unsigned int i, unsigned int ly, float etaErr=0.02) :
@@ -46,9 +57,13 @@ class TrackCandidateBuilderFromCluster {
                 return dphi + std::abs(eta-beta*rho - eta0);
             }
         };
+
     protected:
         // --- Parameters ---
-        std::string propagatorLabel_, hitBuilderLabel_;
+        std::string propagatorLabel_, hitBuilderLabel_, estimatorLabel_, navigationSchoolLabel_, trajectoryBuilderLabel_, trajectoryCleanerLabel_;
+        bool cleanTrajectoryAfterInOut_;
+        edm::ParameterSet initialStateEstimatorPSet_;
+        bool useHitsSplitting_;
         float dCut_, dcCut_;
         unsigned int minHits_;
         std::vector<double> startingCovariance_;
@@ -56,20 +71,36 @@ class TrackCandidateBuilderFromCluster {
         // --- ES Stuff ---
         const SeedComparitor *filter = nullptr;
         edm::ESHandle<TrackerGeometry> tracker_;
-        edm::ESHandle<Propagator> propagator_;
+        edm::ESHandle<Propagator> propagator_, anyPropagator_;
         edm::ESHandle<MagneticField> bfield_;
         edm::ESHandle<TransientTrackingRecHitBuilder> hitBuilder_;
+        edm::ESHandle<Chi2MeasurementEstimatorBase>   estimator_;
+        edm::ESHandle<NavigationSchool>  navigationSchool_;
+        edm::ESHandle<TrajectoryBuilder> trajectoryBuilderTemplate_;
+        edm::ESHandle<TrajectoryCleaner> trajectoryCleaner_;
+        TransientInitialStateEstimator*  initialStateEstimator_;
 
         const HTHitsSpher  *hitsHiRes_, *hitsLowRes_;
         const HTHitMap *mapHiRes_,  *mapLowRes_;
         std::vector<bool> *maskHiRes_, *maskLowRes_;
         unsigned int etashift_, phishift_;
 
+        //std::vector<bool> *maskStripClusters_, *maskPixelClusters_;
+        
+        // per-event locals
+        std::auto_ptr<NavigationSetter> navigationSetter_;
+        std::auto_ptr<BaseCkfTrajectoryBuilder> trajectoryBuilder_;
+
         // --- Helper Functions ---
+        typedef std::vector<std::pair<uint32_t,unsigned int>> HitIndex;
         FreeTrajectoryState startingState(float eta0, float phi0, float alpha) const ;
         void refitAlphaBetaCorr(const std::vector<ClusteredHit> &cluster, const int *ihits, unsigned int nhits, float &alphacorr, float &betacorr, float &phi0, float &eta0) const ; 
         void dumpAsSeed(const std::vector<ClusteredHit> &cluster, TrajectorySeedCollection &seedCollection) const ;
-         
+        const TrajectorySeed * makeSeed(const std::vector<ClusteredHit> &hits, const std::array<int,20> &layerhits,  float eta0, float phi0, float alpha, TrajectorySeedCollection &out) const ;
+        void makeTrajectories(const TrajectorySeed &seed, std::vector<Trajectory> &out) const ;
+        void indexHits(const std::vector<ClusteredHit> &hits, HitIndex &index) const ;
+        int  findHit(const TrackingRecHit *hit, const std::vector<ClusteredHit> &hits, HitIndex &index) const ;
+        void saveCandidates(const TrajectorySeed &seed, const std::vector<Trajectory> &cands,  TrackCandidateCollection & tcCollection) const ;  
 };
 
 #endif

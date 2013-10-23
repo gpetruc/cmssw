@@ -61,6 +61,8 @@ class TestHT : public edm::EDProducer {
       edm::EDGetTokenT<std::vector<reco::Vertex> > vertices_;
       edm::EDGetTokenT<reco::BeamSpot> beamSpot_;
       edm::EDGetTokenT<std::vector<reco::Track> > tracks_;
+      edm::EDGetTokenT<MeasurementTrackerEvent> mtEvent_;
+
 
       // Configurables
       uint32_t etabins2d_, etabins3d_, phibins2d_, phibins3d_;
@@ -88,6 +90,7 @@ TestHT::TestHT(const edm::ParameterSet & iConfig) :
     vertices_(consumes<std::vector<reco::Vertex> >(iConfig.getParameter<edm::InputTag>("vertices"))),
     beamSpot_(consumes<reco::BeamSpot>(iConfig.getParameter<edm::InputTag>("beamSpot"))),
     tracks_(consumes<std::vector<reco::Track> >(iConfig.getParameter<edm::InputTag>("tracks"))),
+    mtEvent_(consumes<MeasurementTrackerEvent>(iConfig.getParameter<edm::InputTag>("measurementTrackerEvent"))),
     etabins2d_(iConfig.getParameter<uint32_t>("etabins2d")),
     etabins3d_(iConfig.getParameter<uint32_t>("etabins3d")),
     phibins2d_(iConfig.getParameter<uint32_t>("phibins2d")),
@@ -103,6 +106,7 @@ TestHT::TestHT(const edm::ParameterSet & iConfig) :
 {
     produces<TrajectorySeedCollection>();  
     produces<TrajectorySeedCollection>("clusters");  
+    produces<TrackCandidateCollection>();  
 }
 
 void 
@@ -125,9 +129,6 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
     double bfield = bfield_->inTesla(GlobalPoint(0.,0.,0.)).z();
     std::cout << "Magnetic field: " << bfield << std::endl;
 
-    // initialize the builder
-    tcBuilder_.init(iSetup, nullptr);
-
     edm::Handle<reco::BeamSpot> beamSpot;
     iEvent.getByToken(beamSpot_, beamSpot);
 
@@ -138,8 +139,15 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
     iEvent.getByToken(tracks_, tracks);
     if (debugger_) HTDebugger::dumpTracks(prefix+"tk", *tracks);
 
+    edm::Handle<MeasurementTrackerEvent> mtEvent;
+    iEvent.getByToken(mtEvent_, mtEvent);
+
+    // initialize the builder
+    tcBuilder_.init(iSetup, *mtEvent, nullptr);
+
     std::auto_ptr<TrajectorySeedCollection> out(new TrajectorySeedCollection());
     std::auto_ptr<TrajectorySeedCollection> outCl(new TrajectorySeedCollection());
+    std::auto_ptr<TrackCandidateCollection> outTC(new TrackCandidateCollection());
 
     HTHits3D hits3d(beamSpot->position().x(), beamSpot->position().y()); // make pixels
     getPixelHits3D(iEvent, *beamSpot, hits3d);
@@ -211,7 +219,7 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
                         cluster.nseedlayers(), cluster.nlayers(), cluster.nmorelayers());
                 }
                 for (auto & cluster : map3d.clusters()) {
-                    if (cluster.nmorelayers() >= layerMoreCut_) tcBuilder_.run(cluster, *out, &*outCl);
+                    if (cluster.nmorelayers() >= layerMoreCut_) tcBuilder_.run(cluster, *outTC, *out, &*outCl);
                 }
                 if (debugger_) HTDebugger::dumpHTClusters(prefix+"c3dp", map3d, hits3ds, layerSeedCut3d_, layerMoreCut_);
 
@@ -229,6 +237,8 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
         break;
     }
 
+    tcBuilder_.done();
+    iEvent.put(outTC);
     iEvent.put(out);
     iEvent.put(outCl, "clusters");
 }

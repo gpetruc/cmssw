@@ -1,6 +1,12 @@
 import FWCore.ParameterSet.Config as cms
 
 import RecoPixelVertexing.PixelVertexFinding.PixelVertexes_cfi
+import RecoTracker.IterativeTracking.InitialStep_cff
+htCkfTrajectoryBuilder = RecoTracker.IterativeTracking.InitialStep_cff.initialStepTrajectoryBuilder.clone(
+    ComponentName = cms.string('htCkfTrajectoryBuilder'),
+    minNrOfHitsForRebuild = cms.int32(0),
+    requireSeedHitsInRebuild = cms.bool(False),
+)
 
 pixelVerticesZero = RecoPixelVertexing.PixelVertexFinding.PixelVertexes_cfi.pixelVertices.clone()
 
@@ -12,6 +18,7 @@ testHTSeeds = cms.EDProducer("TestHT",
     pixelHits = cms.InputTag('siPixelRecHits'),
     stripHits = cms.InputTag("siStripMatchedRecHits","rphiRecHit"),
     stripHits2D = cms.InputTag("siStripMatchedRecHits","matchedRecHit"),
+    measurementTrackerEvent = cms.InputTag("MeasurementTrackerEvent"),
     # binning
     etabins2d = cms.uint32(32),
     phibins2d = cms.uint32(64),
@@ -28,16 +35,28 @@ testHTSeeds = cms.EDProducer("TestHT",
     # seed builder
     seedBuilderConfig = cms.PSet(
         propagator = cms.string('PropagatorWithMaterial'),
-        TTRHBuilder = cms.string('TTRHBuilderWithoutAngle4MixedTriplets'), ## boh?
+        #TTRHBuilder = cms.string('TTRHBuilderWithoutAngle4MixedTriplets'), ## boh?
+        TTRHBuilder = cms.string('WithTrackAngle'), 
+        chi2MeasurementEstimator = cms.string("initialStepChi2Est"),
+        NavigationSchool  = cms.string('SimpleNavigationSchool'),
+        TrajectoryBuilder = cms.string('htCkfTrajectoryBuilder'),
+        TrajectoryCleaner = cms.string('TrajectoryCleanerBySharedHits'),
+        cleanTrajectoryAfterInOut = cms.bool(True),
+        useHitsSplitting = cms.bool(True),
         dist2dCut = cms.double(0.05),
         dist2dCorrCut = cms.double(0.15),
-        minHits = cms.uint32(5),
+        minHits = cms.uint32(4),
         startingCovariance = cms.vdouble(
             100., # 1/pt,
             100., #  lambda
             100., # phi
             100., # x_t
             100., # y_t
+        ),
+        transientInitialStateEstimatorParameters = cms.PSet(
+            propagatorAlongTISE = cms.string('PropagatorWithMaterial'),
+            numberMeasurementsForFit = cms.int32(4),
+            propagatorOppositeTISE = cms.string('PropagatorWithMaterialOpposite')
         ),
     ),
     # for debugging

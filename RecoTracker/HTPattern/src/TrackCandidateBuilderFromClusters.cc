@@ -9,6 +9,8 @@
 #include "TrackingTools/Records/interface/TransientRecHitRecord.h" 
 #include "TrackingTools/TrajectoryState/interface/TrajectoryStateTransform.h"
 #include "TrackingTools/TrajectoryState/interface/TrajectoryStateAccessor.h"
+#include "RecoTracker/Record/interface/CkfComponentsRecord.h"
+#include "FWCore/Utilities/interface/isFinite.h"
 #include "Math/GenVector/CylindricalEta3D.h"
 
 
@@ -23,31 +25,66 @@ namespace {
 TrackCandidateBuilderFromCluster::TrackCandidateBuilderFromCluster(const edm::ParameterSet &iConfig) :
     propagatorLabel_(iConfig.getParameter<std::string>("propagator")),
     hitBuilderLabel_(iConfig.getParameter<std::string>("TTRHBuilder")),
+    estimatorLabel_(iConfig.getParameter<std::string>("chi2MeasurementEstimator")),
+    navigationSchoolLabel_(iConfig.getParameter<std::string>("NavigationSchool")),
+    trajectoryBuilderLabel_(iConfig.getParameter<std::string>("TrajectoryBuilder")),
+    trajectoryCleanerLabel_(iConfig.getParameter<std::string>("TrajectoryCleaner")),
+    cleanTrajectoryAfterInOut_(iConfig.getParameter<bool>("cleanTrajectoryAfterInOut")),
+    initialStateEstimatorPSet_(iConfig.getParameter<edm::ParameterSet>("transientInitialStateEstimatorParameters")),
+    useHitsSplitting_(iConfig.getParameter<bool>("useHitsSplitting")),
     dCut_(iConfig.getParameter<double>("dist2dCut")),
     dcCut_(iConfig.getParameter<double>("dist2dCorrCut")),
     minHits_(iConfig.getParameter<uint32_t>("minHits")),
-    startingCovariance_(iConfig.getParameter<std::vector<double>>("startingCovariance"))
+    startingCovariance_(iConfig.getParameter<std::vector<double>>("startingCovariance")),
+    initialStateEstimator_(0)
 {
 }
 
 void 
-TrackCandidateBuilderFromCluster::init(const edm::EventSetup& es, const SeedComparitor *ifilter)
+TrackCandidateBuilderFromCluster::init(const edm::EventSetup& es, const MeasurementTrackerEvent &evt, const SeedComparitor *ifilter)
 {
     filter = ifilter;
     // get tracker
     es.get<TrackerDigiGeometryRecord>().get(tracker_);
     // get propagator
     es.get<TrackingComponentsRecord>().get(propagatorLabel_, propagator_);
+    es.get<TrackingComponentsRecord>().get("AnyDirectionAnalyticalPropagator", anyPropagator_);
     //
     es.get<TransientRecHitRecord>().get(hitBuilderLabel_,hitBuilder_);
     
     es.get<IdealMagneticFieldRecord>().get(bfield_);
+    es.get<TrackingComponentsRecord>().get(estimatorLabel_,estimator_);  
+
+    es.get<TrajectoryCleaner::Record>().get(trajectoryCleanerLabel_, trajectoryCleaner_);
+
+    es.get<CkfComponentsRecord>().get(trajectoryBuilderLabel_, trajectoryBuilderTemplate_);    
+    const BaseCkfTrajectoryBuilder *builder = dynamic_cast<const BaseCkfTrajectoryBuilder *>(trajectoryBuilderTemplate_.product());
+    assert(builder != 0);
+    trajectoryBuilder_.reset(builder->clone(&evt)); 
+    //maskStripClusters_ = & evt.stripClustersToSkip();
+    //maskPixelClusters_ = & evt.pixelClustersToSkip();
+
+    es.get<NavigationSchoolRecord>().get(navigationSchoolLabel_, navigationSchool_);
+    navigationSetter_.reset(new NavigationSetter(*navigationSchool_));
+
+    if (initialStateEstimator_ == 0) {
+        initialStateEstimator_ = new TransientInitialStateEstimator(es, initialStateEstimatorPSet_);
+    }
+    initialStateEstimator_->setEventSetup(es);
+}
+
+void 
+TrackCandidateBuilderFromCluster::done() 
+{
+    trajectoryBuilder_.reset();
+    navigationSetter_.reset();
 }
 
 void
-TrackCandidateBuilderFromCluster::run(const HTCluster &cluster, TrajectorySeedCollection & seedCollection, TrajectorySeedCollection *seedsFromAllClusters) 
+TrackCandidateBuilderFromCluster::run(const HTCluster &cluster,  TrackCandidateCollection & tcCollection, TrajectorySeedCollection & seedCollection, TrajectorySeedCollection *seedsFromAllClusters) 
 {
     std::vector<ClusteredHit> hits; hits.reserve(50);
+    HitIndex hitindex;
     const HTCell &seed = mapHiRes_->get(cluster.ieta(), cluster.iphi());
     printf("\n --- Cluster #%03d with %d seed layers, %d hi-res layers, %d layers --- \n", seed.icluster(), cluster.nseedlayers(), cluster.nlayers(), cluster.nmorelayers());
     for (int hit : seed.hits()) {
@@ -108,7 +145,6 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster, TrajectorySeedCo
         }
         ++microclusters;
         printf("starting microcluster %d with pair %3d, %3d: (%+5.3f,%+5.3f, ly %2d)  (%+5.3f,%+5.3f ly %2d)\n", microclusters, i1,i2, hits[i1].eta,hits[i1].phi,hits[i1].layer, hits[i2].eta,hits[i2].phi,hits[i2].layer);
-        microcluster[i1] = microcluster[i1] = microclusters;
         // apply pt correction from two hits
         float alphacorr = (hits[i1].phi - hits[i2].phi)/(hits[i1].rho - hits[i2].rho);
         // apply eta correction (approximate)
@@ -130,7 +166,7 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster, TrajectorySeedCo
             for (unsigned int i3 = 0; i3 < nhits; ++i3) {
                 if (microcluster[i3]) continue;
                 float dc = hits[i3].dist2d(eta0,phi0,alphacorr,betacorr);
-                printf("\thit %2d (%+5.3f,%+5.3f, ly %2d): d2d(0) %.4f, d2dc(0) %.4f\n",i3, hits[i3].eta,hits[i3].phi,hits[i3].layer, hits[i3].dist2d(eta0,phi0,0.f,0.f), dc);
+                //printf("\thit %2d (%+5.3f,%+5.3f, ly %2d): d2d(0) %.4f, d2dc(0) %.4f\n",i3, hits[i3].eta,hits[i3].phi,hits[i3].layer, hits[i3].dist2d(eta0,phi0,0.f,0.f), dc);
                 if (dc > layerdist[hits[i3].layer]) continue;
                 if (layerhits[hits[i3].layer] == -1) {
                     microclusternhits++;
@@ -149,6 +185,7 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster, TrajectorySeedCo
                 refitAlphaBetaCorr(hits, &mchits4refit[0], microclusternhits, alphacorr, betacorr, phi0, eta0);
             }
         }
+
         printf("microcluster %d (%d hits)\n", microclusters, microclusternhits);
         for (unsigned int il = 0; il < layerhits.size(); ++il) {
             if (layerhits[il] == -1) continue;
@@ -156,53 +193,25 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster, TrajectorySeedCo
             microcluster[layerhits[il]] = microclusters;
         }
         if (microclusternhits < minHits_) continue;
-        // sort hits along R, since the layer number sorting is not correct in the endcaps
-        std::vector<std::pair<float,const TrackingRecHit *> > hitsSorted;
-        for (unsigned int il = 0; il < layerhits.size(); ++il) {
-            if (layerhits[il] == -1) continue;
-            hitsSorted.push_back(std::make_pair(hypot(hits[layerhits[il]].rho, hits[layerhits[il]].z - hitsHiRes_->z0()), hits[layerhits[il]].hit));
-        }
-        std::sort(hitsSorted.begin(), hitsSorted.end());
-        // ok now we build the seed
-        FreeTrajectoryState fts(startingState(eta0,phi0,hitsHiRes_->alpha()+alphacorr));
-        TrajectoryStateOnSurface tsos;
-        edm::OwnVector<TrackingRecHit> seedHits; seedHits.reserve(nhits);
-        KFUpdator updator;
-        const TrackingRecHit* lasthit = 0;
-        unsigned int myhits = 0;
-        for (const std::pair<float,const TrackingRecHit *> & pair: hitsSorted) {
-            const TrackingRecHit* hit = pair.second;
-            TrajectoryStateOnSurface state = (lasthit == 0) ?
-                  propagator_->propagate(fts,  tracker_->idToDet(hit->geographicalId())->surface())
-                : propagator_->propagate(tsos, tracker_->idToDet(hit->geographicalId())->surface());
-            if (!state.isValid()) { printf ("\tfailed propagation\n"); break; }
-            //printf("\t\t propagated state: 1/p = %+9.5f +/- %9.5f,  pt = %7.2f +/- %7.2f\n", 
-            //                state.globalParameters().signedInverseMomentum(), std::sqrt(state.curvilinearError().matrix()(0,0)),
-            //                state.globalMomentum().perp(), TrajectoryStateAccessor(*state.freeState()).inversePtError()*state.globalMomentum().perp2());
-            TransientTrackingRecHit::RecHitPointer tth = hitBuilder_->build(hit);
-            tth = tth->clone(state);
-            TrajectoryStateOnSurface updated = updator.update(state, *tth);
-            if (!updated.isValid()) { printf("\tfailed update\n"); break; }
-            tsos = updated;
-            //printf("\t\t updated    state: 1/p = %+9.5f +/- %9.5f,  pt = %7.2f +/- %7.2f\n", 
-            //                tsos.globalParameters().signedInverseMomentum(), std::sqrt(tsos.curvilinearError().matrix()(0,0)),
-            //                tsos.globalMomentum().perp(), TrajectoryStateAccessor(*tsos.freeState()).inversePtError()*tsos.globalMomentum().perp2());
-            seedHits.push_back(tth->hit()->clone());
-            lasthit = hit;
-            myhits++;
-            if (myhits > 1) printf("\tKF-fitted %d hits (pt = %7.2f +/- %7.2f, q = %+1d)\n", myhits, tsos.globalMomentum().perp(), TrajectoryStateAccessor(*tsos.freeState()).inversePtError()*tsos.globalMomentum().perp2(), tsos.charge());
-        }
-        if (myhits >= minHits_) {
-            PTrajectoryStateOnDet const & PTraj = trajectoryStateTransform::persistentState(tsos, lasthit->geographicalId().rawId());
-            TrajectorySeed seed(PTraj,std::move(seedHits),alongMomentum);
-            seedCollection.push_back(seed);
-            for (unsigned int il = 0; il < layerhits.size(); ++il) {
-                if (layerhits[il] == -1) continue;
-                std::vector<bool> *mask = layerhits[il] < int(nhireshits) ?  maskHiRes_ : maskLowRes_;
-                (*mask)[hits[layerhits[il]].id] = true;
+        const TrajectorySeed *seed = makeSeed(hits,layerhits, eta0,phi0,hitsHiRes_->alpha()+alphacorr, seedCollection);
+        if (seed == 0) continue;
+
+        std::vector<Trajectory> trajectories;
+        makeTrajectories(*seed, trajectories);
+        
+        if (trajectories.empty()) continue;
+        for (const Trajectory &traj : trajectories) {
+            if (!traj.isValid()) continue;
+            printf("built trajectory with %d found hits, %d lost hits\n", traj.foundHits(), traj.lostHits());
+            for (const TrajectoryMeasurement &tm : traj.measurements()) {
+                if (!tm.recHit()->isValid()) continue;
+                int ihit = findHit(tm.recHit()->hit(), hits, hitindex);
+                if (ihit == -1) continue;
+                std::vector<bool> *mask = ihit < int(nhireshits) ?  maskHiRes_ : maskLowRes_;
+                (*mask)[hits[ihit].id] = true;
             }
-            printf("--> saved as trajectory seed!\n");
         }
+        saveCandidates(*seed, trajectories, tcCollection);
     }
 }
 
@@ -214,8 +223,8 @@ TrackCandidateBuilderFromCluster::startingState(float eta0, float phi0, float al
     ROOT::Math::CylindricalEta3D<double> p3d(pt, eta0, phi0);
     GlobalPoint  x(hitsHiRes_->x0(), hitsHiRes_->y0(), hitsHiRes_->z0());
     GlobalVector p(p3d.x(), p3d.y(), p3d.z());
-    GlobalTrajectoryParameters gtp(x,p, alpha > 0 ? +1 : -1, &*bfield_);
-    printf("Cluster for pT %8.4f, eta %+5.3f, phi %+5.3f, q %+2d\n", pt, eta0, phi0, alpha > 0 ? +1 : -1);
+    GlobalTrajectoryParameters gtp(x,p, alpha > 0 ? -1 : +1, &*bfield_);
+    printf("Cluster for pT %8.4f, eta %+5.3f, phi %+5.3f, q %+2d\n", pt, eta0, phi0, alpha > 0 ? -1 : +1);
 
     AlgebraicSymMatrix55 cov;
     for (unsigned int i = 0; i < 5; ++i) cov(i,i) = startingCovariance_[i];
@@ -260,3 +269,146 @@ TrackCandidateBuilderFromCluster::refitAlphaBetaCorr(const std::vector<Clustered
     eta0 += deta[0];
     betacorr = deta[1];
 }
+
+const TrajectorySeed *
+TrackCandidateBuilderFromCluster::makeSeed(const std::vector<ClusteredHit> &hits, const std::array<int,20> &layerhits,  float eta0, float phi0, float alpha, TrajectorySeedCollection &out) const 
+{
+    // sort hits along R, since the layer number sorting is not correct in the endcaps
+    std::vector<std::pair<float,const TrackingRecHit *> > hitsSorted;
+    for (unsigned int il = 0; il < layerhits.size(); ++il) {
+        if (layerhits[il] == -1) continue;
+        hitsSorted.push_back(std::make_pair(hypot(hits[layerhits[il]].rho, hits[layerhits[il]].z - hitsHiRes_->z0()), hits[layerhits[il]].hit));
+    }
+    std::sort(hitsSorted.begin(), hitsSorted.end());
+
+    // ok now we build the seed
+    FreeTrajectoryState fts(startingState(eta0,phi0,alpha));
+    TrajectoryStateOnSurface tsos;
+    edm::OwnVector<TrackingRecHit> seedHits; seedHits.reserve(hitsSorted.size());
+    KFUpdator updator;
+    const TrackingRecHit* lasthit = 0;
+    unsigned int myhits = 0; unsigned int myskip = 0;
+    for (const std::pair<float,const TrackingRecHit *> & pair: hitsSorted) {
+        const TrackingRecHit* hit = pair.second;
+        TrajectoryStateOnSurface state = (lasthit == 0) ?
+            propagator_->propagate(fts,  tracker_->idToDet(hit->geographicalId())->surface())
+            : propagator_->propagate(tsos, tracker_->idToDet(hit->geographicalId())->surface());
+        if (!state.isValid()) { printf ("\tfailed propagation\n"); break; }
+        //printf("\t\t propagated state: 1/p = %+9.5f +/- %9.5f,  pt = %7.2f +/- %7.2f\n", 
+        //                state.globalParameters().signedInverseMomentum(), std::sqrt(state.curvilinearError().matrix()(0,0)),
+        //                state.globalMomentum().perp(), TrajectoryStateAccessor(*state.freeState()).inversePtError()*state.globalMomentum().perp2());
+        TransientTrackingRecHit::RecHitPointer tth = hitBuilder_->build(hit);
+        tth = tth->clone(state);
+        std::pair<bool,double> chi2 = estimator_->estimate(state, *tth);
+        if (!chi2.first) {
+            printf("\tSkipping hit due to bad chi2 = %7.1f\n", chi2.second);
+            myskip++; if (myskip == 2) break;
+            continue;
+        } else {
+            myskip = 0;
+        }
+        TrajectoryStateOnSurface updated = updator.update(state, *tth);
+        if (!updated.isValid()) { printf("\tfailed update\n"); break; }
+        tsos = updated;
+        //printf("\t\t updated    state: 1/p = %+9.5f +/- %9.5f,  pt = %7.2f +/- %7.2f\n", 
+        //                tsos.globalParameters().signedInverseMomentum(), std::sqrt(tsos.curvilinearError().matrix()(0,0)),
+        //                tsos.globalMomentum().perp(), TrajectoryStateAccessor(*tsos.freeState()).inversePtError()*tsos.globalMomentum().perp2());
+        seedHits.push_back(tth->hit()->clone());
+        lasthit = hit;
+        myhits++;
+        if (myhits > 1) printf("\tKF-fitted %d hits (last chi2 = %7.1f; pt = %7.2f +/- %7.2f, q = %+1d)\n", myhits, chi2.second, tsos.globalMomentum().perp(), TrajectoryStateAccessor(*tsos.freeState()).inversePtError()*tsos.globalMomentum().perp2(), tsos.charge());
+    }
+    if (myhits >= minHits_) {
+        PTrajectoryStateOnDet const & PTraj = trajectoryStateTransform::persistentState(tsos, lasthit->geographicalId().rawId());
+        TrajectorySeed seed(PTraj,std::move(seedHits),alongMomentum);
+        out.push_back(seed);
+        printf("--> saved as trajectory seed!\n");
+        return &out.back();
+    }
+    return 0;
+}
+
+void
+TrackCandidateBuilderFromCluster::makeTrajectories(const TrajectorySeed &seed, std::vector<Trajectory> &out) const 
+{
+    out.clear();
+    auto const & startTraj = trajectoryBuilder_->buildTrajectories(seed, out, nullptr);
+    printf("\t created %lu trajectories in-out (before cleaning) \n", out.size());
+    if (cleanTrajectoryAfterInOut_) {
+        trajectoryCleaner_->clean(out);
+        out.erase(std::remove_if(out.begin(),out.end(), std::not1(std::mem_fun_ref(&Trajectory::isValid))), out.end());
+    }
+    printf("\t created %lu trajectories in-out (after cleaning) \n", out.size());
+    trajectoryBuilder_->rebuildTrajectories(startTraj, seed, out);
+    printf("\t created %lu trajectories out-on (before cleaning) \n", out.size());
+    trajectoryCleaner_->clean(out);
+    out.erase(std::remove_if(out.begin(),out.end(), std::not1(std::mem_fun_ref(&Trajectory::isValid))), out.end());
+    printf("\t created %lu trajectories out-in (before after cleaning)\n", out.size());
+}
+
+
+void
+TrackCandidateBuilderFromCluster::saveCandidates(const TrajectorySeed &seed, const std::vector<Trajectory> &cands,  TrackCandidateCollection & tcCollection) const 
+{
+    for (const Trajectory & traj : cands) {
+        if (!traj.isValid()) continue;
+
+        Trajectory::RecHitContainer thits;
+        traj.recHitsV(thits,useHitsSplitting_);
+        edm::OwnVector<TrackingRecHit> recHits;
+        recHits.reserve(thits.size());
+        for (const auto & hit : thits) {
+            recHits.push_back( hit->hit()->clone() );
+        }
+
+        std::pair<TrajectoryStateOnSurface, const GeomDet*> initState = initialStateEstimator_->innerState(traj , true);
+
+        // temporary protection againt invalid initial states
+        if (! initState.first.isValid() || initState.second == 0 || edm::isNotFinite(initState.first.globalPosition().x())) {
+            //cout << "invalid innerState, will not make TrackCandidate" << endl;
+            continue;
+        }
+       
+        float phipos = initState.first.globalMomentum().phi(); if (phipos < 0) phipos += 2*M_PI;
+        printf("\tinitial state: eta = %+5.3f, phi = %+5.3f, pt = %7.2f +/- %7.2f, q = %+1d)\n", 
+            initState.first.globalMomentum().eta(), phipos, 
+            initState.first.globalMomentum().perp(), TrajectoryStateAccessor(*initState.first.freeState()).inversePtError()*initState.first.globalMomentum().perp2(), initState.first.charge());
+
+        PTrajectoryStateOnDet state;
+        if(useHitsSplitting_ && (initState.second != thits.front()->det()) && thits.front()->det() ){
+            TrajectoryStateOnSurface propagated = anyPropagator_->propagate(initState.first,thits.front()->det()->surface());
+            if (!propagated.isValid()) continue;
+            state = trajectoryStateTransform::persistentState(propagated,
+                    thits.front()->det()->geographicalId().rawId());
+        }
+        else state = trajectoryStateTransform::persistentState( initState.first,
+                initState.second->geographicalId().rawId());
+        tcCollection.push_back(TrackCandidate(recHits,traj.seed(),state,traj.seedRef(),traj.nLoops() ) );
+
+    }
+}
+
+void
+TrackCandidateBuilderFromCluster::indexHits(const std::vector<ClusteredHit> &hits, std::vector<std::pair<uint32_t,unsigned int>> &index) const 
+{
+    unsigned int n = hits.size();
+    index.resize(n);
+    for (unsigned int i = 0; i < n; ++i) {
+        index.push_back(std::make_pair(hits[i].hit->geographicalId().rawId(), i));
+    }
+    std::sort(index.begin(), index.end());
+}
+
+int 
+TrackCandidateBuilderFromCluster::findHit(const TrackingRecHit *hit, const std::vector<ClusteredHit> &hits, HitIndex &index) const 
+{
+    //printf("\t\t find hit %u in %lu hits\n", detid, hits.size());
+    if (index.empty()) indexHits(hits, index);
+    uint32_t detid = hit->geographicalId().rawId();
+    HitIndex::const_iterator match = std::lower_bound(index.begin(), index.end(), std::make_pair(detid,0u));
+    for (;match != index.end() && match->first == detid; ++match) {
+        if (hits[match->second].hit->sharesInput(hit, TrackingRecHit::all)) return match->second;
+    } 
+    return -1;
+}
+
