@@ -1,6 +1,7 @@
 #include "FWCore/ServiceRegistry/interface/Service.h"
 #include "CommonTools/UtilAlgos/interface/TFileService.h"
 #include "RecoTracker/HTPattern/plugins/HTDebugger.h"
+#include "RecoTracker/HTPattern/interface/TrackCandidateBuilderFromCluster.h"
 #include <TGraph.h>
 #include <TH2.h>
 #include <TTree.h>
@@ -67,8 +68,11 @@ HTDebugger::dumpTracks(const std::string &name, const std::vector<reco::Track> &
         hpTk_ = tk.quality(reco::Track::highPurity); 
         if (pT == 0) {
             tree->Fill();
-            if (ptTk_ > 0.5 && hpTk_) {
-                printf("Track pt %8.4f, eta %+5.3f, phi %+5.3f, q %+2d, hits %2d, 3d layers %2d, vz %+5.3f\n", ptTk_, etaTk_, phiTk_, tk.charge(), hitsTk_, layers3dTk_, zTk_); 
+            if (ptTk_ > 0.250 && hpTk_) {
+                printf("Track pt %8.4f, eta %+5.3f, phi %+5.3f, q %+2d, hits %2d, 3d layers %2d, vz %+5.3f, algo %2d\n", ptTk_, etaTk_, phiTk_, tk.charge(), hitsTk_, layers3dTk_, zTk_, tk.algo()); 
+                for (trackingRecHit_iterator it = tk.recHitsBegin(), ed = tk.recHitsEnd(); it != ed; ++it) {
+                    printf("\thit on detid %10d/%7d (valid? %1d)\n", (*it)->geographicalId().rawId(), TrackCandidateBuilderFromCluster::hitid(&**it), (*it)->isValid());
+                }
             }
         }
     }

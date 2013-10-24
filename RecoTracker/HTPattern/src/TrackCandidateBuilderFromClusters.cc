@@ -11,6 +11,9 @@
 #include "TrackingTools/TrajectoryState/interface/TrajectoryStateAccessor.h"
 #include "RecoTracker/Record/interface/CkfComponentsRecord.h"
 #include "FWCore/Utilities/interface/isFinite.h"
+#include "DataFormats/TrackerRecHit2D/interface/TrackerSingleRecHit.h"
+#include "DataFormats/TrackerRecHit2D/interface/SiStripMatchedRecHit2D.h"
+#include "DataFormats/TrackerRecHit2D/interface/SiPixelRecHit.h"
 #include "Math/GenVector/CylindricalEta3D.h"
 
 
@@ -24,6 +27,7 @@ namespace {
 
 TrackCandidateBuilderFromCluster::TrackCandidateBuilderFromCluster(const edm::ParameterSet &iConfig) :
     propagatorLabel_(iConfig.getParameter<std::string>("propagator")),
+    propagatorOppositeLabel_(iConfig.getParameter<std::string>("propagatorOpposite")),
     hitBuilderLabel_(iConfig.getParameter<std::string>("TTRHBuilder")),
     estimatorLabel_(iConfig.getParameter<std::string>("chi2MeasurementEstimator")),
     navigationSchoolLabel_(iConfig.getParameter<std::string>("NavigationSchool")),
@@ -48,6 +52,7 @@ TrackCandidateBuilderFromCluster::init(const edm::EventSetup& es, const Measurem
     es.get<TrackerDigiGeometryRecord>().get(tracker_);
     // get propagator
     es.get<TrackingComponentsRecord>().get(propagatorLabel_, propagator_);
+    es.get<TrackingComponentsRecord>().get(propagatorOppositeLabel_, propagatorOpposite_);
     es.get<TrackingComponentsRecord>().get("AnyDirectionAnalyticalPropagator", anyPropagator_);
     //
     es.get<TransientRecHitRecord>().get(hitBuilderLabel_,hitBuilder_);
@@ -85,6 +90,7 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster,  TrackCandidateC
 {
     std::vector<ClusteredHit> hits; hits.reserve(50);
     HitIndex hitindex;
+    std::vector<Trajectory> allTrajectories; allTrajectories.reserve(5);
     const HTCell &seed = mapHiRes_->get(cluster.ieta(), cluster.iphi());
     printf("\n --- Cluster #%03d with %d seed layers, %d hi-res layers, %d layers --- \n", seed.icluster(), cluster.nseedlayers(), cluster.nlayers(), cluster.nmorelayers());
     for (int hit : seed.hits()) {
@@ -144,7 +150,7 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster,  TrackCandidateC
             continue;
         }
         ++microclusters;
-        printf("starting microcluster %d with pair %3d, %3d: (%+5.3f,%+5.3f, ly %2d)  (%+5.3f,%+5.3f ly %2d)\n", microclusters, i1,i2, hits[i1].eta,hits[i1].phi,hits[i1].layer, hits[i2].eta,hits[i2].phi,hits[i2].layer);
+        printf("starting microcluster %d with pair %3d, %3d: (%+5.3f,%+5.3f, ly %2d, detid %10d/%7d)  (%+5.3f,%+5.3f ly %2d, detid %10d/%7d)\n", microclusters, i1,i2, hits[i1].eta,hits[i1].phi,hits[i1].layer,hits[i1].hit->geographicalId().rawId(),hitid(hits[i1].hit), hits[i2].eta,hits[i2].phi,hits[i2].layer,hits[i2].hit->geographicalId().rawId(),hitid(hits[i2].hit));
         // apply pt correction from two hits
         float alphacorr = (hits[i1].phi - hits[i2].phi)/(hits[i1].rho - hits[i2].rho);
         // apply eta correction (approximate)
@@ -166,7 +172,9 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster,  TrackCandidateC
             for (unsigned int i3 = 0; i3 < nhits; ++i3) {
                 if (microcluster[i3]) continue;
                 float dc = hits[i3].dist2d(eta0,phi0,alphacorr,betacorr);
-                //printf("\thit %2d (%+5.3f,%+5.3f, ly %2d): d2d(0) %.4f, d2dc(0) %.4f\n",i3, hits[i3].eta,hits[i3].phi,hits[i3].layer, hits[i3].dist2d(eta0,phi0,0.f,0.f), dc);
+                printf("\thit %2d %c (%+5.3f,%+5.3f, ly %2d): d2d(0) %.4f, d2dc(0) %.4f  detid %10d/%7d\n",i3, 
+                        i3 < nseedhits ? 'S' : (i3 < nhireshits ? 'H' : 'L'),
+                        hits[i3].eta,hits[i3].phi,hits[i3].layer, hits[i3].dist2d(eta0,phi0,0.f,0.f), dc, hits[i3].hit->geographicalId().rawId(),hitid(hits[i3].hit));
                 if (dc > layerdist[hits[i3].layer]) continue;
                 if (layerhits[hits[i3].layer] == -1) {
                     microclusternhits++;
@@ -189,29 +197,37 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster,  TrackCandidateC
         printf("microcluster %d (%d hits)\n", microclusters, microclusternhits);
         for (unsigned int il = 0; il < layerhits.size(); ++il) {
             if (layerhits[il] == -1) continue;
-            printf("\ton layer %2d (seed: %c): %3d, dist %7.4f (rho %5.1f)\n", il, (layerhits[il] == int(i1) || layerhits[il] == int(i2) ? 'Y' : 'n'),  layerhits[il], layerdist[il], hits[layerhits[il]].rho);
-            microcluster[layerhits[il]] = microclusters;
+            printf("\ton layer %2d (seed: %c): %3d, dist %7.4f (rho %5.1f) detid %10d/%7d\n", il, (layerhits[il] == int(i1) || layerhits[il] == int(i2) ? 'Y' : 'n'),  layerhits[il], layerdist[il], hits[layerhits[il]].rho, hits[layerhits[il]].hit->geographicalId().rawId(),hitid(hits[layerhits[il]].hit));
         }
         if (microclusternhits < minHits_) continue;
-        const TrajectorySeed *seed = makeSeed(hits,layerhits, eta0,phi0,hitsHiRes_->alpha()+alphacorr, seedCollection);
+        const TrajectorySeed *seed = makeSeed(hits, std::make_pair(i1,i2), layerhits, eta0,phi0,hitsHiRes_->alpha()+alphacorr, seedCollection);
+        if (seed == 0) {
+            seed = makeSeed2Way(hits, std::make_pair(i1,i2), layerhits, eta0,phi0,hitsHiRes_->alpha()+alphacorr, seedCollection);
+        }
         if (seed == 0) continue;
 
         std::vector<Trajectory> trajectories;
         makeTrajectories(*seed, trajectories);
         
         if (trajectories.empty()) continue;
-        for (const Trajectory &traj : trajectories) {
+        for (Trajectory &traj : trajectories) {
             if (!traj.isValid()) continue;
             printf("built trajectory with %d found hits, %d lost hits\n", traj.foundHits(), traj.lostHits());
             for (const TrajectoryMeasurement &tm : traj.measurements()) {
                 if (!tm.recHit()->isValid()) continue;
                 int ihit = findHit(tm.recHit()->hit(), hits, hitindex);
                 if (ihit == -1) continue;
+                microcluster[ihit] = microclusters;
                 std::vector<bool> *mask = ihit < int(nhireshits) ?  maskHiRes_ : maskLowRes_;
                 (*mask)[hits[ihit].id] = true;
             }
+            allTrajectories.push_back(std::move(traj));
         }
-        saveCandidates(*seed, trajectories, tcCollection);
+    }
+    if (!allTrajectories.empty()) {
+        printf("Final list of trajectories from this cluster:\n");
+        trajectoryCleaner_->clean(allTrajectories);
+        saveCandidates(allTrajectories, tcCollection);
     }
 }
 
@@ -271,13 +287,14 @@ TrackCandidateBuilderFromCluster::refitAlphaBetaCorr(const std::vector<Clustered
 }
 
 const TrajectorySeed *
-TrackCandidateBuilderFromCluster::makeSeed(const std::vector<ClusteredHit> &hits, const std::array<int,20> &layerhits,  float eta0, float phi0, float alpha, TrajectorySeedCollection &out) const 
+TrackCandidateBuilderFromCluster::makeSeed(const std::vector<ClusteredHit> &hits, std::pair<int,int> seedhits, const std::array<int,20> &layerhits,  float eta0, float phi0, float alpha, TrajectorySeedCollection &out) const 
 {
     // sort hits along R, since the layer number sorting is not correct in the endcaps
-    std::vector<std::pair<float,const TrackingRecHit *> > hitsSorted;
+    typedef std::pair<int,const TrackingRecHit *> HitP;
+    std::vector<std::pair<float,HitP>> hitsSorted;
     for (unsigned int il = 0; il < layerhits.size(); ++il) {
         if (layerhits[il] == -1) continue;
-        hitsSorted.push_back(std::make_pair(hypot(hits[layerhits[il]].rho, hits[layerhits[il]].z - hitsHiRes_->z0()), hits[layerhits[il]].hit));
+        hitsSorted.push_back(std::make_pair(hypot(hits[layerhits[il]].rho, hits[layerhits[il]].z - hitsHiRes_->z0()), HitP(layerhits[il],hits[layerhits[il]].hit)));
     }
     std::sort(hitsSorted.begin(), hitsSorted.end());
 
@@ -287,9 +304,9 @@ TrackCandidateBuilderFromCluster::makeSeed(const std::vector<ClusteredHit> &hits
     edm::OwnVector<TrackingRecHit> seedHits; seedHits.reserve(hitsSorted.size());
     KFUpdator updator;
     const TrackingRecHit* lasthit = 0;
-    unsigned int myhits = 0; unsigned int myskip = 0;
-    for (const std::pair<float,const TrackingRecHit *> & pair: hitsSorted) {
-        const TrackingRecHit* hit = pair.second;
+    unsigned int myhits = 0, myskip = 0;
+    for (const std::pair<float,HitP> & pair: hitsSorted) {
+        const TrackingRecHit* hit = pair.second.second;
         TrajectoryStateOnSurface state = (lasthit == 0) ?
             propagator_->propagate(fts,  tracker_->idToDet(hit->geographicalId())->surface())
             : propagator_->propagate(tsos, tracker_->idToDet(hit->geographicalId())->surface());
@@ -301,14 +318,14 @@ TrackCandidateBuilderFromCluster::makeSeed(const std::vector<ClusteredHit> &hits
         tth = tth->clone(state);
         std::pair<bool,double> chi2 = estimator_->estimate(state, *tth);
         if (!chi2.first) {
-            printf("\tSkipping hit due to bad chi2 = %7.1f\n", chi2.second);
-            myskip++; if (myskip == 2) break;
+            printf("\tSkipping hit on detid %10d/%7d due to bad chi2 = %7.1f\n", hit->geographicalId().rawId(), hitid(hit), chi2.second);
+            myskip++; if (myskip == 2) { break; }
             continue;
         } else {
             myskip = 0;
         }
         TrajectoryStateOnSurface updated = updator.update(state, *tth);
-        if (!updated.isValid()) { printf("\tfailed update\n"); break; }
+        if (!updated.isValid()) { printf("\tfailed update\n"); break; } 
         tsos = updated;
         //printf("\t\t updated    state: 1/p = %+9.5f +/- %9.5f,  pt = %7.2f +/- %7.2f\n", 
         //                tsos.globalParameters().signedInverseMomentum(), std::sqrt(tsos.curvilinearError().matrix()(0,0)),
@@ -316,7 +333,7 @@ TrackCandidateBuilderFromCluster::makeSeed(const std::vector<ClusteredHit> &hits
         seedHits.push_back(tth->hit()->clone());
         lasthit = hit;
         myhits++;
-        if (myhits > 1) printf("\tKF-fitted %d hits (last chi2 = %7.1f; pt = %7.2f +/- %7.2f, q = %+1d)\n", myhits, chi2.second, tsos.globalMomentum().perp(), TrajectoryStateAccessor(*tsos.freeState()).inversePtError()*tsos.globalMomentum().perp2(), tsos.charge());
+        if (myhits > 1) printf("\tKF-fitted %d hits (last chi2 = %7.1f; pt = %7.2f +/- %7.2f, q = %+1d; last detid %10d/%7d)\n", myhits, chi2.second, tsos.globalMomentum().perp(), TrajectoryStateAccessor(*tsos.freeState()).inversePtError()*tsos.globalMomentum().perp2(), tsos.charge(),lasthit->geographicalId().rawId(),hitid(lasthit));
     }
     if (myhits >= minHits_) {
         PTrajectoryStateOnDet const & PTraj = trajectoryStateTransform::persistentState(tsos, lasthit->geographicalId().rawId());
@@ -327,6 +344,113 @@ TrackCandidateBuilderFromCluster::makeSeed(const std::vector<ClusteredHit> &hits
     }
     return 0;
 }
+
+const TrajectorySeed *
+TrackCandidateBuilderFromCluster::makeSeed2Way(const std::vector<ClusteredHit> &hits, std::pair<int,int> seedhits, const std::array<int,20> &layerhits,  float eta0, float phi0, float alpha, TrajectorySeedCollection &out) const 
+{
+    // sort hits along R, since the layer number sorting is not correct in the endcaps
+    typedef std::pair<int,const TrackingRecHit *> HitP;
+    std::vector<std::pair<float,HitP>> hitsSorted;
+    for (unsigned int il = 0; il < layerhits.size(); ++il) {
+        if (layerhits[il] == -1) continue;
+        hitsSorted.push_back(std::make_pair(hypot(hits[layerhits[il]].rho, hits[layerhits[il]].z - hitsHiRes_->z0()), HitP(layerhits[il],hits[layerhits[il]].hit)));
+    }
+    std::sort(hitsSorted.begin(), hitsSorted.end());
+
+    FreeTrajectoryState fts(startingState(eta0,phi0,alpha));
+    TrajectoryStateOnSurface tsos;
+    KFUpdator updator;
+
+    // get the index of the innermost and outermost seed hit
+    int isin = -1, isout = -1;
+    for (unsigned int i = 0, n = hitsSorted.size(); i < n; ++i) {
+        if (hitsSorted[i].second.first == seedhits.first || hitsSorted[i].second.first == seedhits.second) {
+            if (isin == -1) {
+                isin = i;
+            } else { 
+                isout = i; 
+                break; 
+            }
+        }
+    }
+    assert(isin != -1 && isout != -1);
+    const TrackingRecHit* lasthit = 0; 
+    unsigned int istart = isin;
+    unsigned int myhits = 0, myskip = 0;
+    if (isin != 0 && isout != -1) {
+        printf("\tSeed hits: %d, %d. Will attempt back-propagation.\n", isin, isout);
+        for (int iback = isout; iback >= 0; --iback) {
+            const TrackingRecHit *hit = hitsSorted[iback].second.second;
+            TrajectoryStateOnSurface state = (iback == isout) 
+                        ?         propagator_->propagate(fts,  tracker_->idToDet(hit->geographicalId())->surface())
+                        : propagatorOpposite_->propagate(tsos, tracker_->idToDet(hit->geographicalId())->surface());
+            if (!state.isValid()) { 
+                printf ("\tfailed back-propagation\n"); 
+                break; 
+            }
+            TransientTrackingRecHit::RecHitPointer tth = hitBuilder_->build(hit);
+            tth = tth->clone(state);
+            std::pair<bool,double> chi2 = estimator_->estimate(state, *tth);
+            if (!chi2.first) {
+                printf("\tSkipping backwards hit on detid %10d/%7d due to bad chi2 = %7.1f\n", hit->geographicalId().rawId(), hitid(hit), chi2.second);
+                myskip++; 
+                if (myskip == 2) { break; }
+                continue;
+            } else {
+                myskip = 0;
+            }
+            TrajectoryStateOnSurface updated = updator.update(state, *tth);
+            if (!updated.isValid()) { printf("\tfailed back-update\n"); break; } 
+            tsos = updated;
+            istart = iback;
+            if (myhits > 1) printf("\tKF-back-fitted hits (last chi2 = %7.1f; pt = %7.2f +/- %7.2f, q = %+1d; last detid %10d/%7d)\n", chi2.second, tsos.globalMomentum().perp(), TrajectoryStateAccessor(*tsos.freeState()).inversePtError()*tsos.globalMomentum().perp2(), tsos.charge(),lasthit->geographicalId().rawId(),hitid(lasthit));
+        }
+        if (istart > unsigned(isin)) {
+            printf("\tDone back-fitting but failed to reach even the innermost seed hit. will discard the attempt.\n");
+            tsos = TrajectoryStateOnSurface();
+        } else {
+            printf("\tDone back-fitting successfully from hit %d to hit %d (innermost seed hit %d); now will start forward-fitting from there.\n",istart,isout,isin);
+            //tsos.rescaleError(10.0); 
+            tsos = TrajectoryStateOnSurface();
+        }
+    }
+    // ok now we build the seed
+    edm::OwnVector<TrackingRecHit> seedHits; seedHits.reserve(hitsSorted.size());
+    myhits = 0; myskip = 0;
+    for (unsigned int i = istart, n = hitsSorted.size(); i < n; ++i) { 
+        const TrackingRecHit* hit = hitsSorted[i].second.second;
+        TrajectoryStateOnSurface state = (tsos.isValid()) ?
+              propagator_->propagate(fts,  tracker_->idToDet(hit->geographicalId())->surface())
+            : propagator_->propagate(tsos, tracker_->idToDet(hit->geographicalId())->surface());
+        if (!state.isValid()) { printf ("\tfailed propagation\n"); break; }
+        TransientTrackingRecHit::RecHitPointer tth = hitBuilder_->build(hit);
+        tth = tth->clone(state);
+        std::pair<bool,double> chi2 = estimator_->estimate(state, *tth);
+        if (!chi2.first) {
+            printf("\tSkipping hit on detid %10d/%7d due to bad chi2 = %7.1f\n", hit->geographicalId().rawId(), hitid(hit), chi2.second);
+            myskip++; if (myskip == 2) { break; }
+            continue;
+        } else {
+            myskip = 0;
+        }
+        TrajectoryStateOnSurface updated = updator.update(state, *tth);
+        if (!updated.isValid()) { printf("\tfailed update\n"); break; } 
+        tsos = updated;
+        seedHits.push_back(tth->hit()->clone());
+        lasthit = hit;
+        myhits++;
+        if (myhits > 1) printf("\tKF-fitted %2d hits (last chi2 = %7.1f; pt = %7.2f +/- %7.2f, q = %+1d; last detid %10d/%7d)\n", myhits, chi2.second, tsos.globalMomentum().perp(), TrajectoryStateAccessor(*tsos.freeState()).inversePtError()*tsos.globalMomentum().perp2(), tsos.charge(),lasthit->geographicalId().rawId(),hitid(lasthit));
+    }
+    if (myhits >= minHits_) {
+        PTrajectoryStateOnDet const & PTraj = trajectoryStateTransform::persistentState(tsos, lasthit->geographicalId().rawId());
+        TrajectorySeed seed(PTraj,std::move(seedHits),alongMomentum);
+        out.push_back(seed);
+        printf("--> saved as trajectory seed!\n");
+        return &out.back();
+    }
+    return 0;
+}
+
 
 void
 TrackCandidateBuilderFromCluster::makeTrajectories(const TrajectorySeed &seed, std::vector<Trajectory> &out) const 
@@ -339,16 +463,18 @@ TrackCandidateBuilderFromCluster::makeTrajectories(const TrajectorySeed &seed, s
         out.erase(std::remove_if(out.begin(),out.end(), std::not1(std::mem_fun_ref(&Trajectory::isValid))), out.end());
     }
     printf("\t created %lu trajectories in-out (after cleaning) \n", out.size());
+    for (const Trajectory &t : out) { if (t.isValid()) dumpTraj(t); }
     trajectoryBuilder_->rebuildTrajectories(startTraj, seed, out);
     printf("\t created %lu trajectories out-on (before cleaning) \n", out.size());
     trajectoryCleaner_->clean(out);
     out.erase(std::remove_if(out.begin(),out.end(), std::not1(std::mem_fun_ref(&Trajectory::isValid))), out.end());
     printf("\t created %lu trajectories out-in (before after cleaning)\n", out.size());
+    for (const Trajectory &t : out) { if (t.isValid()) dumpTraj(t); }
 }
 
 
 void
-TrackCandidateBuilderFromCluster::saveCandidates(const TrajectorySeed &seed, const std::vector<Trajectory> &cands,  TrackCandidateCollection & tcCollection) const 
+TrackCandidateBuilderFromCluster::saveCandidates(const std::vector<Trajectory> &cands,  TrackCandidateCollection & tcCollection) const 
 {
     for (const Trajectory & traj : cands) {
         if (!traj.isValid()) continue;
@@ -361,28 +487,33 @@ TrackCandidateBuilderFromCluster::saveCandidates(const TrajectorySeed &seed, con
             recHits.push_back( hit->hit()->clone() );
         }
 
-        std::pair<TrajectoryStateOnSurface, const GeomDet*> initState = initialStateEstimator_->innerState(traj , true);
-
-        // temporary protection againt invalid initial states
-        if (! initState.first.isValid() || initState.second == 0 || edm::isNotFinite(initState.first.globalPosition().x())) {
-            //cout << "invalid innerState, will not make TrackCandidate" << endl;
+        TransientTrackingRecHit::ConstRecHitPointer firsthit = traj.firstMeasurement().recHit();
+        if (!firsthit->isValid()) {
+            printf("\tFirst hit of trajectory is not valid - makes no sense!!!\n");
             continue;
         }
-       
-        float phipos = initState.first.globalMomentum().phi(); if (phipos < 0) phipos += 2*M_PI;
-        printf("\tinitial state: eta = %+5.3f, phi = %+5.3f, pt = %7.2f +/- %7.2f, q = %+1d)\n", 
-            initState.first.globalMomentum().eta(), phipos, 
-            initState.first.globalMomentum().perp(), TrajectoryStateAccessor(*initState.first.freeState()).inversePtError()*initState.first.globalMomentum().perp2(), initState.first.charge());
+        TrajectoryStateOnSurface tsos = traj.firstMeasurement().updatedState();
+        if (!tsos.isValid()) tsos = traj.firstMeasurement().backwardPredictedState();
+        if (!tsos.isValid()) tsos = traj.firstMeasurement().forwardPredictedState();
+        if (tsos.isValid()) { 
+            float phipos = tsos.globalMomentum().phi(); if (phipos < 0) phipos += 2*M_PI;
+            printf("\tTrajectory eta = %+5.3f, phi = %+5.3f, pt = %7.2f +/- %7.2f, q = %+1d (rho = %5.1f, z = %+5.1f)\n", 
+                tsos.globalMomentum().eta(), phipos, 
+                tsos.globalMomentum().perp(), TrajectoryStateAccessor(*tsos.freeState()).inversePtError()*tsos.globalMomentum().perp2(), tsos.charge(),
+                tsos.globalPosition().perp(), tsos.globalPosition().z());
+        } else {
+            printf("\tinitial state is not valid?\n");
+            continue;
+        }
 
         PTrajectoryStateOnDet state;
-        if(useHitsSplitting_ && (initState.second != thits.front()->det()) && thits.front()->det() ){
-            TrajectoryStateOnSurface propagated = anyPropagator_->propagate(initState.first,thits.front()->det()->surface());
-            if (!propagated.isValid()) continue;
-            state = trajectoryStateTransform::persistentState(propagated,
-                    thits.front()->det()->geographicalId().rawId());
+        if(useHitsSplitting_ && firsthit->geographicalId() != thits.front()->geographicalId() ){
+            TrajectoryStateOnSurface propagated = anyPropagator_->propagate(tsos,thits.front()->det()->surface());
+            if (!propagated.isValid()) { printf("\tcannot fix initial state by propagation??\n"); continue; }
+            tsos = propagated;
+            firsthit = thits.front();
         }
-        else state = trajectoryStateTransform::persistentState( initState.first,
-                initState.second->geographicalId().rawId());
+        state = trajectoryStateTransform::persistentState(tsos, firsthit->geographicalId().rawId());
         tcCollection.push_back(TrackCandidate(recHits,traj.seed(),state,traj.seedRef(),traj.nLoops() ) );
 
     }
@@ -412,3 +543,52 @@ TrackCandidateBuilderFromCluster::findHit(const TrackingRecHit *hit, const std::
     return -1;
 }
 
+void
+TrackCandidateBuilderFromCluster::dumpTraj(const Trajectory &traj) const
+{
+    printf("\t\tpropagation direction: %s\n", (traj.direction() == alongMomentum ? "along" : "opposite"));
+    for (const TrajectoryMeasurement &tm : traj.measurements()) {
+        TrajectoryStateOnSurface tsos;
+        if (tm.updatedState().isValid()) {
+            tsos = tm.updatedState();
+            printf("\t\tstate [updated]: ");
+        } else if (tm.forwardPredictedState().isValid()) {
+            tsos = tm.forwardPredictedState();
+            printf("\t\tstate [fw pred]: ");
+        } else if (tm.backwardPredictedState().isValid()) {
+            tsos = tm.backwardPredictedState();
+            printf("\t\tstate [bw pred]: ");
+        } else {
+            printf("\t\t no state?");
+        }
+        if (tsos.isValid()) { 
+            float phipos = tsos.globalMomentum().phi(); if (phipos < 0) phipos += 2*M_PI;
+            printf("rho = %5.1f, z = %+6.1f, eta = %+5.3f, phi = %+5.3f, pt = %7.2f +/- %7.2f, q = %+1d   ", 
+                tsos.globalPosition().perp(), tsos.globalPosition().z(),
+                tsos.globalMomentum().eta(), phipos, 
+                tsos.globalMomentum().perp(), TrajectoryStateAccessor(*tsos.freeState()).inversePtError()*tsos.globalMomentum().perp2(), tsos.charge());
+ 
+        }
+        if (tm.recHit()->isValid()) {
+            float phipos = tm.recHit()->globalPosition().phi(); if (phipos < 0) phipos += 2*M_PI;
+            printf("hit (eta %+5.3f, phi %+5.3f, detid %10d/%d, chi2 %5.1f)", tm.recHit()->globalPosition().eta(), phipos, tm.recHit()->geographicalId().rawId(),hitid(tm.recHit()->hit()),tm.estimate());
+        } else {
+            printf("no hit");
+        }
+        printf("\n");
+    }
+}
+
+int TrackCandidateBuilderFromCluster::hitid(const TrackingRecHit *hit)
+{
+    if (!hit->isValid()) return 0;
+    if (typeid(*hit) == typeid(SiPixelRecHit)) {
+        return static_cast<const SiPixelRecHit *>(hit)->cluster().key();
+    } else if (typeid(*hit) == typeid(SiStripMatchedRecHit2D)) {
+        return static_cast<const SiStripMatchedRecHit2D *>(hit)->monoClusterRef().key();
+    } else {
+        const TrackerSingleRecHit *sihit = dynamic_cast<const TrackerSingleRecHit *>(hit);
+        if (sihit) return sihit->omniClusterRef().key(); 
+    }
+    return 666666;
+}

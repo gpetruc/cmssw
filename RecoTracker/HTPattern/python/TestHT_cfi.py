@@ -15,6 +15,7 @@ testHTSeeds = cms.EDProducer("TestHT",
     #vertices = cms.InputTag("pixelVerticesZero"),
     vertices = cms.InputTag("pixelVertices"),
     #vertices = cms.InputTag("offlinePrimaryVertices"),
+    vertexSelection = cms.string("ndof > 4"),
     pixelHits = cms.InputTag('siPixelRecHits'),
     stripHits = cms.InputTag("siStripMatchedRecHits","rphiRecHit"),
     stripHits2D = cms.InputTag("siStripMatchedRecHits","matchedRecHit"),
@@ -31,10 +32,12 @@ testHTSeeds = cms.EDProducer("TestHT",
     layerCut3d     = cms.uint32(5),
     layerMoreCut   = cms.uint32(5),
     # pt clustering
-    ptSteps = cms.vdouble(0.0, 1.0, 0.5),
+    ptSteps = cms.vdouble(0.0, 0.8), 
+    #ptSteps = cms.vdouble(0.0, 1.0, 0.5),
     # seed builder
     seedBuilderConfig = cms.PSet(
         propagator = cms.string('PropagatorWithMaterial'),
+        propagatorOpposite = cms.string('PropagatorWithMaterialOpposite'),
         #TTRHBuilder = cms.string('TTRHBuilderWithoutAngle4MixedTriplets'), ## boh?
         TTRHBuilder = cms.string('WithTrackAngle'), 
         chi2MeasurementEstimator = cms.string("initialStepChi2Est"),
@@ -43,8 +46,8 @@ testHTSeeds = cms.EDProducer("TestHT",
         TrajectoryCleaner = cms.string('TrajectoryCleanerBySharedHits'),
         cleanTrajectoryAfterInOut = cms.bool(True),
         useHitsSplitting = cms.bool(True),
-        dist2dCut = cms.double(0.05),
-        dist2dCorrCut = cms.double(0.15),
+        dist2dCut = cms.double(0.10),
+        dist2dCorrCut = cms.double(0.10),
         minHits = cms.uint32(4),
         startingCovariance = cms.vdouble(
             100., # 1/pt,
@@ -64,14 +67,9 @@ testHTSeeds = cms.EDProducer("TestHT",
     tracks = cms.InputTag("generalTracks"),
 )
 
-import RecoTracker.CkfPattern.CkfTrackCandidates_cfi
-testHTCandidates = RecoTracker.CkfPattern.CkfTrackCandidates_cfi.ckfTrackCandidates.clone(
-    src = cms.InputTag("testHTSeeds"),
-    TrajectoryBuilder = cms.string('initialStepTrajectoryBuilder'),
-)
 import RecoTracker.TrackProducer.TrackProducer_cfi
 testHTTracks = RecoTracker.TrackProducer.TrackProducer_cfi.TrackProducer.clone(
-    src = cms.InputTag("testHTCandidates"),
+    src = cms.InputTag("testHTSeeds"),
 )
 
 testHTSeedsAsTk = cms.EDProducer("FakeTrackProducerFromSeed",
@@ -81,11 +79,11 @@ testHTClustersAsTk = cms.EDProducer("FakeTrackProducerFromSeed",
     src = cms.InputTag("testHTSeeds","clusters")
 )
 testHTCandiatesAsTk = cms.EDProducer("FakeTrackProducerFromCandidate",
-    src = cms.InputTag("testHTCandidates")
+    src = cms.InputTag("testHTSeeds")
 )
 
 testHT = cms.Sequence(pixelVerticesZero + 
-    testHTSeeds * testHTCandidates * testHTTracks +
+    testHTSeeds * testHTTracks +
     testHTSeedsAsTk + testHTClustersAsTk + testHTCandiatesAsTk
 )
     

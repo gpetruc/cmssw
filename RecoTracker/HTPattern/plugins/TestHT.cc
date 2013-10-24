@@ -36,6 +36,7 @@
 #include "DataFormats/TrajectorySeed/interface/TrajectorySeedCollection.h"
 #include "MagneticField/Engine/interface/MagneticField.h"
 #include "MagneticField/Records/interface/IdealMagneticFieldRecord.h"
+#include "CommonTools/Utils/interface/StringCutObjectSelector.h"
 
 
 
@@ -72,6 +73,7 @@ class TestHT : public edm::EDProducer {
       std::vector<double> ptSteps_;
 
       // Helpers
+      StringCutObjectSelector<reco::Vertex> vertexSelection_;
       TrackCandidateBuilderFromCluster tcBuilder_;
 
       // EventSetup stuff
@@ -101,6 +103,7 @@ TestHT::TestHT(const edm::ParameterSet & iConfig) :
     layerCut3d_(iConfig.getParameter<uint32_t>("layerCut3d")),
     layerMoreCut_(iConfig.getParameter<uint32_t>("layerMoreCut")),
     ptSteps_(iConfig.getParameter<std::vector<double> >("ptSteps")),
+    vertexSelection_(iConfig.getParameter<std::string>("vertexSelection")),
     tcBuilder_(iConfig.getParameter<edm::ParameterSet>("seedBuilderConfig")),
     debugger_(iConfig.getUntrackedParameter<bool>("debugger",false))
 {
@@ -165,8 +168,10 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
     std::vector<bool> mask2d(hits2d.size(), false);
     int etashift = std::round(log(double(etabins3d_)/etabins2d_)/std::log(2));
     int phishift = std::round(log(double(phibins3d_)/phibins2d_)/std::log(2));
+    bool firstVertex = true;
     for(const reco::Vertex &vtx : *vertices) {
-
+        // always process first vertex, but apply selection to others
+        if (!firstVertex && !vertexSelection_(vtx)) continue; else firstVertex = false;
         for (double ptStep : ptSteps_) {
             if (ptStep != 0 && bfield == 0) continue;
 
@@ -272,9 +277,10 @@ TestHT::getStripHits3D(const edm::Event & iEvent,  const reco::BeamSpot &bspot, 
 
    for (auto ds : *stripHits2D) {
         if (ds.empty()) continue;
-        uint32_t id = ds.detId();
-        const GeomDet* geomDet = geometry_->idToDet(DetId(id));
-	unsigned int layer = tTopo_->layer(DetId(id)) + 3;
+        DetId id(ds.detId());
+        const GeomDet* geomDet = geometry_->idToDet(id);
+	unsigned int layer = tTopo_->layer(id) + 3;
+        if (id.subdetId() == StripSubdetector::TOB || id.subdetId() == StripSubdetector::TEC) layer += 4;
         unsigned int layermask = 1 << (layer-1);
         for (auto const &hit : ds) {
             GlobalVector gp = geomDet->surface().toGlobal( hit.localPosition() ) - bspotPosition;
@@ -291,9 +297,10 @@ TestHT::getStripHits2D(const edm::Event & iEvent,  const reco::BeamSpot &bspot, 
 
    for (auto ds : *stripHits) {
         if (ds.empty()) continue;
-        uint32_t id = ds.detId();
-        const GeomDet* geomDet = geometry_->idToDet(DetId(id));
-	unsigned int layer = tTopo_->layer(DetId(id)) + 3;
+        DetId id(ds.detId());
+        const GeomDet* geomDet = geometry_->idToDet(id);
+	unsigned int layer = tTopo_->layer(id) + 3;
+        if (id.subdetId() == StripSubdetector::TOB || id.subdetId() == StripSubdetector::TEC) layer += 4;
         unsigned int layermask = 1 << (layer-1);
         for (auto const &hit : ds) {
             GlobalVector gp = geomDet->surface().toGlobal( hit.localPosition() ) - bspotPosition;

@@ -48,19 +48,22 @@ class TrackCandidateBuilderFromCluster {
             float eta, etaerr, phi, rho, z;
             float dist2d(const ClusteredHit &other) {
                 float dphi = std::abs(phi-other.phi); 
+                while (dphi > float(2*M_PI)) dphi -= float(2*M_PI);
                 if (dphi > float(M_PI)) dphi = float(2*M_PI) - dphi;
                 return dphi + std::abs(eta-other.eta);
             }
             float dist2d(float eta0, float phi0, float alpha, float beta) {
                 float dphi = std::abs(phi-alpha*rho-phi0); 
+                while (dphi > float(2*M_PI)) dphi -= float(2*M_PI);
                 if (dphi > float(M_PI)) dphi = float(2*M_PI) - dphi;
                 return dphi + std::abs(eta-beta*rho - eta0);
             }
         };
 
+        static int hitid(const TrackingRecHit *hit) ;
     protected:
         // --- Parameters ---
-        std::string propagatorLabel_, hitBuilderLabel_, estimatorLabel_, navigationSchoolLabel_, trajectoryBuilderLabel_, trajectoryCleanerLabel_;
+        std::string propagatorLabel_, propagatorOppositeLabel_, hitBuilderLabel_, estimatorLabel_, navigationSchoolLabel_, trajectoryBuilderLabel_, trajectoryCleanerLabel_;
         bool cleanTrajectoryAfterInOut_;
         edm::ParameterSet initialStateEstimatorPSet_;
         bool useHitsSplitting_;
@@ -71,7 +74,7 @@ class TrackCandidateBuilderFromCluster {
         // --- ES Stuff ---
         const SeedComparitor *filter = nullptr;
         edm::ESHandle<TrackerGeometry> tracker_;
-        edm::ESHandle<Propagator> propagator_, anyPropagator_;
+        edm::ESHandle<Propagator> propagator_, propagatorOpposite_, anyPropagator_;
         edm::ESHandle<MagneticField> bfield_;
         edm::ESHandle<TransientTrackingRecHitBuilder> hitBuilder_;
         edm::ESHandle<Chi2MeasurementEstimatorBase>   estimator_;
@@ -96,11 +99,13 @@ class TrackCandidateBuilderFromCluster {
         FreeTrajectoryState startingState(float eta0, float phi0, float alpha) const ;
         void refitAlphaBetaCorr(const std::vector<ClusteredHit> &cluster, const int *ihits, unsigned int nhits, float &alphacorr, float &betacorr, float &phi0, float &eta0) const ; 
         void dumpAsSeed(const std::vector<ClusteredHit> &cluster, TrajectorySeedCollection &seedCollection) const ;
-        const TrajectorySeed * makeSeed(const std::vector<ClusteredHit> &hits, const std::array<int,20> &layerhits,  float eta0, float phi0, float alpha, TrajectorySeedCollection &out) const ;
+        const TrajectorySeed * makeSeed(const std::vector<ClusteredHit> &hits, std::pair<int,int> seedhits, const std::array<int,20> &layerhits,  float eta0, float phi0, float alpha, TrajectorySeedCollection &out) const ;
+        const TrajectorySeed * makeSeed2Way(const std::vector<ClusteredHit> &hits, std::pair<int,int> seedhits, const std::array<int,20> &layerhits,  float eta0, float phi0, float alpha, TrajectorySeedCollection &out) const ;
         void makeTrajectories(const TrajectorySeed &seed, std::vector<Trajectory> &out) const ;
         void indexHits(const std::vector<ClusteredHit> &hits, HitIndex &index) const ;
         int  findHit(const TrackingRecHit *hit, const std::vector<ClusteredHit> &hits, HitIndex &index) const ;
-        void saveCandidates(const TrajectorySeed &seed, const std::vector<Trajectory> &cands,  TrackCandidateCollection & tcCollection) const ;  
+        void saveCandidates(const std::vector<Trajectory> &cands,  TrackCandidateCollection & tcCollection) const ;  
+        void dumpTraj(const Trajectory &traj) const ;
 };
 
 #endif
