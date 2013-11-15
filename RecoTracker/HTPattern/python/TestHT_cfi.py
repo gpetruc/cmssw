@@ -7,6 +7,11 @@ htCkfTrajectoryBuilder = RecoTracker.IterativeTracking.InitialStep_cff.initialSt
     minNrOfHitsForRebuild = cms.int32(0),
     requireSeedHitsInRebuild = cms.bool(False),
 )
+htChi2Est = cms.ESProducer("Chi2MeasurementEstimatorESProducer",
+    MaxChi2 = cms.double(60.0),
+    nSigma = cms.double(3.0),
+    ComponentName = cms.string('htChi2Est')
+)
 
 pixelVerticesZero = RecoPixelVertexing.PixelVertexFinding.PixelVertexes_cfi.pixelVertices.clone()
 
@@ -40,13 +45,16 @@ testHTSeeds = cms.EDProducer("TestHT",
         propagatorOpposite = cms.string('PropagatorWithMaterialOpposite'),
         #TTRHBuilder = cms.string('TTRHBuilderWithoutAngle4MixedTriplets'), ## boh?
         TTRHBuilder = cms.string('WithTrackAngle'), 
-        chi2MeasurementEstimator = cms.string("initialStepChi2Est"),
+        chi2MeasurementEstimator = cms.string("htChi2Est"),
         NavigationSchool  = cms.string('SimpleNavigationSchool'),
         TrajectoryBuilder = cms.string('htCkfTrajectoryBuilder'),
         TrajectoryCleaner = cms.string('TrajectoryCleanerBySharedHits'),
         cleanTrajectoryAfterInOut = cms.bool(True),
         useHitsSplitting = cms.bool(True),
+        # cuts for pair seeding
         dist2dCut = cms.double(0.10),
+        detaCut = cms.double(0.10),
+        # cuts for additional hits
         dist2dCorrCut = cms.double(0.10),
         minHits = cms.uint32(4),
         startingCovariance = cms.vdouble(

@@ -47,16 +47,25 @@ class TrackCandidateBuilderFromCluster {
             int layer;
             float eta, etaerr, phi, rho, z;
             float dist2d(const ClusteredHit &other) {
-                float dphi = std::abs(phi-other.phi); 
-                while (dphi > float(2*M_PI)) dphi -= float(2*M_PI);
-                if (dphi > float(M_PI)) dphi = float(2*M_PI) - dphi;
-                return dphi + std::abs(eta-other.eta);
+                return dphi(other) + deta(other);
             }
             float dist2d(float eta0, float phi0, float alpha, float beta) {
-                float dphi = std::abs(phi-alpha*rho-phi0); 
-                while (dphi > float(2*M_PI)) dphi -= float(2*M_PI);
-                if (dphi > float(M_PI)) dphi = float(2*M_PI) - dphi;
-                return dphi + std::abs(eta-beta*rho - eta0);
+                return dphi(phi0, alpha) + deta(eta0, beta);
+            }
+            float dphi(const ClusteredHit &other) {
+                return dphi(other.phi, 0);
+            }
+            float dphi(float phi0, float alpha) {
+                float ret = std::abs(phi-alpha*rho-phi0);
+                while (ret > float(2*M_PI)) ret -= float(2*M_PI);
+                if (ret > float(M_PI)) ret = float(2*M_PI) - ret;
+                return ret;
+            }
+            float deta(const ClusteredHit &other) {
+                return std::abs(eta-other.eta);
+            }
+            float deta(float eta0, float beta) {
+                return std::abs(eta - beta*rho - eta0);
             }
         };
 
@@ -67,7 +76,7 @@ class TrackCandidateBuilderFromCluster {
         bool cleanTrajectoryAfterInOut_;
         edm::ParameterSet initialStateEstimatorPSet_;
         bool useHitsSplitting_;
-        float dCut_, dcCut_;
+        float dCut_, detaCut_, dcCut_;
         unsigned int minHits_;
         std::vector<double> startingCovariance_;
 

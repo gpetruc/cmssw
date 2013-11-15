@@ -31,14 +31,17 @@
 #include "Geometry/Records/interface/TrackerDigiGeometryRecord.h"
 #include "RecoTracker/HTPattern/interface/HTHits.h"
 #include "RecoTracker/HTPattern/interface/HTHitMap.h"
-#include "RecoTracker/HTPattern/plugins/HTDebugger.h"
+#include "RecoTracker/HTPattern/interface/HTDebugger.h"
 #include "RecoTracker/HTPattern/interface/TrackCandidateBuilderFromCluster.h"
 #include "DataFormats/TrajectorySeed/interface/TrajectorySeedCollection.h"
 #include "MagneticField/Engine/interface/MagneticField.h"
 #include "MagneticField/Records/interface/IdealMagneticFieldRecord.h"
 #include "CommonTools/Utils/interface/StringCutObjectSelector.h"
 
-
+#define DEBUG 1
+#define DEBUG1_printf  if (DEBUG>=1) printf
+#define DEBUG2_printf  if (DEBUG>=2) printf
+#define DEBUG3_printf  if (DEBUG>=3) printf
 
 
 class TestHT : public edm::EDProducer {
@@ -140,7 +143,8 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
 
     Handle<vector<reco::Track> > tracks;
     iEvent.getByToken(tracks_, tracks);
-    if (debugger_) HTDebugger::dumpTracks(prefix+"tk", *tracks);
+    if (debugger_) { if (DEBUG>=2) HTDebugger::dumpTracks(prefix+"tk", *tracks); } 
+    if (DEBUG>=0) HTDebugger::registerTracks(*tracks); 
 
     edm::Handle<MeasurementTrackerEvent> mtEvent;
     iEvent.getByToken(mtEvent_, mtEvent);
@@ -157,8 +161,8 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
     HTHits3D hits2d(hits3d); // then copy, and make strips
     getStripHits2D(iEvent, *beamSpot, hits2d);
     getStripHits3D(iEvent, *beamSpot, hits3d);
-    if (debugger_) HTDebugger::dumpHTHits3D(prefix+"3d", hits3d, vertices->empty() ? 0.0 : vertices->front().z());
-    if (debugger_) HTDebugger::dumpHTHits3D(prefix+"2d", hits2d, vertices->empty() ? 0.0 : vertices->front().z());
+    if (debugger_) if (DEBUG>=2) HTDebugger::dumpHTHits3D(prefix+"3d", hits3d, vertices->empty() ? 0.0 : vertices->front().z());
+    if (debugger_) if (DEBUG>=2) HTDebugger::dumpHTHits3D(prefix+"2d", hits2d, vertices->empty() ? 0.0 : vertices->front().z());
 
 
     // Now we just do one step
@@ -192,8 +196,8 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
 
                 tcBuilder_.setHits(hits3ds, hits2ds, map3d, map2d, mask3d, mask2d, etashift, phishift);
 
-                if (debugger_) HTDebugger::dumpHTHitsSpher(prefix+"spher3d", hits3ds);
-                if (debugger_) HTDebugger::dumpHTHitsSpher(prefix+"spher2d", hits2ds);
+                if (debugger_) if (DEBUG>=2) HTDebugger::dumpHTHitsSpher(prefix+"spher3d", hits3ds);
+                if (debugger_) if (DEBUG>=2) HTDebugger::dumpHTHitsSpher(prefix+"spher2d", hits2ds);
                 // fill the maps
                 for (unsigned int i = 0; i < hits3ds.size(); ++i) {
                     if (mask3d[i]) continue;
@@ -209,24 +213,25 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
                 map2d.clusterize();
 
                 // analzye
-                if (debugger_) HTDebugger::dumpHTHitMap(prefix+"map3d", map3d);
-                if (debugger_) HTDebugger::dumpHTHitMap(prefix+"map2d", map2d);
-                if (debugger_) HTDebugger::dumpHTClusters(prefix+"c3d", map3d, hits3ds, layerCut3d_);
-                if (debugger_) HTDebugger::dumpHTClusters(prefix+"c2d", map2d, hits2ds, layerCut2d_);
+                if (debugger_) if (DEBUG>=2) HTDebugger::dumpHTHitMap(prefix+"map3d", map3d);
+                if (debugger_) if (DEBUG>=2) HTDebugger::dumpHTHitMap(prefix+"map2d", map2d);
+                if (debugger_) if (DEBUG>=2) HTDebugger::dumpHTClusters(prefix+"c3d", map3d, hits3ds, layerCut3d_);
+                if (debugger_) if (DEBUG>=2) HTDebugger::dumpHTClusters(prefix+"c2d", map2d, hits2ds, layerCut2d_);
 
                 // Recover more layers from 2D map
                 for (auto & cluster : map3d.clusters()) {
                     cluster.addMoreCell(map2d.get(cluster.ieta() >> etashift, cluster.iphi() >> phishift));
                     const HTCell &cell = map3d.get(cluster.ieta(),cluster.iphi());
-                    printf("cluster #%03d: eta %+5.3f, phi %+5.3f, %d seed layers, %d hi-res layers, %d layers\n",
+                    DEBUG2_printf("cluster #%03d: eta %+5.3f, phi %+5.3f, %d seed layers, %d hi-res layers, %d layers, front detid %d\n",
                         cell.icluster(),
                         hits3ds.eta(cell.hits().front()), hits3d.phi(cell.hits().front()),
-                        cluster.nseedlayers(), cluster.nlayers(), cluster.nmorelayers());
+                        cluster.nseedlayers(), cluster.nlayers(), cluster.nmorelayers(),
+                        hits3ds.hit(cell.hits().front())->geographicalId().rawId());
                 }
                 for (auto & cluster : map3d.clusters()) {
                     if (cluster.nmorelayers() >= layerMoreCut_) tcBuilder_.run(cluster, *outTC, *out, &*outCl);
                 }
-                if (debugger_) HTDebugger::dumpHTClusters(prefix+"c3dp", map3d, hits3ds, layerSeedCut3d_, layerMoreCut_);
+                if (debugger_) if (DEBUG>=1) HTDebugger::dumpHTClusters(prefix+"c3dp", map3d, hits3ds, layerSeedCut3d_, layerMoreCut_);
 
                 // clear the map
                 for (unsigned int i = 0; i < hits3ds.size(); ++i) {
@@ -242,6 +247,13 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
         break;
     }
 
+    if (DEBUG>=1) {
+        HTDebugger::registerClustersAsSeeds(2, *out);
+        HTDebugger::registerClustersAsSeeds(1, *outCl);
+        HTDebugger::registerTrackCandidates(*outTC);
+        HTDebugger::printBackAssociation(*tracks, *outTC, *geometry_, *bfield_);
+    }
+    
     tcBuilder_.done();
     iEvent.put(outTC);
     iEvent.put(out);

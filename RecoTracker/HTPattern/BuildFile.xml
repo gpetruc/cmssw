@@ -22,5 +22,8 @@
 <use   name="TrackingTools/TrajectoryCleaning"/>
 <use   name="TrackingTools/TrajectoryFiltering"/>
 <use   name="TrackingTools/TrackFitters"/>
+<use   name="CommonTools/UtilAlgos"/>
+<use   name="FWCore/ServiceRegistry"/>
+<use   name="RecoTracker/DebugTools"/>
 <use   name="boost"/>
 <use   name="root"/>
