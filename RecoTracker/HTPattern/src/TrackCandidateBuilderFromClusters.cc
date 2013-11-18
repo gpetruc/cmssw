@@ -17,7 +17,11 @@
 #include "Math/GenVector/CylindricalEta3D.h"
 #include "RecoTracker/HTPattern/interface/HTDebugger.h"
 
-#define DEBUG 1
+#ifdef  HTDEBUG
+#define DEBUG HTDEBUG
+#else
+#define DEBUG 0.5
+#endif
 #define DEBUG1_printf  if (DEBUG>=1) printf
 #define DEBUG2_printf  if (DEBUG>=2) printf
 #define DEBUG3_printf  if (DEBUG>=3) printf
@@ -98,7 +102,10 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster,  TrackCandidateC
     HitIndex hitindex;
     std::vector<Trajectory> allTrajectories; allTrajectories.reserve(5);
     const HTCell &seed = mapHiRes_->get(cluster.ieta(), cluster.iphi());
-    DEBUG1_printf("\n --- Cluster #%03d with %d seed layers, %d hi-res layers, %d layers --- \n", seed.icluster(), cluster.nseedlayers(), cluster.nlayers(), cluster.nmorelayers());
+    DEBUG1_printf("\n --- Cluster #%03d at eta %+5.3f, phi %+5.3f with %d seed layers, %d hi-res layers, %d layers; front detid %d --- \n", 
+                        seed.icluster(), hitsHiRes_->eta(seed.hits().front()), hitsHiRes_->phi(seed.hits().front()),
+                        cluster.nseedlayers(), cluster.nlayers(), cluster.nmorelayers(),
+                        hitsHiRes_->hit(seed.hits().front())->geographicalId().rawId());
     for (int hit : seed.hits()) {
         if ((*maskHiRes_)[hit]) continue;
         hits.push_back(ClusteredHit(*hitsHiRes_, hit, mask2layer(hitsHiRes_->layermask(hit))));
@@ -113,22 +120,24 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster,  TrackCandidateC
         }
     }
     unsigned int nhireshits = hits.size();
-    const HTCell &lowres = mapLowRes_->get(cluster.ieta()>>etashift_, cluster.iphi()>>phishift_);
-    for (int hit : lowres.hits()) {
-        if ((*maskLowRes_)[hit]) continue;
-        int il = mask2layer(hitsLowRes_->layermask(hit)); if (il < 3) continue;
-        const TrackingRecHit * thishit = hitsLowRes_->hit(hit);
-        bool found = false;
-        for (const ClusteredHit &other : hits) {
-            if (il == other.layer && other.hit->geographicalId() == thishit->geographicalId() && other.hit->sharesInput(thishit, TrackingRecHit::some)) {
-                found = true; break;
+    if (useLowRes_ && hitsLowRes_->size()) {
+        const HTCell &lowres = mapLowRes_->get(cluster.ieta()>>etashift_, cluster.iphi()>>phishift_);
+        for (int hit : lowres.hits()) {
+            if ((*maskLowRes_)[hit]) continue;
+            int il = mask2layer(hitsLowRes_->layermask(hit)); if (il < 3) continue;
+            const TrackingRecHit * thishit = hitsLowRes_->hit(hit);
+            bool found = false;
+            for (const ClusteredHit &other : hits) {
+                if (il == other.layer && other.hit->geographicalId() == thishit->geographicalId() && other.hit->sharesInput(thishit, TrackingRecHit::some)) {
+                    found = true; break;
+                }
             }
+            if (!found) hits.push_back(ClusteredHit(*hitsLowRes_, hit, mask2layer(hitsLowRes_->layermask(hit)), 0.2));
         }
-        if (!found) hits.push_back(ClusteredHit(*hitsLowRes_, hit, mask2layer(hitsLowRes_->layermask(hit)), 0.2));
     }
     unsigned int nhits = hits.size();
     DEBUG2_printf("found %d seed hits, %d hi-res hits, %d hits\n", nseedhits, nhireshits, nhits);
-    if (seedsFromAllClusters) dumpAsSeed(hits, *seedsFromAllClusters);
+    if (seedsFromAllClusters) if (DEBUG>0)  dumpAsSeed(hits, *seedsFromAllClusters);
     if (seedsFromAllClusters) if (DEBUG>=1) HTDebugger::printAssociatedTracks(seedsFromAllClusters->back());
     if (seedsFromAllClusters) if (DEBUG>=2) HTDebugger::beginLoggingCluster(seedsFromAllClusters->back(), nseedhits, nhireshits, nhits, hitsHiRes_->alpha());
 
@@ -236,7 +245,7 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster,  TrackCandidateC
         
         if (trajectories.empty()) continue;
         for (Trajectory &traj : trajectories) {
-            if (!traj.isValid()) continue;
+            if (!traj.isValid() || traj.measurements().empty()) continue;
             DEBUG2_printf("built trajectory with %d found hits, %d lost hits\n", traj.foundHits(), traj.lostHits());
             if (DEBUG >= 2) HTDebugger::printAssociatedTracks(traj);
             for (const TrajectoryMeasurement &tm : traj.measurements()) {
@@ -266,7 +275,7 @@ TrackCandidateBuilderFromCluster::startingState(float eta0, float phi0, float al
     GlobalPoint  x(hitsHiRes_->x0(), hitsHiRes_->y0(), hitsHiRes_->z0());
     GlobalVector p(p3d.x(), p3d.y(), p3d.z());
     GlobalTrajectoryParameters gtp(x,p, alpha > 0 ? -1 : +1, &*bfield_);
-    printf("Cluster for pT %8.4f, eta %+5.3f, phi %+5.3f, q %+2d\n", pt, eta0, phi0, alpha > 0 ? -1 : +1);
+    DEBUG2_printf("Cluster for pT %8.4f, eta %+5.3f, phi %+5.3f, q %+2d\n", pt, eta0, phi0, alpha > 0 ? -1 : +1);
 
     AlgebraicSymMatrix55 cov;
     for (unsigned int i = 0; i < 5; ++i) cov(i,i) = startingCovariance_[i];
@@ -487,6 +496,7 @@ TrackCandidateBuilderFromCluster::makeTrajectories(const TrajectorySeed &seed, s
     DEBUG3_printf("\t created %lu trajectories in-out (before cleaning) \n", out.size());
     if (cleanTrajectoryAfterInOut_) {
         trajectoryCleaner_->clean(out);
+        for (Trajectory &t : out) { if (t.measurements().empty()) t.invalidate(); }
         out.erase(std::remove_if(out.begin(),out.end(), std::not1(std::mem_fun_ref(&Trajectory::isValid))), out.end());
     }
     DEBUG3_printf("\t created %lu trajectories in-out (after cleaning) \n", out.size());
@@ -494,6 +504,7 @@ TrackCandidateBuilderFromCluster::makeTrajectories(const TrajectorySeed &seed, s
     trajectoryBuilder_->rebuildTrajectories(startTraj, seed, out);
     DEBUG3_printf("\t created %lu trajectories out-on (before cleaning) \n", out.size());
     trajectoryCleaner_->clean(out);
+    for (Trajectory &t : out) { if (t.measurements().empty()) t.invalidate(); }
     out.erase(std::remove_if(out.begin(),out.end(), std::not1(std::mem_fun_ref(&Trajectory::isValid))), out.end());
     DEBUG3_printf("\t created %lu trajectories out-in (after cleaning)\n", out.size());
     if (DEBUG>=3) for (const Trajectory &t : out) { if (t.isValid()) dumpTraj(t); }
@@ -504,7 +515,7 @@ void
 TrackCandidateBuilderFromCluster::saveCandidates(const std::vector<Trajectory> &cands,  TrackCandidateCollection & tcCollection) const 
 {
     for (const Trajectory & traj : cands) {
-        if (!traj.isValid()) continue;
+        if (!traj.isValid() || traj.measurements().empty()) continue;
 
         Trajectory::RecHitContainer thits;
         traj.recHitsV(thits,useHitsSplitting_);
@@ -533,7 +544,7 @@ TrackCandidateBuilderFromCluster::saveCandidates(const std::vector<Trajectory> &
                 tsos.charge(), traj.foundHits(),
                 tsos.globalPosition().perp(), tsos.globalPosition().z(),
                 tsos2.isValid() ? tsos2.globalPosition().perp() : 0, tsos2.isValid() ? tsos2.globalPosition().z() : 0);
-            if (DEBUG>=1) HTDebugger::printAssociatedTracks(traj);
+            if (DEBUG>=1) HTDebugger::printAssociatedTracks(traj,(DEBUG==1?3:1));
         } else {
             printf("\tinitial state is not valid?\n");
             continue;

@@ -31,11 +31,12 @@ class TrackCandidateBuilderFromCluster {
         void setHits(const HTHitsSpher  &hitsHiRes, const HTHitsSpher &hitsLowRes, 
                      const HTHitMap     &mapHiRes,  const HTHitMap    &mapLowRes,
                      std::vector<bool>  &maskHiRes,  std::vector<bool>     &maskLowRes,
-                     int etashift, int phishift) {
+                     int etashift, int phishift, bool useLowRes) {
             hitsHiRes_ = &hitsHiRes; hitsLowRes_ = &hitsLowRes;
             mapHiRes_ = &mapHiRes;  mapLowRes_ = &mapLowRes;
             maskHiRes_ = &maskHiRes; maskLowRes_ = &maskLowRes;
             etashift_ = etashift; phishift_ = phishift;
+            useLowRes_ = useLowRes;
         }
         void run(const HTCluster &cluster, TrackCandidateCollection & tcCollection, TrajectorySeedCollection & seedCollection, TrajectorySeedCollection *seedsFromAllClusters=0) ;
 
@@ -96,6 +97,7 @@ class TrackCandidateBuilderFromCluster {
         const HTHitMap *mapHiRes_,  *mapLowRes_;
         std::vector<bool> *maskHiRes_, *maskLowRes_;
         unsigned int etashift_, phishift_;
+        bool useLowRes_;
 
         //std::vector<bool> *maskStripClusters_, *maskPixelClusters_;
         

@@ -25,6 +25,10 @@ testHTSeeds = cms.EDProducer("TestHT",
     stripHits = cms.InputTag("siStripMatchedRecHits","rphiRecHit"),
     stripHits2D = cms.InputTag("siStripMatchedRecHits","matchedRecHit"),
     measurementTrackerEvent = cms.InputTag("MeasurementTrackerEvent"),
+    # seeding 
+    seed2d = cms.bool(False),
+    seed3d = cms.bool(False),
+    seedMixed = cms.bool(True),
     # binning
     etabins2d = cms.uint32(32),
     phibins2d = cms.uint32(64),

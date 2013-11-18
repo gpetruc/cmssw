@@ -228,12 +228,12 @@ HTDebugger::printAssociatedTracks(const TrajectorySeed &cluster)
 }
 
 void 
-HTDebugger::printAssociatedTracks(const Trajectory &traj)
+HTDebugger::printAssociatedTracks(const Trajectory &traj, int minHits)
 {
     if (associator_.get() == 0) return;
     std::vector<TrackMixingAssociator::TrackAssociation> assoc;
     associator_->associateToTracks(traj, assoc);
-    for (const auto &a : assoc) {
+    for (const auto &a : assoc) { if (int(a.sharedHits) < minHits) continue;
         float phi = a.track->phi(); if (phi < 0) phi += 2*M_PI;
         printf("\t\t-> track pt %8.4f, eta %+5.3f, phi %+5.3f, q %+2d, hits %2d, 3d layers %2d: associated hits: %2d\n", 
             a.track->pt(), a.track->eta(), phi, a.track->charge(), a.track->hitPattern().numberOfValidHits(), a.track->hitPattern().pixelLayersWithMeasurement() + a.track->hitPattern().numberOfValidStripLayersWithMonoAndStereo(), a.sharedHits);
@@ -241,13 +241,14 @@ HTDebugger::printAssociatedTracks(const Trajectory &traj)
 }
 
 void
-HTDebugger::printBackAssociation(const std::vector<reco::Track> & tracks, const std::vector<TrackCandidate> &tcs, const TrackingGeometry &geometry, const MagneticField &bfield) 
+HTDebugger::printBackAssociation(const std::vector<reco::Track> & tracks, const std::vector<TrackCandidate> &tcs, const TrackingGeometry &geometry, const MagneticField &bfield, float ptMin) 
 {
     if (associator_.get() == 0) return;
     std::vector<TrackMixingAssociator::SeedAssociation> assoc;
     std::vector<TrackMixingAssociator::TrackCandAssociation> tcassoc;
     printf("\n\n========================================== CKF -> HT SUMMARY ==================================");
     for (const reco::Track &t : tracks) {
+        if (t.pt() < ptMin) continue;
         float phi = t.phi(); if (phi < 0) phi += 2*M_PI;
         printf("\ntrack pt %8.4f, eta %+5.3f, phi %+5.3f, q %+2d, hits %2d, 3d layers %2d. Associations:\n", 
                     t.pt(), t.eta(), phi, t.charge(), t.hitPattern().numberOfValidHits(), t.hitPattern().pixelLayersWithMeasurement() + t.hitPattern().numberOfValidStripLayersWithMonoAndStereo());
@@ -262,7 +263,7 @@ HTDebugger::printBackAssociation(const std::vector<reco::Track> & tracks, const 
         }  
         associator_->associateToTrackCands(t, tcassoc);
         for (const auto &a : tcassoc) {
-            if (a.eventId == 1) continue; if (a.sharedHits <= 2) continue;
+            if (a.sharedHits <= 2) continue;
             printf("\t-> track candidate with %d hits, starting detid %d (%2d associated hits)\n", int(std::distance(a.track->recHits().first, a.track->recHits().second)), a.track->trajectoryStateOnDet().detId(), a.sharedHits);
         }  
     }

@@ -20,11 +20,11 @@ namespace HTDebugger {
     void registerClustersAsSeeds(int step, const TrajectorySeedCollection &seed);
     void registerTrackCandidates(const std::vector<TrackCandidate> &tcs);
     void printAssociatedTracks(const TrajectorySeed &cluster);
-    void printAssociatedTracks(const Trajectory &traj);
+    void printAssociatedTracks(const Trajectory &traj, int minHits=1);
     void printAssociatedTracks(const TrackingRecHit *hit1, const TrackingRecHit *hit2);
     bool thirdHitOnSameTrack(const TrackingRecHit *hit1, const TrackingRecHit *hit2, const TrackingRecHit *hit3);
     void printAssociatedSeeds(const std::vector<reco::Track> & tracks) ;
-    void printBackAssociation(const std::vector<reco::Track> & tracks, const std::vector<TrackCandidate> &tcs, const TrackingGeometry &g, const MagneticField &mf) ;
+    void printBackAssociation(const std::vector<reco::Track> & tracks, const std::vector<TrackCandidate> &tcs, const TrackingGeometry &g, const MagneticField &mf, float ptMin) ;
     void beginLoggingCluster(const TrajectorySeed &cluster, unsigned int seedhits, unsigned int hits, unsigned int morehits, double alpha) ;
     void logSeedingPair(const TrackingRecHit *hit1, int layer1, int class1, const TrackingRecHit *hit2, int layer2, int class2, float dr, float dphi, float deta) ;
     void logThirdHit(const TrackingRecHit *hit3, int layer3, int class3, float d2c, float dphic, float detac, int pass, float thisalpha, bool finalsel);
