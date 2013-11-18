@@ -223,6 +223,7 @@ GroupedCkfTrajectoryBuilder::rebuildTrajectories(TempTrajectory const & starting
   work.reserve(result.size());
   for (TrajectoryContainer::iterator traj=result.begin();
        traj!=result.end(); ++traj) {
+    if (traj->isValid() && traj->measurements().empty()) throw cms::Exception("Empty Traj");
     if(traj->isValid()) work.push_back(TempTrajectory(*traj));
   }
 
@@ -238,6 +239,7 @@ GroupedCkfTrajectoryBuilder::rebuildTrajectories(TempTrajectory const & starting
 
   for (TempTrajectoryContainer::iterator traj=work.begin();
        traj!=work.end(); ++traj) {
+    if (traj->isValid() && traj->measurements().empty()) throw cms::Exception("Empty TempTraj");
     final.push_back(traj->toTrajectory()); final.back().setSharedSeed(sharedSeed);
   }
   
@@ -1054,7 +1056,7 @@ GroupedCkfTrajectoryBuilder::backwardFit (TempTrajectory& candidate, unsigned in
   //
   // Fit only if required number of valid hits can be used
   //
-  if unlikely( nHit<nHitMin ) return TempTrajectory();
+  if unlikely( nHit<nHitMin || nHit == 0 ) return TempTrajectory();
 
   //
   // Do the backward fit (important: start from scaled, not random cov. matrix!)

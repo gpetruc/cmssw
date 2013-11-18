@@ -105,6 +105,7 @@ FakeTrackProducer<T>::produce(edm::Event & iEvent, const edm::EventSetup & iSetu
         int charge = state.localParameters().charge();
         out->push_back(reco::Track(1.0,1.0,x,p,charge,reco::Track::CovarianceMatrix()));
         TrajectorySeed::range hits = getHits(mu);
+        if (std::distance(hits.first, hits.second) == 0) { std::cerr << "ERROR: seed without hits" << std::endl; continue; }
         out->back().setHitPattern(hits.first, hits.second);
         // Now Track Extra
         const TrackingRecHit *hit0 =  &*hits.first;
