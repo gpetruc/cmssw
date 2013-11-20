@@ -37,11 +37,12 @@ class TrackCandidateBuilderFromCluster {
             maskHiRes_ = &maskHiRes; maskLowRes_ = &maskLowRes;
             etashift_ = etashift; phishift_ = phishift;
             useLowRes_ = useLowRes;
+            bfieldAtOrigin_ = bfield_->inTesla(GlobalPoint(hitsHiRes.x0(), hitsHiRes.y0(), hitsHiRes.z0())).z();
         }
-        void run(const HTCluster &cluster, TrackCandidateCollection & tcCollection, TrajectorySeedCollection & seedCollection, TrajectorySeedCollection *seedsFromAllClusters=0) ;
+        void run(const HTCluster &cluster, unsigned int nseedlayersCut, unsigned int nlayersCut, TrackCandidateCollection & tcCollection, TrajectorySeedCollection & seedCollection, TrajectorySeedCollection *seedsFromAllClusters=0) ;
 
         struct ClusteredHit {
-            ClusteredHit(const HTHitsSpher &hits, unsigned int i, unsigned int ly, float etaErr=0.02) :
+            ClusteredHit(const HTHitsSpher &hits, unsigned int i, unsigned int ly, float etaErr=1) :
                 id(i), hit(hits.hit(i)), layer(ly), eta(hits.eta(i)), etaerr(etaErr), phi(hits.phi(i)), rho(hits.rho(i)), z(hits.z(i)) {};
             unsigned int id;
             const TrackingRecHit *hit;
@@ -66,7 +67,10 @@ class TrackCandidateBuilderFromCluster {
                 return std::abs(eta-other.eta);
             }
             float deta(float eta0, float beta) {
-                return std::abs(eta - beta*rho - eta0);
+                return std::abs(eta - beta/rho - eta0);
+            }
+            float detaE(float eta0, float beta) {
+                return std::abs(eta - beta/rho - eta0)*etaerr;
             }
         };
 
@@ -76,9 +80,12 @@ class TrackCandidateBuilderFromCluster {
         std::string propagatorLabel_, propagatorOppositeLabel_, hitBuilderLabel_, estimatorLabel_, navigationSchoolLabel_, trajectoryBuilderLabel_, trajectoryCleanerLabel_;
         bool cleanTrajectoryAfterInOut_;
         edm::ParameterSet initialStateEstimatorPSet_;
-        bool useHitsSplitting_;
-        float dCut_, detaCut_, dcCut_;
-        unsigned int minHits_;
+        bool useHitsSplitting_, splitSeedHits_;
+        float dphiCutPair_,    detaCutPair_;
+        bool  pairsOnSeedCellOnly_;
+        float dphiCutHits_[2], detaCutHits_[2];
+        unsigned int minHits_, minHitsIfNoCkf_;
+        unsigned int maxFailMicroClusters_;
         std::vector<double> startingCovariance_;
 
         // --- ES Stuff ---
@@ -98,6 +105,7 @@ class TrackCandidateBuilderFromCluster {
         std::vector<bool> *maskHiRes_, *maskLowRes_;
         unsigned int etashift_, phishift_;
         bool useLowRes_;
+        float bfieldAtOrigin_;
 
         //std::vector<bool> *maskStripClusters_, *maskPixelClusters_;
         

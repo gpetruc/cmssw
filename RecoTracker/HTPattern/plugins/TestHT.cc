@@ -226,7 +226,7 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
                     if (debugger_) if (DEBUG>=2) HTDebugger::dumpHTClusters(prefix+"c3d", map3d, hits3ds, layerCut3d_);
                     tcBuilder_.setHits(hits3ds, hits2ds, map3d, map2d, mask3d, mask2d, etashift, phishift, false);
                     for (auto & cluster : map3d.clusters()) {
-                        if (cluster.nmorelayers() >= layerCut3d_) tcBuilder_.run(cluster, *outTC, *out, &*outCl);
+                        if (cluster.nmorelayers() >= layerCut3d_) tcBuilder_.run(cluster, layerSeedCut3d_, layerCut3d_, *outTC, *out, &*outCl);
                     }
                 }
 
@@ -236,7 +236,7 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
                     if (debugger_) if (DEBUG>=2) HTDebugger::dumpHTClusters(prefix+"c2d", map2d, hits2ds, layerCut2d_);
                     tcBuilder_.setHits(hits2ds, hits2ds, map2d, map2d, mask2d, mask2d, etashift, phishift, false);
                     for (auto & cluster : map3d.clusters()) {
-                        if (cluster.nmorelayers() >= layerCut2d_) tcBuilder_.run(cluster, *outTC, *out, &*outCl);
+                        if (cluster.nmorelayers() >= layerCut2d_) tcBuilder_.run(cluster, layerSeedCut2d_, layerCut2d_, *outTC, *out, &*outCl);
                     }
                 }
 
@@ -253,7 +253,7 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
                                 hits3ds.hit(cell.hits().front())->geographicalId().rawId());
                     }
                     for (auto & cluster : map3d.clusters()) {
-                        if (cluster.nmorelayers() >= layerMoreCut_) tcBuilder_.run(cluster, *outTC, *out, &*outCl);
+                        if (cluster.nmorelayers() >= layerMoreCut_) tcBuilder_.run(cluster, layerSeedCut3d_, layerMoreCut_, *outTC, *out, &*outCl);
                     }
                     if (debugger_) if (DEBUG>=1) HTDebugger::dumpHTClusters(prefix+"c3dp", map3d, hits3ds, layerSeedCut3d_, layerMoreCut_);
                 }

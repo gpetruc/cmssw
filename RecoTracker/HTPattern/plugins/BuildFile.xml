@@ -2,6 +2,7 @@
 <use   name="RecoTracker/MeasurementDet"/>
 <use   name="CommonTools/UtilAlgos"/>
 <use   name="FWCore/ServiceRegistry"/>
+<use   name="DataFormats/VertexReco"/>
 <use   name="roothistmatrix" />
 <library   file="*.cc" name="RecoTrackerHTPatternPlugins">
   <flags   EDM_PLUGIN="1"/>

@@ -8,16 +8,30 @@ htCkfTrajectoryBuilder = RecoTracker.IterativeTracking.InitialStep_cff.initialSt
     requireSeedHitsInRebuild = cms.bool(False),
 )
 htChi2Est = cms.ESProducer("Chi2MeasurementEstimatorESProducer",
-    MaxChi2 = cms.double(60.0),
+    MaxChi2 = cms.double(30.0),
     nSigma = cms.double(3.0),
     ComponentName = cms.string('htChi2Est')
 )
 
 pixelVerticesZero = RecoPixelVertexing.PixelVertexFinding.PixelVertexes_cfi.pixelVertices.clone()
+pixelVerticesFake = cms.EDProducer("HTVertexCorrectionStudy",
+    tracks = cms.InputTag("generalTracks"),
+    trackSelection = cms.string("pt > 0.5 && numberOfValidHits > 6"),
+    dz = cms.double(0.3),
+    dxy = cms.double(0.0),
+    phi = cms.double(0.0),
+)
+import RecoTracker.TransientTrackingRecHit.TransientTrackingRecHitBuilder_cfi
+ttrhbwrBootstrap = RecoTracker.TransientTrackingRecHit.TransientTrackingRecHitBuilder_cfi.ttrhbwr.clone(
+    ComputeCoarseLocalPositionFromDisk = True,
+    ComponentName = 'WithTrackAngleAndBootstrap'
+)    
+
 
 testHTSeeds = cms.EDProducer("TestHT",
     beamSpot = cms.InputTag("offlineBeamSpot"),
     #vertices = cms.InputTag("pixelVerticesZero"),
+    #vertices = cms.InputTag("pixelVerticesFake"),
     vertices = cms.InputTag("pixelVertices"),
     #vertices = cms.InputTag("offlinePrimaryVertices"),
     vertexSelection = cms.string("ndof > 4"),
@@ -33,7 +47,7 @@ testHTSeeds = cms.EDProducer("TestHT",
     etabins2d = cms.uint32(32),
     phibins2d = cms.uint32(64),
     etabins3d = cms.uint32(128),
-    phibins3d = cms.uint32(64),
+    phibins3d = cms.uint32(128),
     # clustering
     layerSeedCut2d = cms.uint32(4),
     layerSeedCut3d = cms.uint32(3),
@@ -41,32 +55,40 @@ testHTSeeds = cms.EDProducer("TestHT",
     layerCut3d     = cms.uint32(5),
     layerMoreCut   = cms.uint32(5),
     # pt clustering
-    ptSteps = cms.vdouble(0.0, 0.8), 
+    ptSteps = cms.vdouble(0.0, 2.5, 1.0, 0.5), 
     #ptSteps = cms.vdouble(0.0, 1.0, 0.5),
     # seed builder
     seedBuilderConfig = cms.PSet(
         propagator = cms.string('PropagatorWithMaterial'),
         propagatorOpposite = cms.string('PropagatorWithMaterialOpposite'),
         #TTRHBuilder = cms.string('TTRHBuilderWithoutAngle4MixedTriplets'), ## boh?
-        TTRHBuilder = cms.string('WithTrackAngle'), 
+        #TTRHBuilder = cms.string('WithTrackAngle'), 
+        TTRHBuilder = cms.string('WithTrackAngleAndBootstrap'), 
         chi2MeasurementEstimator = cms.string("htChi2Est"),
         NavigationSchool  = cms.string('SimpleNavigationSchool'),
         TrajectoryBuilder = cms.string('htCkfTrajectoryBuilder'),
         TrajectoryCleaner = cms.string('TrajectoryCleanerBySharedHits'),
         cleanTrajectoryAfterInOut = cms.bool(True),
         useHitsSplitting = cms.bool(True),
+        splitSeedHits = cms.bool(True),
         # cuts for pair seeding
-        dist2dCut = cms.double(0.10),
-        detaCut = cms.double(0.10),
-        # cuts for additional hits
-        dist2dCorrCut = cms.double(0.10),
+        detaCutPair = cms.double(0.01),
+        dphiCutPair = cms.double(0.02),
+        pairsOnSeedCellOnly = cms.bool(True),
+        # cuts for additional hits (before and after the refit)
+        dphiCutHits = cms.vdouble(0.04, 0.015),
+        detaCutHits = cms.vdouble(0.05, 0.02),
         minHits = cms.uint32(4),
+        # minimum number of hits in a trajectory for which ckf failed
+        minHitsIfNoCkf = cms.uint32(6), 
+        # max consec failing microclusters
+        maxFailMicroClusters = cms.uint32(5),
         startingCovariance = cms.vdouble(
-            100., # 1/pt,
-            100., #  lambda
-            100., # phi
-            100., # x_t
-            100., # y_t
+            10., # 1/pt,
+            4., # lambda
+            4., # phi
+            625., # x_t
+            625., # y_t
         ),
         transientInitialStateEstimatorParameters = cms.PSet(
             propagatorAlongTISE = cms.string('PropagatorWithMaterial'),
@@ -94,8 +116,34 @@ testHTCandiatesAsTk = cms.EDProducer("FakeTrackProducerFromCandidate",
     src = cms.InputTag("testHTSeeds")
 )
 
-testHT = cms.Sequence(pixelVerticesZero + 
+testHT = cms.Sequence(pixelVerticesZero + pixelVerticesFake +
     testHTSeeds * testHTTracks +
-    testHTSeedsAsTk + testHTClustersAsTk + testHTCandiatesAsTk
+    testHTSeedsAsTk + testHTClustersAsTk + testHTCandiatesAsTk 
 )
-    
+
+binningStudy = cms.EDProducer("HTBinningStudies",
+    tracks = cms.InputTag("TrackMCQuality"),
+    trackSelection = cms.string("pt > 0.4 && abs(eta) < 2.4 && quality('highPurity') && quality('qualitySize')"),    
+)
+binStudy = cms.Sequence(
+    binningStudy
+)
+finalStudy = cms.EDProducer("HTFinalOutcomeStudy",
+    tracksCkf = cms.InputTag("TrackMCQuality"),
+    tracksHT  = cms.InputTag("TrackMCQualityHT"),
+    trackSelectionCkf = cms.string("pt > 0.4 && abs(eta) < 2.4 && quality('highPurity')"),
+)
+
+
+from SimTracker.TrackAssociation.TrackAssociatorByHits_cfi import *
+from SimTracker.TrackAssociation.TrackMCQuality_cfi import *
+TrackMCQualityHT = TrackMCQuality.clone(label_tr = "testHTTracks")
+trueTracks = cms.EDFilter("TrackSelector",
+    src = cms.InputTag("TrackMCQuality"),
+    cut = cms.string("quality('qualitySize')"),
+)
+testHTMC = cms.Sequence(
+    TrackMCQuality + trueTracks +
+    testHT +
+    TrackMCQualityHT + finalStudy
+)
