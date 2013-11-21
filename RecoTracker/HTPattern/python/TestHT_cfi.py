@@ -47,7 +47,7 @@ testHTSeeds = cms.EDProducer("TestHT",
     etabins2d = cms.uint32(32),
     phibins2d = cms.uint32(64),
     etabins3d = cms.uint32(128),
-    phibins3d = cms.uint32(128),
+    phibins3d = cms.uint32(64),
     # clustering
     layerSeedCut2d = cms.uint32(4),
     layerSeedCut3d = cms.uint32(3),
@@ -55,8 +55,10 @@ testHTSeeds = cms.EDProducer("TestHT",
     layerCut3d     = cms.uint32(5),
     layerMoreCut   = cms.uint32(5),
     # pt clustering
-    ptSteps = cms.vdouble(0.0, 2.5, 1.0, 0.5), 
-    #ptSteps = cms.vdouble(0.0, 1.0, 0.5),
+    #ptSteps = cms.vdouble( 0.0,       2.5,      1.0,      0.7,      0.5 ), 
+    #ptEdges = cms.vdouble( 3.0,-3.0,  1.5,4.0,  0.7,2.0,  0.5,1.0,  0.4,0.8 ), 
+    ptSteps = cms.vdouble(0.0, 0.8),
+    ptEdges = cms.vdouble(), 
     # seed builder
     seedBuilderConfig = cms.PSet(
         propagator = cms.string('PropagatorWithMaterial'),
@@ -116,7 +118,9 @@ testHTCandiatesAsTk = cms.EDProducer("FakeTrackProducerFromCandidate",
     src = cms.InputTag("testHTSeeds")
 )
 
-testHT = cms.Sequence(pixelVerticesZero + pixelVerticesFake +
+testHT = cms.Sequence(
+    #pixelVerticesZero + 
+    #pixelVerticesFake +
     testHTSeeds * testHTTracks +
     testHTSeedsAsTk + testHTClustersAsTk + testHTCandiatesAsTk 
 )

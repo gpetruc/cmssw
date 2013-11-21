@@ -79,6 +79,7 @@ class TestHT : public edm::EDProducer {
       uint32_t layerCut2d_, layerCut3d_;
       uint32_t layerMoreCut_;
       std::vector<double> ptSteps_;
+      std::vector<double> ptEdges_;
 
       // Helpers
       StringCutObjectSelector<reco::Vertex> vertexSelection_;
@@ -114,6 +115,7 @@ TestHT::TestHT(const edm::ParameterSet & iConfig) :
     layerCut3d_(iConfig.getParameter<uint32_t>("layerCut3d")),
     layerMoreCut_(iConfig.getParameter<uint32_t>("layerMoreCut")),
     ptSteps_(iConfig.getParameter<std::vector<double> >("ptSteps")),
+    ptEdges_(iConfig.getParameter<std::vector<double> >("ptEdges")),
     vertexSelection_(iConfig.getParameter<std::string>("vertexSelection")),
     tcBuilder_(iConfig.getParameter<edm::ParameterSet>("seedBuilderConfig")),
     debugger_(iConfig.getUntrackedParameter<bool>("debugger",false))
@@ -188,7 +190,8 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
     for(const reco::Vertex &vtx : *vertices) {
         // always process first vertex, but apply selection to others
         if (!firstVertex && !vertexSelection_(vtx)) continue; else firstVertex = false;
-        for (double ptStep : ptSteps_) {
+        for (unsigned int iptStep = 0, nptSteps = ptSteps_.size(); iptStep < nptSteps; ++iptStep) {
+            double ptStep = ptSteps_[iptStep];
             if (ptStep != 0 && bfield == 0) continue;
 
             for (int ptsign = +1; ptsign > -2; ptsign -= 2) {
@@ -198,8 +201,14 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
                 std::string prefix(evid);
 
                 float alpha = ptStep ? 0.5 * 0.003 * bfield / ptStep * ptsign : 0;
-
-                printf("\n========== HT iteration with pT = %+.2f, alpha = %+.5f ==========\n", ptStep*ptsign, alpha);
+                if (!ptEdges_.empty()) {
+                    float alpha1 =  0.5 * 0.003 * bfield / ptEdges_[2*iptStep] * ptsign;
+                    float alpha2 = 0.5 * 0.003 * bfield / ptEdges_[2*iptStep+1] * ptsign;
+                    tcBuilder_.setAlphaRange( alpha1, alpha2 );
+                    printf("\n========== HT iteration with pT = %+.2f, alpha = %+.5f [ %+.5f : %+.5f ] ==========\n", ptStep*ptsign, alpha, alpha1, alpha2);
+                } else {
+                    printf("\n========== HT iteration with pT = %+.2f, alpha = %+.5f ==========\n", ptStep*ptsign, alpha);
+                }
 
                 HTHitsSpher hits3ds(hits3d, vtx.z(), etabins3d_);
                 hits3ds.filliphi(alpha, phibins3d_);

@@ -39,6 +39,10 @@ class TrackCandidateBuilderFromCluster {
             useLowRes_ = useLowRes;
             bfieldAtOrigin_ = bfield_->inTesla(GlobalPoint(hitsHiRes.x0(), hitsHiRes.y0(), hitsHiRes.z0())).z();
         }
+        void setAlphaRange(float alphaMin, float alphaMax) {
+            alphaMin_ = alphaMin; alphaMax_ = alphaMax;
+            if (alphaMax_ < alphaMin_) std::swap(alphaMax_,alphaMin_);
+        }
         void run(const HTCluster &cluster, unsigned int nseedlayersCut, unsigned int nlayersCut, TrackCandidateCollection & tcCollection, TrajectorySeedCollection & seedCollection, TrajectorySeedCollection *seedsFromAllClusters=0) ;
 
         struct ClusteredHit {
@@ -106,6 +110,7 @@ class TrackCandidateBuilderFromCluster {
         unsigned int etashift_, phishift_;
         bool useLowRes_;
         float bfieldAtOrigin_;
+        float alphaMin_, alphaMax_;
 
         //std::vector<bool> *maskStripClusters_, *maskPixelClusters_;
         
@@ -125,6 +130,7 @@ class TrackCandidateBuilderFromCluster {
         int  findHit(const TrackingRecHit *hit, const std::vector<ClusteredHit> &hits, HitIndex &index) const ;
         void saveCandidates(const std::vector<Trajectory> &cands,  TrackCandidateCollection & tcCollection) const ;  
         void dumpTraj(const Trajectory &traj) const ;
+        bool prefilterCluster(const HTCluster &cluster) const ;
 };
 
 #endif

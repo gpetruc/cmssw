@@ -62,7 +62,8 @@ TrackCandidateBuilderFromCluster::TrackCandidateBuilderFromCluster(const edm::Pa
     minHitsIfNoCkf_(iConfig.getParameter<uint32_t>("minHitsIfNoCkf")),
     maxFailMicroClusters_(iConfig.getParameter<uint32_t>("maxFailMicroClusters")),
     startingCovariance_(iConfig.getParameter<std::vector<double>>("startingCovariance")),
-    initialStateEstimator_(0)
+    initialStateEstimator_(0),
+    alphaMin_(-9e9),alphaMax_(9e9)
 {
     std::vector<double> dphiCutHits = iConfig.getParameter<std::vector<double>>("dphiCutHits");
     std::vector<double> detaCutHits = iConfig.getParameter<std::vector<double>>("detaCutHits");
@@ -111,9 +112,30 @@ TrackCandidateBuilderFromCluster::done()
     navigationSetter_.reset();
 }
 
+bool 
+TrackCandidateBuilderFromCluster::prefilterCluster(const HTCluster &cluster) const 
+{
+    const HTCell &seed = mapHiRes_->get(cluster.ieta(), cluster.iphi());
+    for (unsigned int ii1 = 0, n = seed.hits().size(); ii1 < n-1; ++ii1) {
+        unsigned int i1 = seed.hits()[ii1];
+        if ((*maskHiRes_)[i1]) continue;
+        for (unsigned int ii2 = ii1+1; ii2 < n; ++ii2) {
+            unsigned int i2 = seed.hits()[ii2];
+            if ((*maskHiRes_)[i2]) continue;
+            if (hitsHiRes_->layermask(i1) == hitsHiRes_->layermask(i2)) continue;
+            if (std::abs(hitsHiRes_->eta(i1) - hitsHiRes_->eta(i2)) > detaCutPair_) continue;
+            float dphi = std::abs(hitsHiRes_->phi(i1) - hitsHiRes_->phi(i2)); if (dphi > M_PI) dphi = 2*M_PI-dphi;
+            if (dphi > dphiCutPair_) continue;
+            return true;
+        }
+    }
+    return false;
+}
+
 void
 TrackCandidateBuilderFromCluster::run(const HTCluster &cluster, unsigned int nseedlayersCut, unsigned int nlayersCut, TrackCandidateCollection & tcCollection, TrajectorySeedCollection & seedCollection, TrajectorySeedCollection *seedsFromAllClusters) 
 {
+    if (pairsOnSeedCellOnly_ && !prefilterCluster(cluster)) return;
     std::vector<ClusteredHit> hits; hits.reserve(50);
     HitIndex hitindex;
     std::vector<Trajectory> allTrajectories; allTrajectories.reserve(5);
@@ -179,6 +201,7 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster, unsigned int nse
     typedef std::pair<uint16_t,uint16_t> hitpair;
     typedef std::pair<float, hitpair> distpair;
     std::vector<distpair> pairs;
+    //float dphidrMax = 0.5*0.003*std::abs(bfieldAtOrigin_)/(alphaMax_-alphaMin_); 
     for (unsigned int i1 = 0; i1 < nseedhits; ++i1) {
         for (unsigned int i2 = i1+1; i2 < nhits; ++i2) {
             if (pairsOnSeedCellOnly_ && i2 >= nseedhits) break;
@@ -188,6 +211,8 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster, unsigned int nse
                 float deta = hits[i1].deta(hits[i2]);
                 //printf("\t pair %3d, %3d: (%+5.3f,%+5.3f, ly %2d)  (%+5.3f,%+5.3f ly %2d): d2d %.4f\n", i1,i2, hits[i1].eta,hits[i1].phi,hits[i1].layer, hits[i2].eta,hits[i2].phi,hits[i2].layer, d2d);
                 if (dphi < dphiCutPair_ && deta < detaCutPair_) pairs.push_back(distpair(deta, hitpair(i1,i2)));
+                //DEBUG3_printf("\t pair %3d, %3d: dphi = %6.4f, dphi/dr = %6.4f (max %6.4f)\n", i1,i2,
+                //                dphi, dphi/std::abs(hits[i1].rho - hits[i2].rho), dphidrMax);
             }
         }
     }
@@ -212,6 +237,10 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster, unsigned int nse
         if (DEBUG>=2) HTDebugger::printAssociatedTracks(hits[i1].hit, hits[i2].hit);
         // apply pt correction from two hits
         float alphacorr = (hits[i1].phi - hits[i2].phi)/(hits[i1].rho - hits[i2].rho);
+        //DEBUG2_printf("\t alpha uncropped = %+8.5f (pt %8.4f)\n", alphacorr+hitsHiRes_->alpha(), 0.5f*0.003f*bfieldAtOrigin_/std::max(std::abs(alphacorr+hitsHiRes_->alpha()),0.0000001f));
+        if (alphacorr + hitsHiRes_->alpha() > alphaMax_) alphacorr = alphaMax_ - hitsHiRes_->alpha();
+        if (alphacorr + hitsHiRes_->alpha() < alphaMin_) alphacorr = alphaMin_ - hitsHiRes_->alpha();
+        //DEBUG2_printf("\t alpha   cropped = %+8.5f (pt %8.4f)\n", alphacorr+hitsHiRes_->alpha(), 0.5f*0.003f*bfieldAtOrigin_/std::max(std::abs(alphacorr+hitsHiRes_->alpha()),0.0000001f));
         // apply eta correction (approximate: if dz is the displacement wrt z0, then eta = eta0 + dz / (rho cosh(eta)) =: eta0 + beta / rho
         float betacorr  = (hits[i1].eta - hits[i2].eta)/(1/hits[i1].rho - 1/hits[i2].rho);
         float phi0 = hits[i1].phi - alphacorr*hits[i1].rho;
@@ -223,7 +252,7 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster, unsigned int nse
                        pairs[ip].first, hits[i1].dphi(hits[i2]), hits[i1].deta(hits[i2]));
         unsigned int microclusternhits = 2;
         for (int iteration = 0; iteration <= 1; ++iteration) {
-            DEBUG2_printf("   iteration %d: eta0,phi0 = %+5.3f,%+5.3f     alphacorr = %+8.5f (pt %8.4f), betacorr = %+8.5f\n", iteration+1, eta0, phi0, alphacorr, 0.5f*0.003f*bfieldAtOrigin_/std::max(std::abs(alphacorr-hitsHiRes_->alpha()),0.0000001f), betacorr);
+            DEBUG2_printf("   iteration %d: eta0,phi0 = %+5.3f,%+5.3f     alphacorr = %+8.5f (pt %8.4f), betacorr = %+8.5f\n", iteration+1, eta0, phi0, alphacorr, 0.5f*0.003f*bfieldAtOrigin_/std::max(std::abs(alphacorr+hitsHiRes_->alpha()),0.0000001f), betacorr);
             microclusternhits = 2;
             std::fill(layerhits.begin(), layerhits.end(), -1);
             std::fill(layerdist.begin(), layerdist.end(), 999.f);
@@ -257,6 +286,10 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster, unsigned int nse
             if (iteration == 0) {
                 if (microclusternhits == 2) break; // nothing to refit
                 refitAlphaBetaCorr(hits, &layerhits[0], layerhits.size(), alphacorr, betacorr, phi0, eta0);
+                //DEBUG2_printf("\t alpha uncropped = %+8.5f (pt %8.4f)\n", alphacorr+hitsHiRes_->alpha(), 0.5f*0.003f*bfieldAtOrigin_/std::max(std::abs(alphacorr+hitsHiRes_->alpha()),0.0000001f));
+                if (alphacorr + hitsHiRes_->alpha() > alphaMax_) alphacorr = alphaMax_ - hitsHiRes_->alpha();
+                if (alphacorr + hitsHiRes_->alpha() < alphaMin_) alphacorr = alphaMin_ - hitsHiRes_->alpha();
+                //DEBUG2_printf("\t alpha   cropped = %+8.5f (pt %8.4f)\n", alphacorr+hitsHiRes_->alpha(), 0.5f*0.003f*bfieldAtOrigin_/std::max(std::abs(alphacorr+hitsHiRes_->alpha()),0.0000001f));
             }
         }
 
@@ -380,7 +413,7 @@ TrackCandidateBuilderFromCluster::refitAlphaBetaCorr(const std::vector<Clustered
         eta0 += deta[0];
         betacorr = deta[1];
     }
-    if (DEBUG>=2) {
+    if (DEBUG>=4) {
         std::vector<const TrackingRecHit *> hitv;
         for (unsigned int i = 0; i < nhits; ++i) {
             if (ihits[i] == -1) continue;
