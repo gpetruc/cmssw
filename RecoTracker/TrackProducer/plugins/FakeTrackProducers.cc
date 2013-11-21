@@ -113,6 +113,7 @@ FakeTrackProducer<T>::produce(edm::Event & iEvent, const edm::EventSetup & iSetu
         const GeomDet *det0 = theGeometry->idToDet(hit0->geographicalId());
         const GeomDet *det1 = theGeometry->idToDet(hit1->geographicalId());
         if (det0 == 0 || det1 == 0) { std::cerr << "ERROR:  bogus detids at beginning or end of range" << std::endl; continue; }
+        if (!hit0->isValid() || !hit1->isValid()) { std::cerr << "ERROR:  invalid hits  at beginning or end of range" << std::endl; continue; }
         GlobalPoint gx0 = det0->toGlobal(hit0->localPosition());
         GlobalPoint gx1 = det1->toGlobal(hit1->localPosition());
         reco::Track::Point x0(gx0.x(), gx0.y(), gx0.z());
