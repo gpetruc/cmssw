@@ -27,7 +27,7 @@ class TrackCandidateBuilderFromCluster {
         ~TrackCandidateBuilderFromCluster() { delete initialStateEstimator_; }
 
         void init(const edm::EventSetup& es, const MeasurementTrackerEvent &evt, const SeedComparitor *ifilter) ;
-        void done();
+        void done(TrackCandidateCollection & tcCollection);
         void setHits(const HTHitsSpher  &hitsHiRes, const HTHitsSpher &hitsLowRes, 
                      const HTHitMap     &mapHiRes,  const HTHitMap    &mapLowRes,
                      std::vector<bool>  &maskHiRes,  std::vector<bool>     &maskLowRes,
@@ -43,7 +43,7 @@ class TrackCandidateBuilderFromCluster {
             alphaMin_ = alphaMin; alphaMax_ = alphaMax;
             if (alphaMax_ < alphaMin_) std::swap(alphaMax_,alphaMin_);
         }
-        void run(const HTCluster &cluster, unsigned int nseedlayersCut, unsigned int nlayersCut, TrackCandidateCollection & tcCollection, TrajectorySeedCollection & seedCollection, TrajectorySeedCollection *seedsFromAllClusters=0) ;
+        void run(const HTCluster &cluster, unsigned int nseedlayersCut, unsigned int nlayersCut, TrajectorySeedCollection & seedCollection, TrajectorySeedCollection *seedsFromAllClusters=0) ;
 
         struct ClusteredHit {
             ClusteredHit(const HTHitsSpher &hits, unsigned int i, unsigned int ly, float etaErr=1) :
@@ -88,7 +88,8 @@ class TrackCandidateBuilderFromCluster {
         float dphiCutPair_,    detaCutPair_;
         bool  pairsOnSeedCellOnly_;
         float dphiCutHits_[2], detaCutHits_[2];
-        unsigned int minHits_, minHitsIfNoCkf_;
+        unsigned int minHits_, maxSeedHits_, minHitsIfNoCkf_;
+        bool     keepPixelTriplets_;
         unsigned int maxFailMicroClusters_;
         std::vector<double> startingCovariance_;
 
@@ -117,20 +118,24 @@ class TrackCandidateBuilderFromCluster {
         // per-event locals
         std::auto_ptr<NavigationSetter> navigationSetter_;
         std::auto_ptr<BaseCkfTrajectoryBuilder> trajectoryBuilder_;
+        std::vector<Trajectory> allTrajectories_;
 
         // --- Helper Functions ---
         typedef std::vector<std::pair<uint32_t,unsigned int>> HitIndex;
         FreeTrajectoryState startingState(float eta0, float phi0, float alpha) const ;
+        TrajectoryStateOnSurface startingState(float eta0, float phi0, float alpha, const TrackingRecHit *hit) const ;
         void refitAlphaBetaCorr(const std::vector<ClusteredHit> &cluster, const int *ihits, unsigned int nhits, float &alphacorr, float &betacorr, float &phi0, float &eta0) const ; 
         void dumpAsSeed(const std::vector<ClusteredHit> &cluster, TrajectorySeedCollection &seedCollection) const ;
         const TrajectorySeed * makeSeed(const std::vector<ClusteredHit> &hits, std::pair<int,int> seedhits, const std::array<int,20> &layerhits,  float eta0, float phi0, float alpha, TrajectorySeedCollection &out) const ;
-        const TrajectorySeed * makeSeed2Way(const std::vector<ClusteredHit> &hits, std::pair<int,int> seedhits, const std::array<int,20> &layerhits,  float eta0, float phi0, float alpha, TrajectorySeedCollection &out) const ;
+        //const TrajectorySeed * makeSeed2Way(const std::vector<ClusteredHit> &hits, std::pair<int,int> seedhits, const std::array<int,20> &layerhits,  float eta0, float phi0, float alpha, TrajectorySeedCollection &out) const ;
         void makeTrajectories(const TrajectorySeed &seed, std::vector<Trajectory> &out) const ;
         void indexHits(const std::vector<ClusteredHit> &hits, HitIndex &index) const ;
         int  findHit(const TrackingRecHit *hit, const std::vector<ClusteredHit> &hits, HitIndex &index) const ;
-        void saveCandidates(const std::vector<Trajectory> &cands,  TrackCandidateCollection & tcCollection) const ;  
         void dumpTraj(const Trajectory &traj) const ;
         bool prefilterCluster(const HTCluster &cluster) const ;
+        void saveCandidates(std::vector<Trajectory> &cands,  TrackCandidateCollection & tcCollection) const ;  
+        int qualityCut(const Trajectory &t) const ;
+        bool recoverBackwardsFit(const Trajectory &t, std::vector<Trajectory> &out, int skipHits) const ;
 };
 
 #endif

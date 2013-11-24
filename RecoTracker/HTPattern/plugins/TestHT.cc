@@ -62,14 +62,20 @@ class TestHT : public edm::EDProducer {
       //void fillHitMap(HTHitMap &map, const HTHitsSpher &hitsSpher, const std::vector<bool> & toSkip) const ;
       
     private:
+      typedef edm::ContainerMask<edmNew::DetSetVector<SiPixelCluster> > PixelMask;
+      typedef edm::ContainerMask<edmNew::DetSetVector<SiStripCluster> > StripMask;
+
       /// Labels for input collections
       edm::EDGetTokenT<edmNew::DetSetVector<SiPixelRecHit> > pixelHits_;
       edm::EDGetTokenT<edmNew::DetSetVector<SiStripRecHit2D> > stripHits_;
       edm::EDGetTokenT<edmNew::DetSetVector<SiStripMatchedRecHit2D> > stripHits2D_;
+      bool hasMasks_;
       edm::EDGetTokenT<std::vector<reco::Vertex> > vertices_;
       edm::EDGetTokenT<reco::BeamSpot> beamSpot_;
       edm::EDGetTokenT<std::vector<reco::Track> > tracks_;
       edm::EDGetTokenT<MeasurementTrackerEvent> mtEvent_;
+      edm::EDGetTokenT<PixelMask> pixelHitMask_;  
+      edm::EDGetTokenT<StripMask> stripHitMask_;  
 
 
       // Configurables
@@ -98,6 +104,7 @@ TestHT::TestHT(const edm::ParameterSet & iConfig) :
     pixelHits_(consumes<edmNew::DetSetVector<SiPixelRecHit> >(iConfig.getParameter<edm::InputTag>("pixelHits"))),
     stripHits_(consumes<edmNew::DetSetVector<SiStripRecHit2D> >(iConfig.getParameter<edm::InputTag>("stripHits"))),
     stripHits2D_(consumes<edmNew::DetSetVector<SiStripMatchedRecHit2D> >(iConfig.getParameter<edm::InputTag>("stripHits2D"))),
+    hasMasks_(iConfig.existsAs<edm::InputTag>("clustersToSkip")),
     vertices_(consumes<std::vector<reco::Vertex> >(iConfig.getParameter<edm::InputTag>("vertices"))),
     beamSpot_(consumes<reco::BeamSpot>(iConfig.getParameter<edm::InputTag>("beamSpot"))),
     tracks_(consumes<std::vector<reco::Track> >(iConfig.getParameter<edm::InputTag>("tracks"))),
@@ -120,6 +127,10 @@ TestHT::TestHT(const edm::ParameterSet & iConfig) :
     tcBuilder_(iConfig.getParameter<edm::ParameterSet>("seedBuilderConfig")),
     debugger_(iConfig.getUntrackedParameter<bool>("debugger",false))
 {
+    if (hasMasks_) {
+        pixelHitMask_ = consumes<PixelMask>(iConfig.getParameter<edm::InputTag>("clustersToSkip"));
+        stripHitMask_ = consumes<StripMask>(iConfig.getParameter<edm::InputTag>("clustersToSkip"));
+    }
     produces<TrajectorySeedCollection>();  
     produces<TrajectorySeedCollection>("clusters");  
     produces<TrackCandidateCollection>();  
@@ -157,9 +168,20 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
 
     edm::Handle<MeasurementTrackerEvent> mtEvent;
     iEvent.getByToken(mtEvent_, mtEvent);
-
-    // initialize the builder
-    tcBuilder_.init(iSetup, *mtEvent, nullptr);
+    std::auto_ptr<MeasurementTrackerEvent> myMtEvent;
+    if (hasMasks_) {
+        // create a masked measurement tracker
+        edm::Handle<StripMask> stripHitMask;
+        iEvent.getByToken(stripHitMask_, stripHitMask);
+        edm::Handle<PixelMask> pixelHitMask;
+        iEvent.getByToken(pixelHitMask_, pixelHitMask);
+        myMtEvent.reset(new MeasurementTrackerEvent(*mtEvent, *stripHitMask, *pixelHitMask));
+        // initialize the builder
+        tcBuilder_.init(iSetup, *myMtEvent, nullptr);
+    } else {
+        // initialize the builder
+        tcBuilder_.init(iSetup, *mtEvent, nullptr);
+    }
 
     std::auto_ptr<TrajectorySeedCollection> out(new TrajectorySeedCollection());
     std::auto_ptr<TrajectorySeedCollection> outCl(new TrajectorySeedCollection());
@@ -186,16 +208,17 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
     std::vector<bool> mask2d(hits2d.size(), false);
     int etashift = std::round(log(double(etabins3d_)/etabins2d_)/std::log(2));
     int phishift = std::round(log(double(phibins3d_)/phibins2d_)/std::log(2));
-    bool firstVertex = true;
-    for(const reco::Vertex &vtx : *vertices) {
-        // always process first vertex, but apply selection to others
-        if (!firstVertex && !vertexSelection_(vtx)) continue; else firstVertex = false;
-        for (unsigned int iptStep = 0, nptSteps = ptSteps_.size(); iptStep < nptSteps; ++iptStep) {
-            double ptStep = ptSteps_[iptStep];
-            if (ptStep != 0 && bfield == 0) continue;
+    for (unsigned int iptStep = 0, nptSteps = ptSteps_.size(); iptStep < nptSteps; ++iptStep) {
+        double ptStep = ptSteps_[iptStep];
+        if (ptStep != 0 && bfield == 0) continue;
 
-            for (int ptsign = +1; ptsign > -2; ptsign -= 2) {
-                if (ptStep == 0 && ptsign < 0) continue;
+        for (int ptsign = +1; ptsign > -2; ptsign -= 2) {
+            if (ptStep == 0 && ptsign < 0) continue;
+
+            bool firstVertex = true;
+            for(const reco::Vertex &vtx : *vertices) {
+                // always process first vertex, but apply selection to others
+                if (!firstVertex && !vertexSelection_(vtx)) continue; else firstVertex = false;
 
                 sprintf(evid, "r%d_l%d_e%d_pT%c%03d_", iEvent.id().run(), iEvent.id().luminosityBlock(), iEvent.id().event(), ptsign > 0 ? 'p' : 'm', int(ptStep*100));
                 std::string prefix(evid);
@@ -235,7 +258,7 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
                     if (debugger_) if (DEBUG>=2) HTDebugger::dumpHTClusters(prefix+"c3d", map3d, hits3ds, layerCut3d_);
                     tcBuilder_.setHits(hits3ds, hits2ds, map3d, map2d, mask3d, mask2d, etashift, phishift, false);
                     for (auto & cluster : map3d.clusters()) {
-                        if (cluster.nmorelayers() >= layerCut3d_) tcBuilder_.run(cluster, layerSeedCut3d_, layerCut3d_, *outTC, *out, &*outCl);
+                        if (cluster.nmorelayers() >= layerCut3d_) tcBuilder_.run(cluster, layerSeedCut3d_, layerCut3d_, *out, &*outCl);
                     }
                 }
 
@@ -245,7 +268,7 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
                     if (debugger_) if (DEBUG>=2) HTDebugger::dumpHTClusters(prefix+"c2d", map2d, hits2ds, layerCut2d_);
                     tcBuilder_.setHits(hits2ds, hits2ds, map2d, map2d, mask2d, mask2d, etashift, phishift, false);
                     for (auto & cluster : map3d.clusters()) {
-                        if (cluster.nmorelayers() >= layerCut2d_) tcBuilder_.run(cluster, layerSeedCut2d_, layerCut2d_, *outTC, *out, &*outCl);
+                        if (cluster.nmorelayers() >= layerCut2d_) tcBuilder_.run(cluster, layerSeedCut2d_, layerCut2d_, *out, &*outCl);
                     }
                 }
 
@@ -261,8 +284,15 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
                                 cluster.nseedlayers(), cluster.nlayers(), cluster.nmorelayers(),
                                 hits3ds.hit(cell.hits().front())->geographicalId().rawId());
                     }
+                    std::vector<const HTCluster *> clustersSorted;
                     for (auto & cluster : map3d.clusters()) {
-                        if (cluster.nmorelayers() >= layerMoreCut_) tcBuilder_.run(cluster, layerSeedCut3d_, layerMoreCut_, *outTC, *out, &*outCl);
+                        if (cluster.nmorelayers() >= layerMoreCut_) clustersSorted.push_back(&cluster);
+                    } 
+                    std::sort(clustersSorted.begin(), clustersSorted.end(),
+                              [&map3d](const HTCluster *c1, const HTCluster *c2) -> bool 
+                              { return (c1->nseedlayers() == c2->nseedlayers() ? c1->nlayers() > c2->nlayers() : c1->nseedlayers() > c2->nseedlayers()); });
+                    for (const HTCluster *cluster : clustersSorted) {
+                        tcBuilder_.run(*cluster, layerSeedCut3d_, layerMoreCut_, *out, &*outCl);
                     }
                     if (debugger_) if (DEBUG>=1) HTDebugger::dumpHTClusters(prefix+"c3dp", map3d, hits3ds, layerSeedCut3d_, layerMoreCut_);
                 }
@@ -278,8 +308,9 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
                 map2d.clearClusters();
             }
         }
-        break;
     }
+
+    tcBuilder_.done(*outTC);
 
     if (DEBUG>=0.1) {
         HTDebugger::registerClustersAsSeeds(2, *out);
@@ -289,7 +320,6 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
         HTDebugger::printBackAssociation(*tracks, *outTC, *geometry_, *bfield_, ptMin);
     }
     
-    tcBuilder_.done();
     iEvent.put(outTC);
     iEvent.put(out);
     iEvent.put(outCl, "clusters");
@@ -302,6 +332,9 @@ TestHT::getPixelHits3D(const edm::Event & iEvent,  const reco::BeamSpot &bspot, 
    iEvent.getByToken(pixelHits_, pixelHits);
    GlobalPoint bspotPosition(bspot.position().x(), bspot.position().y(), 0);
 
+   edm::Handle<PixelMask> pixelHitMask;
+   if (hasMasks_) iEvent.getByToken(pixelHitMask_, pixelHitMask);
+
    for (auto ds : *pixelHits) {
         if (ds.empty()) continue;
         uint32_t id = ds.detId();
@@ -310,6 +343,7 @@ TestHT::getPixelHits3D(const edm::Event & iEvent,  const reco::BeamSpot &bspot, 
 	unsigned int layer = tTopo_->layer(DetId(id));
         unsigned int layermask = 1 << (layer-1);
         for (auto const &hit : ds) {
+            if (hasMasks_ && pixelHitMask->mask(hit.cluster().key())) continue;
             GlobalVector gp = geomDet->surface().toGlobal( hit.localPosition() ) - bspotPosition;
             hits3d.push_back(&hit, gp.perp(), gp.phi(), gp.z(), layermask);
         }
@@ -322,6 +356,9 @@ TestHT::getStripHits3D(const edm::Event & iEvent,  const reco::BeamSpot &bspot, 
    iEvent.getByToken(stripHits2D_, stripHits2D);
    GlobalPoint bspotPosition(bspot.position().x(), bspot.position().y(), 0);
 
+   edm::Handle<StripMask> stripHitMask;
+   if (hasMasks_) iEvent.getByToken(stripHitMask_, stripHitMask);
+
    for (auto ds : *stripHits2D) {
         if (ds.empty()) continue;
         DetId id(ds.detId());
@@ -330,6 +367,7 @@ TestHT::getStripHits3D(const edm::Event & iEvent,  const reco::BeamSpot &bspot, 
         if (id.subdetId() == StripSubdetector::TOB || id.subdetId() == StripSubdetector::TEC) layer += 4;
         unsigned int layermask = 1 << (layer-1);
         for (auto const &hit : ds) {
+            if (hasMasks_ && (stripHitMask->mask(hit.monoClusterRef().index()) || stripHitMask->mask(hit.stereoClusterRef().index()))) continue;
             GlobalVector gp = geomDet->surface().toGlobal( hit.localPosition() ) - bspotPosition;
             hits3d.push_back(&hit, gp.perp(), gp.phi(), gp.z(), layermask);
         }
@@ -342,6 +380,9 @@ TestHT::getStripHits2D(const edm::Event & iEvent,  const reco::BeamSpot &bspot, 
    iEvent.getByToken(stripHits_, stripHits);
    GlobalPoint bspotPosition(bspot.position().x(), bspot.position().y(), 0);
 
+   edm::Handle<StripMask> stripHitMask;
+   if (hasMasks_) iEvent.getByToken(stripHitMask_, stripHitMask);
+
    for (auto ds : *stripHits) {
         if (ds.empty()) continue;
         DetId id(ds.detId());
@@ -350,6 +391,7 @@ TestHT::getStripHits2D(const edm::Event & iEvent,  const reco::BeamSpot &bspot, 
         if (id.subdetId() == StripSubdetector::TOB || id.subdetId() == StripSubdetector::TEC) layer += 4;
         unsigned int layermask = 1 << (layer-1);
         for (auto const &hit : ds) {
+            if (hasMasks_ && stripHitMask->mask(hit.cluster().key())) continue;
             GlobalVector gp = geomDet->surface().toGlobal( hit.localPosition() ) - bspotPosition;
             hits3d.push_back(&hit, gp.perp(), gp.phi(), gp.z(), layermask);
         }

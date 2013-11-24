@@ -45,6 +45,22 @@ TrackMixingAssociator::registerTrackEvent(int eid, const reco::TrackCollection &
 }
 
 void 
+TrackMixingAssociator::registerTrackEvent(int eid, const edm::View<reco::Track> &tracks) 
+{
+    for (const reco::Track &tk : tracks) {
+        DEBUG_printf("registering track of pt %.3f, eta %+.3f\n", tk.pt(), tk.eta());
+        for (trackingRecHit_iterator ithit = tk.recHitsBegin(), edhit = tk.recHitsEnd(); ithit != edhit; ++ithit) {
+            const TrackingRecHit *hit = &**ithit;
+            uint32_t detid = hit->geographicalId().rawId();
+            DEBUG_printf("  registered hit %10d/%7d, %s\n", hit->geographicalId().rawId(), hitid(hit), typeid(*hit).name());
+            allHits_[detid].push_back(HitRecord(eid, hit, &tk));
+        }
+    }
+}
+
+
+
+void 
 TrackMixingAssociator::registerSeedEvent(int eid, const TrajectorySeedCollection &tracks) 
 {
     for (TrajectorySeedCollection::const_iterator it = tracks.begin(), ed = tracks.end(); it != ed; ++it) {

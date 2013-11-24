@@ -96,6 +96,9 @@ public:
     
     /// Register this collection of tracks coming from event id 'id'
     void registerTrackEvent(int id, const reco::TrackCollection &tracks) ;
+    
+    /// Register this collection of tracks coming from event id 'id'
+    void registerTrackEvent(int id, const edm::View<reco::Track> &tracks) ;
 
     /// Register this collection of tracks coming from event id 'id'
     void registerSeedEvent(int id, const TrajectorySeedCollection &tracks) ;
