@@ -86,6 +86,8 @@ class TestHT : public edm::EDProducer {
       uint32_t layerMoreCut_;
       std::vector<double> ptSteps_;
       std::vector<double> ptEdges_;
+      bool   autoPtStep_;
+      double autoPtStepR_, autoPtStepMin_;
 
       // Helpers
       StringCutObjectSelector<reco::Vertex> vertexSelection_;
@@ -123,6 +125,9 @@ TestHT::TestHT(const edm::ParameterSet & iConfig) :
     layerMoreCut_(iConfig.getParameter<uint32_t>("layerMoreCut")),
     ptSteps_(iConfig.getParameter<std::vector<double> >("ptSteps")),
     ptEdges_(iConfig.getParameter<std::vector<double> >("ptEdges")),
+    autoPtStep_(iConfig.getParameter<bool>("autoPtStep")),
+    autoPtStepR_(iConfig.getParameter<double>("autoPtStepR")),
+    autoPtStepMin_(iConfig.getParameter<double>("autoPtStepMin")),
     vertexSelection_(iConfig.getParameter<std::string>("vertexSelection")),
     tcBuilder_(iConfig.getParameter<edm::ParameterSet>("seedBuilderConfig")),
     debugger_(iConfig.getUntrackedParameter<bool>("debugger",false))
@@ -155,6 +160,23 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
     iSetup.get<IdealMagneticFieldRecord>().get(bfield_);
     double bfield = bfield_->inTesla(GlobalPoint(0.,0.,0.)).z();
 
+    if (autoPtStep_) {
+        ptSteps_.clear(); ptEdges_.clear();
+        double ptinv = 0;
+        double stride = 6.28/phibins3d_/(0.5*0.003*std::abs(bfield)*autoPtStepR_);
+        ptSteps_.push_back(0);
+        ptEdges_.push_back(2/stride); ptEdges_.push_back(-2/stride); 
+        do {
+            ptinv += stride;
+            ptSteps_.push_back(1/ptinv);
+            ptEdges_.push_back(1/(ptinv-1.5*stride)); ptEdges_.push_back(1/(ptinv+2*stride)); 
+        } while (ptinv < 1/autoPtStepMin_);
+        for (unsigned int i = 0, n = ptSteps_.size(); i < n; ++i) {
+            DEBUG1_printf("auto pt step %2d:  pt = %5.2f  [ % 5.2f, % 5.2f ]\n", i+1, ptSteps_[i], ptEdges_[2*i], ptEdges_[2*i+1]);
+        }
+    }
+
+
     edm::Handle<reco::BeamSpot> beamSpot;
     iEvent.getByToken(beamSpot_, beamSpot);
 
@@ -163,7 +185,7 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
 
     Handle<vector<reco::Track> > tracks;
     iEvent.getByToken(tracks_, tracks);
-    if (debugger_) { if (DEBUG>=2) HTDebugger::dumpTracks(prefix+"tk", *tracks); } 
+    if (debugger_ || DEBUG>=2) HTDebugger::dumpTracks(prefix+"tk", *tracks, &*geometry_, &*tTopo_);  
     if (DEBUG>0.1) HTDebugger::registerTracks(*tracks); 
 
     edm::Handle<MeasurementTrackerEvent> mtEvent;
@@ -223,14 +245,14 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
                 sprintf(evid, "r%d_l%d_e%d_pT%c%03d_", iEvent.id().run(), iEvent.id().luminosityBlock(), iEvent.id().event(), ptsign > 0 ? 'p' : 'm', int(ptStep*100));
                 std::string prefix(evid);
 
-                float alpha = ptStep ? 0.5 * 0.003 * bfield / ptStep * ptsign : 0;
+                float alpha = ptStep ? -0.5 * 0.003 * bfield / ptStep * ptsign : 0;
                 if (!ptEdges_.empty()) {
-                    float alpha1 =  0.5 * 0.003 * bfield / ptEdges_[2*iptStep] * ptsign;
-                    float alpha2 = 0.5 * 0.003 * bfield / ptEdges_[2*iptStep+1] * ptsign;
+                    float alpha1 =  -0.5 * 0.003 * bfield / ptEdges_[2*iptStep] * ptsign;
+                    float alpha2 =  -0.5 * 0.003 * bfield / ptEdges_[2*iptStep+1] * ptsign;
                     tcBuilder_.setAlphaRange( alpha1, alpha2 );
-                    printf("\n========== HT iteration with pT = %+.2f, alpha = %+.5f [ %+.5f : %+.5f ] ==========\n", ptStep*ptsign, alpha, alpha1, alpha2);
+                    printf("\n========== HT iteration with pT = %+.2f, alpha = %+.5f [ %+.5f : %+.5f ], z0 = %+7.4f ==========\n", ptStep*ptsign, alpha, alpha1, alpha2, vtx.z());
                 } else {
-                    printf("\n========== HT iteration with pT = %+.2f, alpha = %+.5f ==========\n", ptStep*ptsign, alpha);
+                    printf("\n========== HT iteration with pT = %+.2f, alpha = %+.5f, z0 = %+7.4f ==========\n", ptStep*ptsign, alpha, vtx.z());
                 }
 
                 HTHitsSpher hits3ds(hits3d, vtx.z(), etabins3d_);

@@ -19,6 +19,8 @@
 #include "RecoTracker/Record/interface/NavigationSchoolRecord.h"
 #include "RecoTracker/MeasurementDet/interface/MeasurementTrackerEvent.h"
 #include "RecoTracker/CkfPattern/interface/TransientInitialStateEstimator.h"
+#include "DataFormats/TrackerCommon/interface/TrackerTopology.h"
+#include <TStopwatch.h>
 
 
 class TrackCandidateBuilderFromCluster {
@@ -89,7 +91,7 @@ class TrackCandidateBuilderFromCluster {
         bool  pairsOnSeedCellOnly_;
         float dphiCutHits_[2], detaCutHits_[2];
         unsigned int minHits_, maxSeedHits_, minHitsIfNoCkf_;
-        bool     keepPixelTriplets_;
+        bool     popOneLayer_, keepPixelTriplets_;
         unsigned int maxFailMicroClusters_;
         std::vector<double> startingCovariance_;
 
@@ -103,6 +105,7 @@ class TrackCandidateBuilderFromCluster {
         edm::ESHandle<NavigationSchool>  navigationSchool_;
         edm::ESHandle<TrajectoryBuilder> trajectoryBuilderTemplate_;
         edm::ESHandle<TrajectoryCleaner> trajectoryCleaner_;
+        edm::ESHandle<TrackerTopology>   tTopo_;
         TransientInitialStateEstimator*  initialStateEstimator_;
 
         const HTHitsSpher  *hitsHiRes_, *hitsLowRes_;
@@ -119,6 +122,7 @@ class TrackCandidateBuilderFromCluster {
         std::auto_ptr<NavigationSetter> navigationSetter_;
         std::auto_ptr<BaseCkfTrajectoryBuilder> trajectoryBuilder_;
         std::vector<Trajectory> allTrajectories_;
+        mutable TStopwatch timerAll_, timerSeed_, timerTraj_;
 
         // --- Helper Functions ---
         typedef std::vector<std::pair<uint32_t,unsigned int>> HitIndex;
