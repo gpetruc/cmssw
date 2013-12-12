@@ -21,7 +21,7 @@
 #include "RecoTracker/CkfPattern/interface/TransientInitialStateEstimator.h"
 #include "DataFormats/TrackerCommon/interface/TrackerTopology.h"
 #include <TStopwatch.h>
-
+class SimplisticTrajectoryBuilder;
 
 class TrackCandidateBuilderFromCluster {
     public:
@@ -86,6 +86,8 @@ class TrackCandidateBuilderFromCluster {
         std::string propagatorLabel_, propagatorOppositeLabel_, hitBuilderLabel_, estimatorLabel_, navigationSchoolLabel_, trajectoryBuilderLabel_, trajectoryCleanerLabel_;
         bool cleanTrajectoryAfterInOut_;
         edm::ParameterSet initialStateEstimatorPSet_;
+        bool useSimpleTB_;
+        std::auto_ptr<SimplisticTrajectoryBuilder> simpleTB_;
         bool useHitsSplitting_, splitSeedHits_;
         float dphiCutPair_,    detaCutPair_;
         bool  pairsOnSeedCellOnly_;
@@ -133,6 +135,7 @@ class TrackCandidateBuilderFromCluster {
         const TrajectorySeed * makeSeed(const std::vector<ClusteredHit> &hits, std::pair<int,int> seedhits, const std::array<int,20> &layerhits,  float eta0, float phi0, float alpha, TrajectorySeedCollection &out) const ;
         //const TrajectorySeed * makeSeed2Way(const std::vector<ClusteredHit> &hits, std::pair<int,int> seedhits, const std::array<int,20> &layerhits,  float eta0, float phi0, float alpha, TrajectorySeedCollection &out) const ;
         void makeTrajectories(const TrajectorySeed &seed, std::vector<Trajectory> &out) const ;
+        void makeSimpleTrajectories(const std::vector<ClusteredHit> &hits, std::pair<int,int> seedhits, const std::array<int,20> &layerhits,  float eta0, float phi0, float alpha, std::vector<Trajectory> &out) const ;
         void indexHits(const std::vector<ClusteredHit> &hits, HitIndex &index) const ;
         int  findHit(const TrackingRecHit *hit, const std::vector<ClusteredHit> &hits, HitIndex &index) const ;
         void dumpTraj(const Trajectory &traj) const ;

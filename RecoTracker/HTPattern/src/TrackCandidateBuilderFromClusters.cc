@@ -19,7 +19,9 @@
 #include "Geometry/CommonDetUnit/interface/GeomDetType.h"
 #include "Math/GenVector/CylindricalEta3D.h"
 #include "RecoTracker/HTPattern/interface/HTDebugger.h"
+#include "RecoTracker/HTPattern/interface/SimplisticTrajectoryBuilder.h"
 #include "TrackingTools/TransientTrackingRecHit/interface/InvalidTransientRecHit.h"
+
 
 #ifdef  HTDEBUG
 #define DEBUG HTDEBUG
@@ -54,6 +56,8 @@ TrackCandidateBuilderFromCluster::TrackCandidateBuilderFromCluster(const edm::Pa
     trajectoryCleanerLabel_(iConfig.getParameter<std::string>("TrajectoryCleaner")),
     cleanTrajectoryAfterInOut_(iConfig.getParameter<bool>("cleanTrajectoryAfterInOut")),
     initialStateEstimatorPSet_(iConfig.getParameter<edm::ParameterSet>("transientInitialStateEstimatorParameters")),
+    useSimpleTB_(iConfig.getParameter<bool>("useSimpleTB")),
+    simpleTB_(useSimpleTB_ ? new SimplisticTrajectoryBuilder(iConfig.getParameter<edm::ParameterSet>("simpleTBParameters")) : 0),
     useHitsSplitting_(iConfig.getParameter<bool>("useHitsSplitting")),
     splitSeedHits_(iConfig.getParameter<bool>("splitSeedHits")),
     dphiCutPair_(iConfig.getParameter<double>("dphiCutPair")),
@@ -109,6 +113,9 @@ TrackCandidateBuilderFromCluster::init(const edm::EventSetup& es, const Measurem
         initialStateEstimator_ = new TransientInitialStateEstimator(es, initialStateEstimatorPSet_);
     }
     initialStateEstimator_->setEventSetup(es);
+
+    if (useSimpleTB_) simpleTB_->setEvent(evt,es);
+
     allTrajectories_.reserve(200);
     timerAll_.Reset();
     timerSeed_.Reset();
@@ -344,15 +351,20 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster, unsigned int nse
             }
         }
         if (microclusternhits < minHits_ && (!keepPixelTriplets_ || microclusterpixelhits < 3)) continue;
-        const TrajectorySeed *seed = makeSeed(hits, std::make_pair(i1,i2), layerhits, eta0,phi0,hitsHiRes_->alpha()+alphacorr, seedCollection);
-        if (seed == 0) {
-            seed = 0; // makeSeed2Way(hits, std::make_pair(i1,i2), layerhits, eta0,phi0,hitsHiRes_->alpha()+alphacorr, seedCollection); // FIXME
-        }
-        if (seed == 0) continue;
-        if (DEBUG>=2) HTDebugger::printAssociatedTracks(*seed);
 
         std::vector<Trajectory> trajectories;
-        makeTrajectories(*seed, trajectories);
+        if (!useSimpleTB_) {
+            const TrajectorySeed *seed = makeSeed(hits, std::make_pair(i1,i2), layerhits, eta0,phi0,hitsHiRes_->alpha()+alphacorr, seedCollection);
+            if (seed == 0) {
+                seed = 0; // makeSeed2Way(hits, std::make_pair(i1,i2), layerhits, eta0,phi0,hitsHiRes_->alpha()+alphacorr, seedCollection); // FIXME
+            }
+            if (seed == 0) continue;
+            if (DEBUG>=2) HTDebugger::printAssociatedTracks(*seed);
+
+            makeTrajectories(*seed, trajectories);
+        } else {
+            makeSimpleTrajectories(hits, std::make_pair(i1,i2), layerhits, eta0,phi0,hitsHiRes_->alpha()+alphacorr, trajectories);
+        }
         
         if (trajectories.empty()) continue;
         for (Trajectory &traj : trajectories) {
@@ -637,6 +649,66 @@ TrackCandidateBuilderFromCluster::makeSeed(const std::vector<ClusteredHit> &hits
     timerSeed_.Stop();
     return 0;
 }
+
+void
+TrackCandidateBuilderFromCluster::makeSimpleTrajectories(const std::vector<ClusteredHit> &hits, std::pair<int,int> seedhits, const std::array<int,20> &layerhits,  float eta0, float phi0, float alpha, std::vector<Trajectory> &out) const 
+{
+    timerSeed_.Start(false);
+    // sort hits along R, since the layer number sorting is not correct in the endcaps
+    typedef std::pair<int,const TrackingRecHit *> HitP;
+    std::vector<std::pair<float,HitP>> hitsSorted; std::list<SiStripRecHit2D> splittedHits2D; std::list<SiStripRecHit1D> splittedHits1D; 
+    int minlayer = 20, maxlayer = 0;
+    for (unsigned int il = 0; il < layerhits.size(); ++il) {
+        if (layerhits[il] == -1) continue;
+        if (hits[layerhits[il]].layer > maxlayer) maxlayer = hits[layerhits[il]].layer;
+        if (hits[layerhits[il]].layer < minlayer) minlayer = hits[layerhits[il]].layer;
+        if (splitSeedHits_ && (typeid(*hits[layerhits[il]].hit) == typeid(SiStripMatchedRecHit2D))) {
+            const SiStripMatchedRecHit2D &matched = dynamic_cast<const SiStripMatchedRecHit2D &>(*hits[layerhits[il]].hit);
+            const GeomDet *  monoDet = tracker_->idToDet(DetId(matched.monoId()));
+            const GeomDet *stereoDet = tracker_->idToDet(DetId(matched.stereoId()));
+            float epsilon = 0; 
+            if (dynamic_cast<const GeomDetUnit *>(monoDet)->type().isBarrel()) {
+                epsilon = monoDet->position().perp() - stereoDet->position().perp();
+                splittedHits1D.push_back(SiStripRecHit1D(LocalPoint(),LocalError(),DetId(matched.monoId()),matched.monoClusterRef()));
+                hitsSorted.push_back(std::make_pair(hypot(hits[layerhits[il]].rho, hits[layerhits[il]].z - hitsHiRes_->z0())+epsilon, HitP(layerhits[il],&splittedHits1D.back())));
+                splittedHits1D.push_back(SiStripRecHit1D(LocalPoint(),LocalError(),DetId(matched.stereoId()),matched.stereoClusterRef()));
+                hitsSorted.push_back(std::make_pair(hypot(hits[layerhits[il]].rho, hits[layerhits[il]].z - hitsHiRes_->z0())-epsilon, HitP(layerhits[il],&splittedHits1D.back())));
+            } else {
+                epsilon = monoDet->position().z() - stereoDet->position().z();
+                if (eta0 < 0) epsilon = -epsilon;
+                splittedHits2D.push_back(matched.monoHit());
+                hitsSorted.push_back(std::make_pair(hypot(hits[layerhits[il]].rho, hits[layerhits[il]].z - hitsHiRes_->z0())+epsilon, HitP(layerhits[il],&splittedHits2D.back())));
+                splittedHits2D.push_back(matched.stereoHit());
+                hitsSorted.push_back(std::make_pair(hypot(hits[layerhits[il]].rho, hits[layerhits[il]].z - hitsHiRes_->z0())-epsilon, HitP(layerhits[il],&splittedHits2D.back())));
+            }
+        } else {
+            hitsSorted.push_back(std::make_pair(hypot(hits[layerhits[il]].rho, hits[layerhits[il]].z - hitsHiRes_->z0()), HitP(layerhits[il],hits[layerhits[il]].hit)));
+        }
+    }
+    std::sort(hitsSorted.begin(), hitsSorted.end());
+
+    float seedlayer = 0.5*(hits[seedhits.first].layer + hits[seedhits.second].layer);
+    DEBUG2_printf("\tLayers: %d - %d  (avg seed layer: %4.1f)\n", minlayer,maxlayer,seedlayer);
+
+    PropagationDirection pdir = alongMomentum;
+    if (seedlayer >= 7 && ((maxlayer-seedlayer) < (seedlayer-minlayer))) {
+        pdir = oppositeToMomentum;
+        std::reverse(hitsSorted.begin(), hitsSorted.end());
+    }
+    std::vector<const TrackingRecHit *> vhits(hitsSorted.size());
+    for (unsigned int i = 0, n = hitsSorted.size(); i < n; ++i) {
+        vhits[i] = hitsSorted[i].second.second;
+    }
+
+    TrajectoryStateOnSurface tsos = startingState(eta0, phi0, alpha, hitsSorted.front().second.second);
+    timerSeed_.Stop();
+    timerTraj_.Start(false);
+    out.clear();
+    simpleTB_->run(vhits, tsos, pdir, out);
+    timerTraj_.Stop();
+}
+
+
 
 #if 0
 const TrajectorySeed *

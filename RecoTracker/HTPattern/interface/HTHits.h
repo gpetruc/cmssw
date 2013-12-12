@@ -66,6 +66,10 @@ class HTHitsSpher {
         float x0() const { return x0_; }
         float y0() const { return y0_; }
         float z0() const { return z0_; }
+
+        static inline float pseudoEta(float rOverZ) { return 0.3f*rOverZ; }
+        static inline float etaFromPseudoEta(float pseudoEta) { return std::asinh(pseudoEta/0.3f); }
+
     protected:
         unsigned int size_, etabins_, phibins_;
         float etascale_, phiscale_;

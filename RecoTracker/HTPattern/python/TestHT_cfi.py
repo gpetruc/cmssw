@@ -1,5 +1,7 @@
 import FWCore.ParameterSet.Config as cms
 
+twoSteps = False
+
 import RecoPixelVertexing.PixelVertexFinding.PixelVertexes_cfi
 import RecoTracker.IterativeTracking.InitialStep_cff
 import TrackingTools.TrajectoryFiltering.TrajectoryFilterESProducer_cff
@@ -8,11 +10,23 @@ highPtCkfTrajectoryFilter = TrackingTools.TrajectoryFiltering.TrajectoryFilterES
 )
 highPtCkfTrajectoryFilter.filterPset.minPt = 0.9
 highPtCkfTrajectoryFilter.filterPset.minimumNumberOfHits = 3
+highPtCkfTrajectoryFilter5h = TrackingTools.TrajectoryFiltering.TrajectoryFilterESProducer_cff.ckfBaseTrajectoryFilter.clone(
+    ComponentName = 'highPtCkfTrajectoryFilter5h',
+)
+highPtCkfTrajectoryFilter5h.filterPset.minPt = 0.9
+highPtCkfTrajectoryFilter5h.filterPset.minimumNumberOfHits = 5
+
 lowPtCkfTrajectoryFilter = RecoTracker.IterativeTracking.InitialStep_cff.initialStepTrajectoryFilter.clone(
     ComponentName = 'lowPtCkfTrajectoryFilter',
 )
 lowPtCkfTrajectoryFilter.filterPset.minPt = 0.3
 lowPtCkfTrajectoryFilter.filterPset.minimumNumberOfHits = 3
+lowPtCkfTrajectoryFilter5h = TrackingTools.TrajectoryFiltering.TrajectoryFilterESProducer_cff.ckfBaseTrajectoryFilter.clone(
+    ComponentName = 'lowPtCkfTrajectoryFilter5h',
+)
+lowPtCkfTrajectoryFilter5h.filterPset.minPt = 0.3
+lowPtCkfTrajectoryFilter5h.filterPset.minimumNumberOfHits = 5
+
 
 
 htCkfTrajectoryBuilder = RecoTracker.IterativeTracking.InitialStep_cff.initialStepTrajectoryBuilder.clone(
@@ -31,6 +45,10 @@ htChi2Est = cms.ESProducer("Chi2MeasurementEstimatorESProducer",
     MaxChi2 = cms.double(30.0),
     nSigma = cms.double(3.0),
     ComponentName = cms.string('htChi2Est')
+)
+htChi2EstTight = htChi2Est.clone(
+    MaxChi2 = cms.double(9.0),
+    ComponentName = cms.string('htChi2EstTight')
 )
 
 pixelVerticesZero = RecoPixelVertexing.PixelVertexFinding.PixelVertexes_cfi.pixelVertices.clone()
@@ -70,7 +88,7 @@ highPtHTSeeds = cms.EDProducer("TestHT",
     phibins3d = cms.uint32(256), #64),
     # clustering
     layerSeedCut2d = cms.uint32(4),
-    layerSeedCut3d = cms.uint32(3),
+    layerSeedCut3d = cms.uint32(4),
     layerCut2d     = cms.uint32(5),
     layerCut3d     = cms.uint32(5),
     layerMoreCut   = cms.uint32(6),
@@ -81,8 +99,8 @@ highPtHTSeeds = cms.EDProducer("TestHT",
     ptSteps = cms.vdouble( 0.0,       2.0),
     ptEdges = cms.vdouble( 1.5,-1.5,  1.0,3.0 ), 
     autoPtStep = cms.bool(True),
-    autoPtStepR   = cms.double(40.), # transverse length of trajectory which should fit in one phi bin
-    autoPtStepMin = cms.double(1.),  # minimum pt to consider (included)
+    autoPtStepR   = cms.double(50.), # transverse length of trajectory which should fit in one phi bin
+    autoPtStepMin = cms.double(1.4),  # minimum pt to consider (included)
     # seed builder
     seedBuilderConfig = cms.PSet(
         propagator = cms.string('PropagatorWithMaterial'),
@@ -95,7 +113,7 @@ highPtHTSeeds = cms.EDProducer("TestHT",
         TrajectoryCleaner = cms.string('TrajectoryCleanerBySharedHits'),
         cleanTrajectoryAfterInOut = cms.bool(True),
         useHitsSplitting = cms.bool(True),
-        splitSeedHits = cms.bool(True),
+        splitSeedHits = cms.bool(False),
         # cuts for pair seeding
         detaCutPair = cms.double(0.002),
         dphiCutPair = cms.double(0.01),
@@ -122,6 +140,23 @@ highPtHTSeeds = cms.EDProducer("TestHT",
             propagatorAlongTISE = cms.string('PropagatorWithMaterial'),
             numberMeasurementsForFit = cms.int32(4),
             propagatorOppositeTISE = cms.string('PropagatorWithMaterialOpposite')
+        ),
+        useSimpleTB = cms.bool(True),
+        simpleTBParameters  = cms.PSet(
+            propagator = cms.string('PropagatorWithMaterial'),
+            propagatorOpposite = cms.string('PropagatorWithMaterialOpposite'),
+            #TTRHBuilder = cms.string('WithTrackAngle'), 
+            TTRHBuilder = cms.string('WithTrackAngleAndBootstrap'), 
+            chi2MeasurementEstimator = cms.string("htChi2Est"),
+            chi2MeasurementEstimatorForRebuild = cms.string("htChi2EstTight"),
+            trajectoryCleaner = cms.string('TrajectoryCleanerBySharedHits'),
+            trajectoryFilter = cms.string('highPtCkfTrajectoryFilter'),
+            trajectoryFilterStart = cms.string('highPtCkfTrajectoryFilter5h'),
+            trajectoryFilterRebuild = cms.string('highPtCkfTrajectoryFilter5h'),
+            foundHitBonus  = cms.double(4.),
+            lostHitPenalty = cms.double(5.),
+            searchHits = cms.string("pixelLayers"),
+            useGrouped = cms.string("pixelLayers"),
         ),
     ),
     # for debugging
@@ -157,8 +192,15 @@ lowPtHTSeeds = highPtHTSeeds.clone(
         # cuts for additional hits (before and after the refit)
         dphiCutHits = cms.vdouble(0.03, 0.01),
         detaCutHits = cms.vdouble(0.04, 0.02),
- 
+        simpleTBParameters  = highPtHTSeeds.seedBuilderConfig.simpleTBParameters.clone(
+                trajectoryFilter = cms.string('lowPtCkfTrajectoryFilter'),
+                trajectoryFilterStart = cms.string('lowPtCkfTrajectoryFilter5h'),
+                trajectoryFilterRebuild = cms.string('lowPtCkfTrajectoryFilter5h'),
+                foundHitBonus  = cms.double(4.),
+                lostHitPenalty = cms.double(5.),
+            ),
     ),
+
 )
 
 import RecoTracker.TrackProducer.TrackProducer_cfi
@@ -225,33 +267,36 @@ finalHTTracks = cms.EDProducer("TrackListMerger",
     allowFirstHitShare = cms.bool(True),
     copyExtras = cms.untracked.bool(True),
     Epsilon = cms.double(-0.001),
-    #selectedTrackQuals = cms.VInputTag(cms.InputTag("highPtHTSelector","highPtHT")),
-    selectedTrackQuals = cms.VInputTag(cms.InputTag("highPtHTSelector","highPtHT"),cms.InputTag("lowPtHTSelector","lowPtHT")),
+    selectedTrackQuals = cms.VInputTag(cms.InputTag("highPtHTSelector","highPtHT")),
     indivShareFrac = cms.vdouble(1.0, 0.19),
     makeReKeyedSeeds = cms.untracked.bool(False),
     MaxNormalizedChisq = cms.double(1000.0),
     FoundHitBonus = cms.double(5.0),
     setsToMerge = cms.VPSet(cms.PSet(
         pQual = cms.bool(True),
-        tLists = cms.vint32(0,1)
-        #tLists = cms.vint32(0)
+        tLists = cms.vint32(0)
     )),
     MinFound = cms.int32(3),
-    hasSelector = cms.vint32(1,1),
-    #hasSelector = cms.vint32(1),
-    TrackProducers = cms.VInputTag(cms.InputTag("highPtHTTracks"), cms.InputTag("lowPtHTTracks")),
-    #TrackProducers = cms.VInputTag(cms.InputTag("highPtHTTracks")),
+    hasSelector = cms.vint32(1),
+    TrackProducers = cms.VInputTag(cms.InputTag("highPtHTTracks")),
     LostHitPenalty = cms.double(20.0),
     newQuality = cms.string('confirmed')
 )
+if twoSteps:
+    finalHTTracks.selectedTrackQuals = cms.VInputTag(cms.InputTag("highPtHTSelector","highPtHT"),cms.InputTag("lowPtHTSelector","lowPtHT"))
+    finalHTTracks.setsToMerge.tLists = cms.vint32(0,1)
+    finalHTTracks.hasSelector = cms.vint32(1,1)
+    finalHTTracks.TrackProducers = cms.VInputTag(cms.InputTag("highPtHTTracks"), cms.InputTag("lowPtHTTracks"))
 
 testHT = cms.Sequence(
     #pixelVerticesZero + 
     #pixelVerticesFake +
     highPtHTSeeds * highPtHTTracks + highPtHTSelector + highPtHTClusterMasks 
-    + lowPtHTSeeds * lowPtHTTracks + lowPtHTSelector 
+    #+ lowPtHTSeeds * lowPtHTTracks + lowPtHTSelector 
     + finalHTTracks 
 )
+if twoSteps:
+    testHT.replace(finalHTTracks, lowPtHTSeeds * lowPtHTTracks + lowPtHTSelector + finalHTTracks)
 
 from PhysicsTools.RecoAlgos.trackingParticleSelector_cfi import trackingParticleSelector
 tracksSim = trackingParticleSelector.clone()
@@ -260,8 +305,8 @@ finalStudy = cms.EDProducer("HTFinalOutcomeStudy",
     tracksCkf = cms.InputTag("TrackMCQuality"),
     tracksHT  = cms.InputTag("TrackMCQualityHT"),
     #tracksHT  = cms.InputTag("TrackMCQuality"),
-    trackSelectionCkf = cms.string("pt > 0.5 && numberOfValidHits > 3 && quality('highPurity')"),
-    trackSelectionHT  = cms.string("pt > 0.5"),
+    trackSelectionCkf = cms.string("pt > 1.1 && numberOfValidHits > 3 && hitPattern.trackerLayersWithMeasurement >= 5 && quality('highPurity')"),
+    trackSelectionHT  = cms.string("pt > 1.1"),
     doMC = cms.bool(False),
     tracksSim = cms.InputTag("tracksSim"),
     simAssociator = cms.string("TrackAssociatorByHits"),
