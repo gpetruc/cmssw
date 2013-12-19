@@ -27,3 +27,4 @@
 <use   name="RecoTracker/DebugTools"/>
 <use   name="boost"/>
 <use   name="root"/>
+<use   name="vdt"/>

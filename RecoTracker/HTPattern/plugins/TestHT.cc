@@ -230,20 +230,20 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
     std::vector<bool> mask2d(hits2d.size(), false);
     int etashift = std::round(log(double(etabins3d_)/etabins2d_)/std::log(2));
     int phishift = std::round(log(double(phibins3d_)/phibins2d_)/std::log(2));
-    for (unsigned int iptStep = 0, nptSteps = ptSteps_.size(); iptStep < nptSteps; ++iptStep) {
-        double ptStep = ptSteps_[iptStep];
-        if (ptStep != 0 && bfield == 0) continue;
+    bool firstVertex = true;
+    for(const reco::Vertex &vtx : *vertices) {
+        // always process first vertex, but apply selection to others
+        if (!firstVertex && !vertexSelection_(vtx)) continue; else firstVertex = false;
 
-        for (int ptsign = +1; ptsign > -2; ptsign -= 2) {
-            if (ptStep == 0 && ptsign < 0) continue;
+        HTHitsSpher hits3ds(hits3d, vtx.z(), etabins3d_);
+        HTHitsSpher hits2ds(hits2d, vtx.z(), etabins2d_);
 
-            bool firstVertex = true;
-            for(const reco::Vertex &vtx : *vertices) {
-                // always process first vertex, but apply selection to others
-                if (!firstVertex && !vertexSelection_(vtx)) continue; else firstVertex = false;
+        for (unsigned int iptStep = 0, nptSteps = ptSteps_.size(); iptStep < nptSteps; ++iptStep) {
+            double ptStep = ptSteps_[iptStep];
+            if (ptStep != 0 && bfield == 0) continue;
 
-                sprintf(evid, "r%d_l%d_e%d_pT%c%03d_", iEvent.id().run(), iEvent.id().luminosityBlock(), iEvent.id().event(), ptsign > 0 ? 'p' : 'm', int(ptStep*100));
-                std::string prefix(evid);
+            for (int ptsign = +1; ptsign > -2; ptsign -= 2) {
+                if (ptStep == 0 && ptsign < 0) continue;
 
                 float alpha = ptStep ? -0.5 * 0.003 * bfield / ptStep * ptsign : 0;
                 if (!ptEdges_.empty()) {
@@ -255,9 +255,10 @@ TestHT::produce(edm::Event & iEvent, const edm::EventSetup & iSetup) {
                     printf("\n========== HT iteration with pT = %+.2f, alpha = %+.5f, z0 = %+7.4f ==========\n", ptStep*ptsign, alpha, vtx.z());
                 }
 
-                HTHitsSpher hits3ds(hits3d, vtx.z(), etabins3d_);
+                sprintf(evid, "r%d_l%d_e%d_pT%c%03d_", iEvent.id().run(), iEvent.id().luminosityBlock(), iEvent.id().event(), ptsign > 0 ? 'p' : 'm', int(ptStep*100));
+                std::string prefix(evid);
+
                 hits3ds.filliphi(alpha, phibins3d_);
-                HTHitsSpher hits2ds(hits2d, vtx.z(), etabins2d_);
                 hits2ds.filliphi(alpha, phibins2d_);
 
                 if (debugger_) if (DEBUG>=2) HTDebugger::dumpHTHitsSpher(prefix+"spher3d", hits3ds);

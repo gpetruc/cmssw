@@ -45,17 +45,20 @@ class HTHitsSpher {
     public:
         HTHitsSpher(const HTHits3D &hits3d, float z0, unsigned int etabins) ;
         float eta(int i) const { return eta_[i]; }
-        int   ieta(int i) const { return ieta_[i]; }
+        unsigned int ieta(int i) const { return ieta_[i]; }
         float rho(int i) const { return (*rho_)[i]; }
         float phi0(int i) const { return (*phi_)[i]; }
+        float phiNoLoop(int i) const { 
+            return phi0(i) - alpha()*rho(i);
+        }
         float phi(int i) const { 
-            float philoop = phi0(i) - alpha()*rho(i);
+            float philoop = phiNoLoop(i);
             while (philoop < 0) philoop += float(2*M_PI);
             while (philoop > float(2*M_PI)) philoop -= float(2*M_PI);
             return philoop;
         }
         float z(int i) const { return (*z_)[i]; }
-        int   iphi(int i) const { return iphi_[i]; }
+        unsigned int iphi(int i) const { return iphi_[i]; }
         const TrackingRecHit * hit(int i) const { return (*hit_)[i]; }
         int   layermask(int i) const { return (*layermask_)[i]; }
         void  filliphi(float alpha, unsigned int phibins) ;
@@ -66,6 +69,7 @@ class HTHitsSpher {
         float x0() const { return x0_; }
         float y0() const { return y0_; }
         float z0() const { return z0_; }
+        float realEta(int i) const { return etaFromPseudoEta(eta(i)); }
 
         static inline float pseudoEta(float rOverZ) { return 0.3f*rOverZ; }
         static inline float etaFromPseudoEta(float pseudoEta) { return std::asinh(pseudoEta/0.3f); }
@@ -76,8 +80,8 @@ class HTHitsSpher {
         float x0_, y0_, z0_, alpha_;
         const std::vector<float> *rho_, *phi_, *z_;
         std::vector<float> eta_;
-        std::vector<int>   ieta_;
-        std::vector<int>   iphi_;
+        std::vector<unsigned int>   ieta_;
+        std::vector<unsigned int>   iphi_;
         const std::vector<const TrackingRecHit *> *hit_;
         const std::vector<int> *layermask_;
 };

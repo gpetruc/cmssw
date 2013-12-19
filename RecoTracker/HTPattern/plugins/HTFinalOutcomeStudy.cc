@@ -61,7 +61,7 @@ class HTFinalOutcomeStudy : public edm::EDProducer {
       StringCutObjectSelector<reco::Track> trackSelectionHT_;
 
       // MC Configurables   
-      bool doMC_;
+      bool isMC_, doMC_;
       edm::EDGetTokenT<std::vector<TrackingParticle> > tracksSim_;
       std::string simAssociatorLabel_;
 
@@ -77,6 +77,7 @@ HTFinalOutcomeStudy::HTFinalOutcomeStudy(const edm::ParameterSet & iConfig) :
     tracksHT_(consumes<edm::View<reco::Track> >(iConfig.getParameter<edm::InputTag>("tracksHT"))),
     trackSelectionCkf_(iConfig.getParameter<std::string>("trackSelectionCkf")),
     trackSelectionHT_(iConfig.getParameter<std::string>("trackSelectionHT")),
+    isMC_(iConfig.getParameter<bool>("isMC")),
     doMC_(iConfig.getParameter<bool>("doMC"))
 {
     if (doMC_)  {
@@ -154,7 +155,7 @@ HTFinalOutcomeStudy::produce(edm::Event & iEvent, const edm::EventSetup & iSetup
                 found = true;
             }
         }
-        if (tk.quality(reco::Track::qualitySize)) {
+        if (!isMC_ || tk.quality(reco::Track::qualitySize)) {
             ngood++;
             if (found) foundgood++;
             if (dup)   founddup++;
@@ -169,13 +170,17 @@ HTFinalOutcomeStudy::produce(edm::Event & iEvent, const edm::EventSetup & iSetup
                 tk.pt(), tk.ptError(), tk.eta(), tk.phi(), tk.charge(), tk.numberOfValidHits(), tk.hitPattern().trackerLayersWithMeasurement(), tk.hitPattern().pixelLayersWithMeasurement() + tk.hitPattern().numberOfValidStripLayersWithMonoAndStereo(), 
                 tk.vz(), tk.algo(), tk.quality(reco::Track::qualitySize) ? "good" : "fake", tk.innerPosition().Rho(), tk.innerPosition().Z(), tk.outerPosition().Rho(), tk.outerPosition().Z()); 
 
+        bool isassoc = false;
         for (const auto &a : assoc) {
             if (a.sharedHits <= 2 || a.eventId == 2) continue;
             printf("   -> pt %9.4f +/- %8.4f, eta %+5.3f, phi %+5.3f, q %+2d, hits %2d, layers %2d, 3d layers %2d, vz %+6.3f: associated layers %2d (%3.0f%%), hits %2d (%3.0f%%)\n", 
                 a.track->pt(), a.track->ptError(), a.track->eta(), a.track->phi(), a.track->charge(), a.track->hitPattern().numberOfValidHits(), a.track->hitPattern().trackerLayersWithMeasurement(), a.track->hitPattern().pixelLayersWithMeasurement() + a.track->hitPattern().numberOfValidStripLayersWithMonoAndStereo(), 
                 a.track->vz(), a.sharedHitPattern.trackerLayersWithMeasurement(), a.sharedHitPattern.trackerLayersWithMeasurement()*100./a.track->hitPattern().trackerLayersWithMeasurement(), a.sharedHits, (100.0*a.sharedHits)/a.track->found());
+            int lay  = a.track->hitPattern().trackerLayersWithMeasurement();
+            int slay = a.sharedHitPattern.trackerLayersWithMeasurement();
+            if (slay > 3 && (slay >= 8 || slay >= 0.6*lay)) isassoc = true;
         }
-        if (trackSelectionHT_(tk) && !tk.quality(reco::Track::qualitySize)) foundfake++;
+        if (trackSelectionHT_(tk) && (isMC_ ? !tk.quality(reco::Track::qualitySize) : !isassoc)) foundfake++;
     }
     printf("\n\n");
 

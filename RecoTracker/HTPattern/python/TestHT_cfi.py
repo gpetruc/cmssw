@@ -1,6 +1,8 @@
 import FWCore.ParameterSet.Config as cms
 
+is70X = False
 twoSteps = False
+useMCTruth = False
 
 import RecoPixelVertexing.PixelVertexFinding.PixelVertexes_cfi
 import RecoTracker.IterativeTracking.InitialStep_cff
@@ -161,7 +163,7 @@ highPtHTSeeds = cms.EDProducer("TestHT",
     ),
     # for debugging
     debugger = cms.untracked.bool(False),
-    tracks = cms.InputTag("trueTracks"),
+    tracks = cms.InputTag("trueTracks" if useMCTruth else "generalTracks"),
 )
 
 lowPtHTSeeds = highPtHTSeeds.clone(
@@ -302,11 +304,12 @@ from PhysicsTools.RecoAlgos.trackingParticleSelector_cfi import trackingParticle
 tracksSim = trackingParticleSelector.clone()
 
 finalStudy = cms.EDProducer("HTFinalOutcomeStudy",
-    tracksCkf = cms.InputTag("TrackMCQuality"),
-    tracksHT  = cms.InputTag("TrackMCQualityHT"),
+    tracksCkf = cms.InputTag("TrackMCQuality"   if useMCTruth else "generalTracks"),
+    tracksHT  = cms.InputTag("TrackMCQualityHT" if useMCTruth else "finalHTTracks"),
     #tracksHT  = cms.InputTag("TrackMCQuality"),
     trackSelectionCkf = cms.string("pt > 1.1 && numberOfValidHits > 3 && hitPattern.trackerLayersWithMeasurement >= 5 && quality('highPurity')"),
     trackSelectionHT  = cms.string("pt > 1.1"),
+    isMC = cms.bool(useMCTruth),
     doMC = cms.bool(False),
     tracksSim = cms.InputTag("tracksSim"),
     simAssociator = cms.string("TrackAssociatorByHits"),
@@ -317,16 +320,26 @@ from SimTracker.TrackAssociation.TrackAssociatorByHits_cfi import *
 from SimTracker.TrackAssociation.TrackMCQuality_cfi import *
 from SimGeneral.TrackingAnalysis.simHitTPAssociation_cfi import *
 TrackMCQualityHT = TrackMCQuality.clone(label_tr = "finalHTTracks")
+if not is70X:
+    TrackMCQuality.label_tp   = cms.InputTag("mergedtruth","MergedTrackTruth")
+    TrackMCQualityHT.label_tp = cms.InputTag("mergedtruth","MergedTrackTruth")
 trueTracks = cms.EDFilter("TrackSelector",
     src = cms.InputTag("TrackMCQuality"),
     cut = cms.string("quality('qualitySize')"),
 )
-testHTMC = cms.Sequence(
-    TrackMCQuality + trueTracks +
-    testHT +
-    TrackMCQualityHT + tracksSim + simHitTPAssocProducer
-    + finalStudy
-)
+if useMCTruth:
+    testHTMC = cms.Sequence(
+        TrackMCQuality + trueTracks +
+        testHT +
+        TrackMCQualityHT + tracksSim + simHitTPAssocProducer +
+        finalStudy
+    )
+else:
+    testHTMC = cms.Sequence(
+        testHT +
+        finalStudy
+    )
+
 binningStudy = cms.EDProducer("HTBinningStudies",
     tracks = cms.InputTag("TrackMCQuality"),
     trackSelection = cms.string("pt > 0.4 && abs(eta) < 2.4 && quality('highPurity') && quality('qualitySize')"),    

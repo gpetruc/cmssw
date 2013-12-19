@@ -405,8 +405,10 @@ TrackCandidateBuilderFromCluster::run(const HTCluster &cluster, unsigned int nse
 }
 
 FreeTrajectoryState
-TrackCandidateBuilderFromCluster::startingState(float eta0, float phi0, float alpha) const 
+TrackCandidateBuilderFromCluster::startingState(float pseudoeta0, float phi0, float alpha) const 
 {
+    float eta0 = HTHitsSpher::etaFromPseudoEta(pseudoeta0);
+    
     // alpha = 0.5 * 0.003 * B[T] / pT[GeV] -->
     float pt = std::abs(alpha ? 0.5 * 0.003f * bfieldAtOrigin_ / alpha : 100.0f); 
     ROOT::Math::CylindricalEta3D<double> p3d(pt, eta0, phi0);
@@ -422,8 +424,9 @@ TrackCandidateBuilderFromCluster::startingState(float eta0, float phi0, float al
 }
 
 TrajectoryStateOnSurface
-TrackCandidateBuilderFromCluster::startingState(float eta0, float phi0, float alpha, const TrackingRecHit *hit) const 
+TrackCandidateBuilderFromCluster::startingState(float pseudoeta0, float phi0, float alpha, const TrackingRecHit *hit) const 
 {
+    float eta0 = HTHitsSpher::etaFromPseudoEta(pseudoeta0);
     const GeomDet *det = tracker_->idToDet(DetId(hit->geographicalId()));
     //TransientTrackingRecHit::RecHitPointer tth = hitBuilder_->build(hit);
     LocalPoint  lx(0,0,0); // tth->localPosition());
