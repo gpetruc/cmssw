@@ -5,6 +5,7 @@
 <use name="Geometry/CommonDetUnit"/>
 <use name="TrackingTools/TrajectoryParametrization"/>
 <use name="TrackingTools/TrajectoryState"/>
+<use name="TrackingTools/TrajectoryFiltering"/>
 <use name="TrackingTools/TransientTrack"/>
 <use name="TrackingTools/KalmanUpdators"/>
 <use name="TrackingTools/GeomPropagators"/>
@@ -15,6 +16,9 @@
 <use name="RecoTracker/TkDetLayers" />
 <use name="RecoTracker/MeasurementDet" />
 <use name="DataFormats/TrackerCommon"/>
+<use name="SimTracker/TrackerHitAssociation"/>
+<use name="CommonTools/UtilAlgos"/>
+<use name="RecoPixelVertexing/PixelLowPtUtilities"/>
 <export>
   <lib   name="1"/>
 </export>
