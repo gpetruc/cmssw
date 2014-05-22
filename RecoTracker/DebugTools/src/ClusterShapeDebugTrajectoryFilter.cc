@@ -104,7 +104,9 @@ bool ClusterShapeDebugTrajectoryFilter::toBeContinued
       countlayers.insert(mylayer);
 
       fillAssociations(hit, work);
+      //std::cout << "  on layer " << mylayer.first << "/" << mylayer.second << " found match with " << work.size() << " simtracks." << std::endl;
       for (Id2 simtk: work) {
+         //std::cout << "       simtk  " << simtk.first << "/" << simtk.second << std::endl;
          scoreboard[simtk].insert(mylayer);
       }
    }
@@ -123,6 +125,8 @@ bool ClusterShapeDebugTrajectoryFilter::toBeContinued
    if (layers >= 3 && layers >= 0.67*countlayers.size()) {
       trackAssoc_ = (evid.bunchCrossing() == 0 ? 1 : -1); 
       //std::cout << "best match: " << layers << " layers (out of " << countlayers.size() << "), id " << bestSim.first << ", tk " << bestSim.second << ", event/bx = " << evid.event() << "/" << evid.bunchCrossing() << std::endl;
+   } else {
+      trackAssoc_ = 0;
    }
 
    const TrajectoryMeasurement &last = *tms.rbegin();
