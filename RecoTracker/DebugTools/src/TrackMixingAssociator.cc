@@ -239,6 +239,26 @@ TrackMixingAssociator::associateToRec(const std::vector<const TrackingRecHit *> 
     std::sort(out.begin(), out.end());
 }
 
+template<typename T>
+void
+TrackMixingAssociator::associateToRec(const TrackingRecHit &hit, std::vector<RecAssociation<T> > &out, boost::unordered_map<uint32_t, std::vector<RecRecord<T> > > &record) 
+{
+    out.clear();
+    DEBUG_printf("associateToRec, hit %10d/%7d, %s:\n", hit.geographicalId().rawId(), hitid(&hit), typeid(hit).name());
+    if (typeid(hit) == typeid(SiStripMatchedRecHit2D)) {
+        const SiStripMatchedRecHit2D &mh = static_cast<const SiStripMatchedRecHit2D &>(hit);
+        associateHitToRec<T>(mh.monoHit(),out,record);
+        associateHitToRec<T>(mh.stereoHit(),out,record);
+    } else if (typeid(hit) == typeid(ProjectedSiStripRecHit2D)) {
+        const ProjectedSiStripRecHit2D &ph = static_cast<const ProjectedSiStripRecHit2D &>(hit);
+        associateHitToRec<T>(ph.originalHit(),out,record);
+    } else {
+        associateHitToRec<T>(hit,out,record);
+    }
+    std::sort(out.begin(), out.end());
+}
+
+
 
 void
 TrackMixingAssociator::associateToTracks(const reco::Track &tk, std::vector<TrackAssociation> &out) {
@@ -262,6 +282,11 @@ TrackMixingAssociator::associateToTracks(const TrackCandidate &tk, std::vector<T
 
 void
 TrackMixingAssociator::associateToTracks(const std::vector<const TrackingRecHit *> &tk, std::vector<TrackAssociation> &out) {
+    return associateToRec<reco::Track>(tk,out,allHits_);
+}
+
+void
+TrackMixingAssociator::associateToTracks(const TrackingRecHit &tk, std::vector<TrackAssociation> &out) {
     return associateToRec<reco::Track>(tk,out,allHits_);
 }
 
@@ -410,8 +435,9 @@ bool
 TrackMixingAssociator::matchesRecord(const TrackingRecHit &hit, const Record &record) 
 {
     if (typeid(hit) != typeid(SiStripMatchedRecHit2D)) {
-        return matchesRecordSpecific<SiPixelRecHit,Record>(hit,record) ||
-               matchesRecordTracker1D<Record>(hit,record);
+        return typeid(hit) == typeid(SiPixelRecHit) ? 
+                matchesRecordSpecific<SiPixelRecHit,Record>(hit,record) :
+                matchesRecordTracker1D<Record>(hit,record);
     } else {
         const SiStripMatchedRecHit2D &mhit = static_cast<const SiStripMatchedRecHit2D &>(hit);
         return matchesRecordTracker1D<Record>(mhit.monoHit(),  record) ||
