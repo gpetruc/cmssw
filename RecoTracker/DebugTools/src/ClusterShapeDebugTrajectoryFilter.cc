@@ -112,7 +112,6 @@ bool ClusterShapeDebugTrajectoryFilter::toBeContinued
 (TempTrajectory& trajectory) const 
 {
    if (theTree == 0) initTree();
-   assert(theAssociator != 0);
    TempTrajectory::DataContainer tms = trajectory.measurements();
 
    std::vector<Id2> work;
@@ -168,6 +167,7 @@ bool ClusterShapeDebugTrajectoryFilter::toBeContinued
 void ClusterShapeDebugTrajectoryFilter::fillAssociations
    (const TrackingRecHit *hit, std::vector<Id2> &out) const
 {
+   assert(theAssociator != 0);
    out.clear();
    std::vector<PSimHit> simHits = theAssociator->associateHit(*hit);
    hitSingleSim_ = (simHits.size() == 1);
@@ -386,16 +386,22 @@ void ClusterShapeDebugTrajectoryFilter::setEvent
   es.get<SiStripNoisesRcd>().get(noise);
   theNoise = noise.product();
   
-  // create the hit associator
-  delete theAssociator;
-  theAssociator = new TrackerHitAssociator(event, theConfig);
-
   edm::Handle<MeasurementTrackerEvent> mte;
   event.getByToken(mteToken_, mte);
   bool reindex = (theMTEvent == 0);
   theMTEvent = mte.product();
   if (reindex) indexStripDets();
+
+  initAssociator(event, es);
 }
+
+void ClusterShapeDebugTrajectoryFilter::initAssociator(const edm::Event &event, const edm::EventSetup &)
+{
+  // create the hit associator
+  delete theAssociator;
+  theAssociator = new TrackerHitAssociator(event, theConfig);
+}
+
 
 void ClusterShapeDebugTrajectoryFilter::indexStripDets
    () const 
