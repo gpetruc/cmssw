@@ -125,6 +125,10 @@ public:
     void associateToTracks(const std::vector<const TrackingRecHit *> &tk, std::vector<TrackAssociation> &out) ;
 
     /// Try to associate track 'tk' with the registered track collections, fill in the vector of TrackAssociation.
+    void associateToTracks(const TrackingRecHit &hit, std::vector<TrackAssociation> &out) ;
+
+
+    /// Try to associate track 'tk' with the registered track collections, fill in the vector of TrackAssociation.
     void associateToSeed(const reco::Track &tk, std::vector<SeedAssociation> &out) ;
 
     /// Try to associate track 'tk' with the registered track collections, fill in the vector of TrackAssociation.
@@ -218,6 +222,9 @@ private:
 
     template<typename T>
     void associateToRec(const std::vector<const TrackingRecHit *> &tk, std::vector<RecAssociation<T> > &out, boost::unordered_map<uint32_t, std::vector<RecRecord<T> > > &record) ;
+
+    template<typename T>
+    void associateToRec(const TrackingRecHit &tk, std::vector<RecAssociation<T> > &out, boost::unordered_map<uint32_t, std::vector<RecRecord<T> > > &record) ;
 
     template<typename T>
     void associateHitToRec(const TrackingRecHit &hit, std::vector<RecAssociation<T> > &out, boost::unordered_map<uint32_t, std::vector<RecRecord<T> > > &record) ;
