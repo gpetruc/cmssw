@@ -40,7 +40,7 @@ class ClusterShapeDebugTrajectoryFilter : public TrajectoryFilter {
   virtual void setEvent(const edm::Event &, const edm::EventSetup &) override;
   void initTree() const;
 
- private:
+ protected:
   edm::ParameterSet              theConfig;
   edm::EDGetTokenT<MeasurementTrackerEvent> mteToken_;
   mutable TrackerHitAssociator * theAssociator;
@@ -64,11 +64,12 @@ class ClusterShapeDebugTrajectoryFilter : public TrajectoryFilter {
   mutable int   hitTRLargestStrips_, hitTRLargestNSat_; mutable float hitTRLargestCharge_;
 
   typedef std::pair<unsigned int, unsigned int> Id2;
-  void fillAssociations(const TrackingRecHit *hit, std::vector<Id2> &out) const  ;
+  virtual void fillAssociations(const TrackingRecHit *hit, std::vector<Id2> &out) const  ;
   void fillCluster(const TrackingRecHit *hit, const TrajectoryStateOnSurface &tsos, Id2 simtk, bool mustProject=false) const ;
   bool hasBadStrip(unsigned int detid, int strip) const ;
   mutable std::unordered_map<unsigned int, unsigned int> theStripDetLookup;
   void    indexStripDets() const ;
+  virtual void initAssociator(const edm::Event &, const edm::EventSetup &); 
 
   struct Peak { 
         uint16_t charge, first; uint8_t maxval, nstrips, nsat;  
