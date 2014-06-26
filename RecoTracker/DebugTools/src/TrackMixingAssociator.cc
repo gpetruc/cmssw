@@ -472,3 +472,54 @@ void TrackMixingAssociator::registerClusters(int eventId, const edmNew::DetSetVe
         }
     }
 }
+
+void TrackMixingAssociator::getAssociatedClusters(const TrackingRecHit &hit, std::vector<std::pair<int, const SiStripCluster *>> &out) 
+{
+    if (typeid(hit) == typeid(SiStripMatchedRecHit2D)) {
+        std::vector<std::pair<int, const SiStripCluster *>> o1, o2;
+        const SiStripMatchedRecHit2D &mh = static_cast<const SiStripMatchedRecHit2D &>(hit);
+        getAssociatedClusters(mh.monoHit(),o1);
+        getAssociatedClusters(mh.stereoHit(),o2);
+        out.swap(o1);
+        out.insert(out.end(), o2.begin(), o2.end());
+    } else if (typeid(hit) == typeid(ProjectedSiStripRecHit2D)) {
+        const ProjectedSiStripRecHit2D &ph = static_cast<const ProjectedSiStripRecHit2D &>(hit);
+        getAssociatedClusters(ph.originalHit(),out);
+    } else {
+        const TrackerSingleRecHit *sihit = dynamic_cast<const TrackerSingleRecHit *>(&hit);
+        assert(sihit != 0);
+        getAssociatedClusters(hit.geographicalId().rawId(), sihit->stripCluster(), out);
+    }
+}
+
+void TrackMixingAssociator::getAssociatedClusters(const TrackingRecHit &hit, std::vector<std::pair<int, const SiPixelCluster *>> &out) 
+{
+    assert(typeid(hit) == typeid(SiPixelRecHit));
+    getAssociatedClusters(hit.geographicalId().rawId(), *(static_cast<const SiPixelRecHit &>(hit)).cluster(), out);
+}
+
+
+
+void TrackMixingAssociator::getAssociatedClusters(uint32_t detid, const SiStripCluster &hit, std::vector<std::pair<int, const SiStripCluster *>> &out)
+{
+    out.clear();
+    const std::vector<ClusterRecord> & clusterRecords = allClusters_[ detid ];
+    for (std::vector<ClusterRecord>::const_iterator itr = clusterRecords.begin(), edr = clusterRecords.end(); itr != edr; ++itr) {
+        if (itr->stripCluster != 0 && matches(hit, *itr->stripCluster)) {
+            out.push_back(std::make_pair(itr->eventId, itr->stripCluster));
+        }
+    }
+}
+
+void TrackMixingAssociator::getAssociatedClusters(uint32_t detid, const SiPixelCluster &hit, std::vector<std::pair<int, const SiPixelCluster *>> &out)
+{
+    out.clear();
+    const std::vector<ClusterRecord> & clusterRecords = allClusters_[ detid ];
+    for (std::vector<ClusterRecord>::const_iterator itr = clusterRecords.begin(), edr = clusterRecords.end(); itr != edr; ++itr) {
+        if (itr->pixelCluster != 0 && matches(hit, *itr->pixelCluster)) {
+            out.push_back(std::make_pair(itr->eventId, itr->pixelCluster));
+        }
+    }
+}
+
+

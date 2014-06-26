@@ -163,6 +163,13 @@ public:
 
     /// Try to associate track 'tk' with the registered cluster collections, fill in the vector of TrackClusterAssociation.
     void associateToClusters(const TrajectorySeed &tk, std::vector<TrackClusterAssociation> &out) ;
+
+    /// Get clusters associated to a cluster
+    void getAssociatedClusters(const TrackingRecHit &hit, std::vector<std::pair<int, const SiStripCluster *>> &out) ;
+    void getAssociatedClusters(uint32_t detid, const SiStripCluster &hit, std::vector<std::pair<int, const SiStripCluster *>> &out);
+    void getAssociatedClusters(const TrackingRecHit &hit, std::vector<std::pair<int, const SiPixelCluster *>> &out) ;
+    void getAssociatedClusters(uint32_t detid, const SiPixelCluster &hit, std::vector<std::pair<int, const SiPixelCluster *>> &out);
+
 private:
     template<typename T>
     struct RecRecord {
