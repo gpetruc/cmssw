@@ -11,7 +11,7 @@ void ClusterShapeRecoDebugTrajectoryFilter::fillAssociations(const TrackingRecHi
 {
     out.clear();
     std::vector<TrackMixingAssociator::TrackAssociation> assoc;
-    theRecoAssociator_->associateToTracks(*hit, assoc);
+    theRecoAssociator->associateToTracks(*hit, assoc);
     for (const auto & a : assoc) {
         out.push_back(Id2(a.eventId, a.track - &theTracksHandle_->front()));
     }
@@ -19,7 +19,6 @@ void ClusterShapeRecoDebugTrajectoryFilter::fillAssociations(const TrackingRecHi
 
 void ClusterShapeRecoDebugTrajectoryFilter::initAssociator(const edm::Event &e, const edm::EventSetup &) 
 {
-    theRecoAssociator_.reset(new TrackMixingAssociator());
     e.getByToken(theTracks_, theTracksHandle_);
-    theRecoAssociator_->registerTrackEvent(1,*theTracksHandle_);
+    theRecoAssociator->registerTrackEvent(1,*theTracksHandle_);
 }

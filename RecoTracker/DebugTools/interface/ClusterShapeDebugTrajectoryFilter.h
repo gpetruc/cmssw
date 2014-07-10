@@ -8,6 +8,7 @@
 #include "FWCore/Framework/interface/ESHandle.h"
 #include "FWCore/Utilities/interface/EDGetToken.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
+#include "RecoTracker/DebugTools/interface/TrackMixingAssociator.h"
 
 class ClusterShapeHitFilter;
 class TrackerTopology;
@@ -39,11 +40,12 @@ class ClusterShapeDebugTrajectoryFilter : public TrajectoryFilter {
 
   virtual void setEvent(const edm::Event &, const edm::EventSetup &) override;
   void initTree() const;
-
  protected:
   edm::ParameterSet              theConfig;
   edm::EDGetTokenT<MeasurementTrackerEvent> mteToken_;
-  mutable TrackerHitAssociator * theAssociator;
+  std::vector<edm::EDGetTokenT<edmNew::DetSetVector<SiStripCluster>>> clusterTokens_;
+  std::unique_ptr<TrackerHitAssociator>  theAssociator;
+  std::unique_ptr<TrackMixingAssociator> theRecoAssociator;
   mutable const ClusterShapeHitFilter   * theFilter;
   mutable const TrackerTopology         * theTopology;
   mutable const TrackerGeometry         * theTracker;
@@ -53,7 +55,7 @@ class ClusterShapeDebugTrajectoryFilter : public TrajectoryFilter {
   mutable TTree * theTree;
   mutable float trackPt_, trackEta_; 
   mutable int   trackAssoc_;
-  mutable int   hitDet_, hitLayer_, hitAssoc_, hitSingleSim_, hitUsable_, hitStrips_, hitFirstStrip_, hitCompatPos_, hitCompatNoPos_, hitBadBoundaries_;
+  mutable int   hitDet_, hitLayer_, hitAssoc_, hitSingleSim_, hitUsable_, hitStrips_, hitFirstStrip_, hitCompatPos_, hitCompatNoPos_, hitBadBoundaries_, hitSaturatedStrips_;
   mutable float hitCharge_,  hitChargeNorm_, hitChargeRms_;
   mutable float hitPredPos_, hitPredNoPos_, hitLocalDyDz_, hitLocalDxDz_, hitDetPitch_, hitDetThickness_;
   mutable int   hitPFNearestStrips_, hitPFNearestNSat_; mutable float hitPFNearestCharge_;
@@ -78,8 +80,11 @@ class ClusterShapeDebugTrajectoryFilter : public TrajectoryFilter {
         bool operator<(const Peak &p2) const { return maxval > p2.maxval; } 
   };
   void peakFinder(int detid, int ifirst, const std::vector<uint8_t> & ampls, std::vector<Peak> &peaks, float alpha, float seedThr, float clustThr, float stepThr, bool debug=false) const ;
+  void subtractPeaks(int detid, int ifirst, const std::vector<uint8_t> & ampls, const std::vector<Peak> &peaksIn, std::vector<uint8_t> & amplsOut, std::vector<Peak> &peaksOut, int maxSize, float stripThr, float seedThr, float clustThr, bool debug=false) const ;
   void thresholdRaiser(int detid, int ifirst, const std::vector<uint8_t> & ampls, std::vector<Peak> &peaks, float stripThr, float seedThr, float clustThr, bool debug=false) const ;
-
+  void dumpCluster(int detid, int ifirst, const std::vector<uint8_t> & ampls, double mip) const ;
+  void dumpAssociatedClusters(int detid, const SiStripCluster &cluster, double mip) const ;
+  enum FailureCode { Success=0, Trimmable=1, Splittable=2, Overlapping=3, Saturated=4, Helpless=5 };
 };
 
 #endif

@@ -14,7 +14,6 @@ class ClusterShapeRecoDebugTrajectoryFilter : public ClusterShapeDebugTrajectory
 
         edm::EDGetTokenT<std::vector<reco::Track>> theTracks_;
         edm::Handle<std::vector<reco::Track>>  theTracksHandle_;
-        std::unique_ptr<TrackMixingAssociator> theRecoAssociator_;
 };
 
 #endif
