@@ -40,12 +40,19 @@ ClusterShapeDebugTrajectoryFilter::ClusterShapeDebugTrajectoryFilter
    (const edm::ParameterSet &iCfg, edm::ConsumesCollector& iC) :
    theConfig(iCfg.getParameter<edm::ParameterSet>("HitAssociatorPSet")),
    mteToken_(iC.consumes<MeasurementTrackerEvent>(iCfg.getParameter<edm::InputTag>("MeasurementTrackerEvent"))),
-   theAssociator(0),
+   theAssociator(),
+   theRecoAssociator(),
    theFilter(0),
    theTopology(0),
    theTracker(0),
    theTree(0)
 {
+    if (iCfg.existsAs<std::vector<edm::InputTag>>("referenceStripClusters")) {
+        std::vector<edm::InputTag> tags = iCfg.getParameter<std::vector<edm::InputTag>>("referenceStripClusters");
+        for (const auto &t : tags) {
+            clusterTokens_.push_back(iC.consumes<edmNew::DetSetVector<SiStripCluster>>(t));
+        }
+    }
 }
 
 /*****************************************************************************/
@@ -80,6 +87,7 @@ ClusterShapeDebugTrajectoryFilter::initTree() const
    theTree->Branch("hitLocalDyDz", &hitLocalDyDz_, "hitLocalDyDz/F");
    theTree->Branch("hitDetPitch", &hitDetPitch_, "hitDetPitch/F");
    theTree->Branch("hitDetThickness", &hitDetThickness_, "hitDetThickness/F");
+   theTree->Branch("hitSaturatedStrips", &hitSaturatedStrips_, "hitSaturatedStrips/I");
    theTree->Branch("hitPFNearestStrips", &hitPFNearestStrips_, "hitPFNearestStrips/I");
    theTree->Branch("hitPFNearestNSat",   &hitPFNearestNSat_,   "hitPFNearestNSat/I");
    theTree->Branch("hitPFNearestCharge", &hitPFNearestCharge_, "hitPFNearestCharge/F");
@@ -167,7 +175,7 @@ bool ClusterShapeDebugTrajectoryFilter::toBeContinued
 void ClusterShapeDebugTrajectoryFilter::fillAssociations
    (const TrackingRecHit *hit, std::vector<Id2> &out) const
 {
-   assert(theAssociator != 0);
+   assert(theAssociator);
    out.clear();
    std::vector<PSimHit> simHits = theAssociator->associateHit(*hit);
    hitSingleSim_ = (simHits.size() == 1);
@@ -274,6 +282,7 @@ void ClusterShapeDebugTrajectoryFilter::fillCluster
 
       float MeVperADCStrip =  3.61e-06*265; 
       float norm = MeVperADCStrip/stripDetUnit->surface().bounds().thickness();
+      float mip = 3.9 / norm; // 3.9 MeV/cm = ionization in silicon 
       hitCharge_ = sum * norm;
       hitChargeNorm_ = hitCharge_ / std::abs(ldir.z());
       std::vector<Peak> peaksPF, peaksTR;
@@ -310,39 +319,56 @@ void ClusterShapeDebugTrajectoryFilter::fillCluster
         hitTRNearestStrips_ = hitTRSmallestStrips_ = hitTRLargestStrips_ = -1;
       }
 
+      int thisSat = (ampls[0] >= 254);
+      hitSaturatedStrips_ = thisSat;
+      for (unsigned int i = 1, n = ampls.size(); i < n; ++i) {
+        if (ampls[i] >= 254) {
+            thisSat++;
+        } else if (thisSat > 0) {
+            hitSaturatedStrips_ = std::max<int>(hitSaturatedStrips_, thisSat);
+            thisSat = 0;
+        }
+      }
+      if (thisSat > 0) {
+          hitSaturatedStrips_ = std::max<int>(hitSaturatedStrips_, thisSat);
+      }
 
       theTree->Fill();
       static int i_good = 0, i_bad = 0;
       if (hitUsable_ && trackAssoc_ == 1 && hitAssoc_ == 1) {
-          SiStripNoises::Range noises = theNoise->getRange(detId());
           std::vector<Peak> peaks;
           if (hitCompatPos_) {
               if (i_good < 200) {
                   i_good++;
                   printf("\nCluster with predicted strips %.2f, observed strips %d: GOOD\n", hitPredPos_, hitStrips_);
-                  for (unsigned int i = 0, n = ampls.size(); i < n; ++i) {
-                      printf("\t%3u: %4d (S/N = %6.1f): ", i, int(ampls[i]), float(ampls[i])/theNoise->getNoise(i+sfirst, noises));
-                      for (uint8_t j = 0; j < ampls[i]/2; ++j) putchar('=');
-                      if (ampls[i] % 2 == 1) putchar('-');
-                      if (ampls[i] >= 254) putchar('X');
-                      printf("\n");
-                  }
+                  dumpCluster(detId(),sfirst,ampls,mip);
+                  dumpAssociatedClusters(detId(),cluster,mip);
                   peakFinder(detId(),sfirst,ampls,peaks,0.4, 5., 9., 4., true);
                   thresholdRaiser(detId(),sfirst,ampls,peaks,4., 5., 9., true);
               }
           } else {    
-              if (i_bad < 200) {
+              if (i_bad < 500) {
                   i_bad++;
                   printf("\nCluster with predicted strips %.2f, observed strips %d: FAIL\n", hitPredPos_, hitStrips_);
-                  for (unsigned int i = 0, n = ampls.size(); i < n; ++i) {
-                      printf("\t%3u: %4d (S/N = %6.1f): ", i, int(ampls[i]), float(ampls[i])/theNoise->getNoise(i+sfirst, noises));
-                      for (uint8_t j = 0; j < ampls[i]/2; ++j) putchar('=');
-                      if (ampls[i] % 2 == 1) putchar('-');
-                      if (ampls[i] >= 254) putchar('X');
-                      printf("\n");
-                  }
+                  dumpCluster(detId(),sfirst,ampls,mip);
+                  dumpAssociatedClusters(detId(),cluster,mip);
                   peakFinder(detId(),sfirst,ampls,peaks,0.4,  5., 9.,  4., true);
                   thresholdRaiser(detId(),sfirst,ampls,peaks, 5., 7., 12., true);
+                  std::vector<uint8_t> amplsOut;
+                  subtractPeaks(detId(),sfirst,ampls,peaksPF,amplsOut,peaks,4,4.,5.,9.,true);
+                  dumpCluster(detId(),sfirst,amplsOut,mip);
+#if 0                
+                  if (!peaksPF.empty()) {
+                    if (peaksPF.size() == 1) {
+                        if (peaksTR.size() == 1 &&
+                               (fabs(hitPFNearestStrips_-fabs(hitPredPos_)) < 3) && 
+                               (fabs(hitTRNearestStrips_-fabs(hitPredPos_)) < 3)) {
+                            printf("----> Identified as a trimmable cluster.\n");
+                        } else {
+                        }
+                    }
+                  }
+#endif
               }
           } 
       }
@@ -392,14 +418,20 @@ void ClusterShapeDebugTrajectoryFilter::setEvent
   theMTEvent = mte.product();
   if (reindex) indexStripDets();
 
+  theRecoAssociator.reset(new TrackMixingAssociator());
+  edmNew::DetSetVector<SiPixelCluster> dummy;
+  edm::Handle<edmNew::DetSetVector<SiStripCluster>> handle;
+  int icluster = 0;
+  for (const auto & t : clusterTokens_) {
+    event.getByToken(t, handle);
+    theRecoAssociator->registerClusterEvent(++icluster, dummy, *handle);
+  }
   initAssociator(event, es);
 }
 
 void ClusterShapeDebugTrajectoryFilter::initAssociator(const edm::Event &event, const edm::EventSetup &)
 {
-  // create the hit associator
-  delete theAssociator;
-  theAssociator = new TrackerHitAssociator(event, theConfig);
+  theAssociator.reset(new TrackerHitAssociator(event, theConfig));
 }
 
 
@@ -428,6 +460,8 @@ bool ClusterShapeDebugTrajectoryFilter::hasBadStrip
 }
 
 void ClusterShapeDebugTrajectoryFilter::peakFinder(int detid, int ifirst, const std::vector<uint8_t> & ampls, std::vector<Peak> &peaks, float alpha, float seedThr, float clustThr, float stepThr, bool debug) const {
+    int total = 0;
+    for (uint8_t a : ampls) total += a;
     SiStripNoises::Range noises = theNoise->getRange(detid);
     peaks.clear();
     if (debug) printf("running peak finder with alpha = %.2f, thresholds = %.1f (seed), %.1f (cluster), %.1f (step)\n", alpha, seedThr, clustThr, stepThr);
@@ -437,7 +471,7 @@ void ClusterShapeDebugTrajectoryFilter::peakFinder(int detid, int ifirst, const 
             float ston = unsigned(ampls[i])/float(theNoise->getNoise(i+ifirst,noises));
             if (ston > seedThr) {
                 peaks.emplace_back(Peak(i,ampls[i]));
-                if (debug) printf("       - strip at %d (S/N = %.1f)\n",i, ston);
+                if (debug) printf("       - strip at %d (S/N = %.1f)\n",ifirst+i, ston);
             }
         }
     }
@@ -447,36 +481,36 @@ void ClusterShapeDebugTrajectoryFilter::peakFinder(int detid, int ifirst, const 
         Peak &me = peaks[ip];
         if (me.maxval == 0) continue; // ignore peaks that have been already killed
         uint8_t floor = alpha*std::min<uint16_t>(me.maxval,170);
-        //printf("       - starting from strip at %d (adc %d, floor %d)\n",int(me.first),int(me.maxval),int(floor));
+        //printf("       - starting from strip at %d (adc %d, floor %d)\n",ifirst+int(me.first),int(me.maxval),int(floor));
         unsigned int lbound = 0, rbound = ampls.size();
         for (unsigned int ip2 = 0; ip2 < ip; ++ip2) {
             if (peaks[ip2].first < me.first) lbound = std::max<unsigned int>(lbound, peaks[ip2].first + peaks[ip2].nstrips);
             else if (peaks[ip2].first > me.first) rbound = std::min<unsigned int>(rbound, peaks[ip2].first);
         }
-        //printf("       - bounds set to [%d,%d[\n",int(lbound),int(rbound));
+        //printf("       - bounds set to [%d,%d[\n",ifirst+int(lbound),ifirst+int(rbound));
         unsigned int ileft = me.first, iright = me.first;
         while (ileft > lbound && ampls[ileft-1] > floor) {
             // check if I have moved upwards significantly
             if (ampls[ileft-1] > ampls[ileft] && ampls[ileft-1] > ampls[ileft] + stepThr * std::max(theNoise->getNoise(ileft-1+ifirst, noises),theNoise->getNoise(ileft+ifirst, noises))) {
-                //printf("       - stop left scan at %d: gain is %d, gain/noise = %.1f\n",int(ileft),int(ampls[ileft-1]-ampls[ileft]), float(ampls[ileft-1]-ampls[ileft])/std::max(theNoise->getNoise(ileft-1+ifirst, noises),theNoise->getNoise(ileft+ifirst, noises)));
+                //printf("       - stop left scan at %d: gain is %d, gain/noise = %.1f\n",ifirst+int(ileft),int(ampls[ileft-1]-ampls[ileft]), float(ampls[ileft-1]-ampls[ileft])/std::max(theNoise->getNoise(ileft-1+ifirst, noises),theNoise->getNoise(ileft+ifirst, noises)));
                 break; 
             }
             ileft--;
             me.charge += ampls[ileft];
             me.nsat += (ampls[ileft] >= 254);
         }
-        //printf("       - end of left scan at %d\n",int(ileft));
+        //printf("       - end of left scan at %d\n",ifirst+int(ileft));
         while (iright+1 < rbound && ampls[iright+1] > floor) {
             // check if I have moved upwards significantly
             if (ampls[iright+1] > ampls[iright] && ampls[iright+1] > ampls[iright] + stepThr * std::max(theNoise->getNoise(iright+ifirst, noises), theNoise->getNoise(iright+1+ifirst,noises))) {
-                //printf("       - stop right scan at %d: gain is %d, gain/noise = %.1f\n",int(iright),int(ampls[iright+1]-ampls[iright]), float(ampls[iright+1]-ampls[iright])/std::max(theNoise->getNoise(iright+1+ifirst, noises),theNoise->getNoise(iright+ifirst, noises)));
+                //printf("       - stop right scan at %d: gain is %d, gain/noise = %.1f\n",ifirst+int(iright),int(ampls[iright+1]-ampls[iright]), float(ampls[iright+1]-ampls[iright])/std::max(theNoise->getNoise(iright+1+ifirst, noises),theNoise->getNoise(iright+ifirst, noises)));
                 break; 
             }
             iright++;
             me.charge += ampls[iright];
             me.nsat += (ampls[iright] >= 254);
         }
-        //printf("       - end of right scan at %d\n",int(iright));
+        //printf("       - end of right scan at %d\n",ifirst+int(iright));
         me.nstrips = iright - ileft + 1;
         me.first = ileft;
         for (unsigned int ip2 = ip+1; ip2 < np; ++ip2) {
@@ -491,12 +525,15 @@ void ClusterShapeDebugTrajectoryFilter::peakFinder(int detid, int ifirst, const 
             c += ampls[i];
             n2 += std::pow(theNoise->getNoise(i+ifirst,noises),2);
         }
-        if (debug) printf("   - peak [%d,%d]: strips %d, maxval %d, charge %d, nsat %d, S/N = %.1f\n", int(p.first), int(p.first+p.nstrips-1), int(p.nstrips), int(p.maxval), int(p.charge), int(p.nsat), c/std::sqrt(n2));
+        if (debug) printf("   - peak [%d,%d]: strips %d, maxval %d, charge %d, nsat %d, S/N = %.1f, peak/cluster = %.2f\n", ifirst+int(p.first), ifirst+int(p.first+p.nstrips-1), int(p.nstrips), int(p.maxval), int(p.charge), int(p.nsat), c/std::sqrt(n2), p.charge/float(total));
         if (c/std::sqrt(n2) < clustThr) p.maxval = 0;
     }
     // resort to bring killed clusters to the bottom
     std::sort(peaks.begin(), peaks.end());
     while(!peaks.empty() && peaks.back().maxval == 0) peaks.pop_back();
+    int peak_total = 0;
+    for (const Peak &p : peaks) peak_total += p.charge;
+    if (debug) printf("   - total charge in peaks / cluster charge = %.2f\n", peak_total/float(total));
 }
 
 void ClusterShapeDebugTrajectoryFilter::thresholdRaiser(int detid, int ifirst, const std::vector<uint8_t> & ampls, std::vector<Peak> &peaks, float stripThr, float seedThr, float clustThr, bool debug) const {
@@ -511,7 +548,7 @@ void ClusterShapeDebugTrajectoryFilter::thresholdRaiser(int detid, int ifirst, c
             if (current.nstrips != 0) { 
                 if (seedStoN > seedThr && current.charge > clustThr*std::sqrt(noise2)) {
                     peaks.push_back(current); 
-                    if (debug) printf("   - peak [%d,%d]: strips %d, maxval %d, charge %d, nsat %d, S/N = %.1f\n", int(current.first), int(current.first+current.nstrips-1), int(current.nstrips), int(current.maxval), int(current.charge), int(current.nsat), current.charge/std::sqrt(noise2));
+                    if (debug) printf("   - peak [%d,%d]: strips %d, maxval %d, charge %d, nsat %d, S/N = %.1f\n", ifirst+int(current.first), ifirst+int(current.first+current.nstrips-1), int(current.nstrips), int(current.maxval), int(current.charge), int(current.nsat), current.charge/std::sqrt(noise2));
                 }
                 current = Peak(); noise2 = 0; seedStoN = 0;
             }
@@ -531,7 +568,70 @@ void ClusterShapeDebugTrajectoryFilter::thresholdRaiser(int detid, int ifirst, c
     if (current.nstrips != 0) {
         if (seedStoN > seedThr && current.charge > clustThr*std::sqrt(noise2)) {
             peaks.push_back(current);
-            if (debug) printf("   - peak [%d,%d]: strips %d, maxval %d, charge %d, nsat %d, S/N = %.1f\n", int(current.first), int(current.first+current.nstrips-1), int(current.nstrips), int(current.maxval), int(current.charge), int(current.nsat), current.charge/std::sqrt(noise2));
+            if (debug) printf("   - peak [%d,%d]: strips %d, maxval %d, charge %d, nsat %d, S/N = %.1f\n", ifirst+int(current.first), ifirst+int(current.first+current.nstrips-1), int(current.nstrips), int(current.maxval), int(current.charge), int(current.nsat), current.charge/std::sqrt(noise2));
         }
     }
 }
+
+void ClusterShapeDebugTrajectoryFilter::subtractPeaks(int detid, int ifirst, const std::vector<uint8_t> & ampls, const std::vector<Peak> &peaksIn, std::vector<uint8_t> & amplsOut, std::vector<Peak> &peaksOut, int maxSize, float stripThr, float seedThr, float clustThr, bool debug) const 
+{
+    if (debug) printf("subtracting peaks from the PeakFinder run\n");
+    int total = 0;
+    for (uint8_t a : ampls) total += a;
+    peaksOut = peaksIn;
+    amplsOut = ampls;
+    for (unsigned int i = 0, n = peaksIn.size(); i < n; ++i) {
+        const Peak &p = peaksIn[i];
+        if (p.nstrips > maxSize) continue;
+        Peak &pOut = peaksOut[i];
+        uint8_t baseline = ((p.first == 0                      ? 0 : std::min<uint8_t>(ampls[p.first-1],ampls[p.first])) + 
+                            (p.first+p.nstrips == ampls.size() ? 0 : std::min<uint8_t>(ampls[p.first+p.nstrips], ampls[p.first+p.nstrips-1])))/2;
+        pOut.charge = 0; 
+        pOut.maxval = 0;
+        for (int j = 0; j < p.nstrips; ++j) {
+            if (amplsOut[p.first+j] >= 254) {
+                pOut.charge += amplsOut[p.first+j];
+                pOut.maxval = std::max<uint8_t>(pOut.maxval,amplsOut[p.first+j]);
+            } else {
+                pOut.charge += amplsOut[p.first+j] - baseline;
+                pOut.maxval = std::max<uint8_t>(pOut.maxval,amplsOut[p.first+j] - baseline);
+            } 
+            amplsOut[p.first+j] = baseline;
+        }
+        if (debug) printf("   - peak [%d,%d]: strips %d, baseline %d, charge %d -> %d, peak/cluster = %.2f -> %.2f\n", ifirst+int(p.first), ifirst+int(p.first+p.nstrips-1), int(p.nstrips), int(baseline), int(p.charge), int(pOut.charge), p.charge/float(total), pOut.charge/float(total));
+    }
+    std::sort(peaksOut.begin(), peaksOut.end());
+    int peak_total = 0;
+    for (const Peak &p : peaksOut) peak_total += p.charge;
+    if (debug) printf("   - total charge in peaksOut / cluster charge = %.2f\n", peak_total/float(total));
+}
+
+void ClusterShapeDebugTrajectoryFilter::dumpCluster(int detid, int ifirst, const std::vector<uint8_t> & ampls, double mip) const
+{
+    SiStripNoises::Range noises = theNoise->getRange(detid);
+    double ctotal = 0, n2 = 0, bestSN=0;
+    for (unsigned int i = 0, n = ampls.size(); i < n; ++i) {
+        double myn = theNoise->getNoise(i+ifirst, noises);
+        printf("\t%4u: %4d (S/N = %6.1f): ", i+ifirst, int(ampls[i]), float(ampls[i])/myn);
+        for (uint8_t j = 0; j < ampls[i]/2; ++j) putchar('=');
+        if (ampls[i] % 2 == 1) putchar('-');
+        if (ampls[i] >= 254) putchar('X');
+        printf("\n");
+        n2 += myn*myn;
+        ctotal += ampls[i];
+        bestSN = std::max(bestSN, float(ampls[i])/myn);
+    }
+    printf("    Total charge: %.0f (%.2f normal MIPs), S/N = %.1f (highest strip: %.1f)\n", ctotal, ctotal/mip, ctotal/std::sqrt(n2), bestSN);
+}
+
+void ClusterShapeDebugTrajectoryFilter::dumpAssociatedClusters(int detid, const SiStripCluster &cluster, double mip) const
+{
+    std::vector<std::pair<int, const SiStripCluster *>> assocs;
+    theRecoAssociator->getAssociatedClusters(detid, cluster, assocs);
+    printf("    Associated clusters (%ld)\n", assocs.size());
+    for (const auto &p : assocs) {
+        printf("    - from %d:\n", p.first);
+        dumpCluster(detid, p.second->firstStrip(), p.second->amplitudes(), mip);
+    }
+}
+
