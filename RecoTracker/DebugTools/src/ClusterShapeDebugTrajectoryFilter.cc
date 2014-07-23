@@ -29,11 +29,58 @@
 #include "SimDataFormats/TrackingHit/interface/PSimHit.h"
 #include "SimTracker/TrackerHitAssociation/interface/TrackerHitAssociator.h"
 #include "FWCore/Framework/interface/ConsumesCollector.h"
+#include "RecoTracker/DebugTools/interface/SlidingPeakFinder.h"
 
 #include "CondFormats/SiStripObjects/interface/SiStripNoises.h"
 #include "CondFormats/DataRecord/interface/SiStripNoisesRcd.h"
 
 #include <TTree.h>
+
+namespace {
+    struct PeakFinderTest {
+        PeakFinderTest(float mip, uint32_t detid, uint32_t firstStrip, const SiStripNoises *theNoise, bool good) :
+            mip_(mip),  detid_(detid), firstStrip_(firstStrip), noiseObj_(theNoise), noises_(theNoise->getRange(detid)), bestChargeNorm_(1e-5), bestSN_(0), good_(good)
+        {
+            cut_ = std::min<double>(0.3*mip, 4*noiseObj_->getNoise(firstStrip+1, noises_));
+        }
+   
+        bool operator()(uint8_t max, uint8_t min) const {
+            //printf("cluster candidate with max = %3d, maxmin = %3d.  (max-min)/mip = %.2f, (max-min)/noise = %.2f\n", int(max), int(min), int(max-min)/mip_, int(max-min)/noise_);
+            return max-min > cut_;
+        } 
+        bool operator()(const uint8_t *left, const uint8_t *right, const uint8_t *begin, const uint8_t *end) const {
+            int yleft  = (left  <  begin ? 0 : *left);
+            int yright = (right >= end   ? 0 : *right);
+            unsigned int sum = 0, strips = 0; int maxval = 0; float noise = 0;
+            for (const uint8_t *x = left+1; x < right; ++x) {
+                int baseline = (yleft * int(right-x) + yright * int(x-left)) / int(right-left);
+                sum += int(*x) - baseline;
+                noise += std::pow(noiseObj_->getNoise(firstStrip_ + int(x-begin), noises_), 2);
+                maxval = std::max(maxval, int(*x) - baseline);
+                strips++;
+            }
+            //printf("refined %1d candidate with sum %d, strips = %d: sum/mip = %.2f (%+.2f), sum/noise = %.2f\n", int(good_), sum, strips, sum/mip_, log(sum/mip_), sum/std::sqrt(noise));
+            if (sum/mip_ > 0.5 && fabs(log(sum/mip_)) < fabs(log(bestChargeNorm_))) {
+                bestChargeNorm_ = sum/mip_;
+            }
+            if (sum/std::sqrt(noise) > bestSN_) {
+                bestSN_ = sum/std::sqrt(noise);
+            }
+            return false; // so we accumulate all
+        }
+        float bestSN() const { return bestSN_; }
+        float bestChargeNorm() const { return bestChargeNorm_; }
+
+        private:
+            float mip_;
+            unsigned int detid_; int firstStrip_;
+            const SiStripNoises *noiseObj_;
+            SiStripNoises::Range noises_;
+            uint8_t cut_;
+            mutable float bestChargeNorm_, bestSN_;
+            bool good_;
+    };
+}
 
 /*****************************************************************************/
 ClusterShapeDebugTrajectoryFilter::ClusterShapeDebugTrajectoryFilter
@@ -106,6 +153,8 @@ ClusterShapeDebugTrajectoryFilter::initTree() const
    theTree->Branch("hitTRLargestStrips", &hitTRLargestStrips_, "hitTRLargestStrips/I");
    theTree->Branch("hitTRLargestNSat",   &hitTRLargestNSat_,   "hitTRLargestNSat/I");
    theTree->Branch("hitTRLargestCharge", &hitTRLargestCharge_, "hitTRLargestCharge/F");
+   theTree->Branch("hitPFTBestMip", &hitPFTBestMip_, "hitPFTBestMip/F");
+   theTree->Branch("hitPFTBestSN", &hitPFTBestSN_, "hitPFTBestSN/F");
 }
 
 /*****************************************************************************/
@@ -333,6 +382,11 @@ void ClusterShapeDebugTrajectoryFilter::fillCluster
           hitSaturatedStrips_ = std::max<int>(hitSaturatedStrips_, thisSat);
       }
 
+      utils::SlidingPeakFinder pf(std::max<int>(2,std::ceil(fabs(hitPredPos_)+0.7)));
+      PeakFinderTest pfTest(mip/std::abs(ldir.z()),detId(),sfirst,theNoise,hitUsable_ && trackAssoc_ == 1 && hitAssoc_ == 1);
+      pf.apply(cluster.amplitudes(), pfTest, false, sfirst); 
+      hitPFTBestMip_ = pfTest.bestChargeNorm();
+      hitPFTBestSN_  = pfTest.bestSN();
       theTree->Fill();
       static int i_good = 0, i_bad = 0;
       if (hitUsable_ && trackAssoc_ == 1 && hitAssoc_ == 1) {
@@ -343,6 +397,7 @@ void ClusterShapeDebugTrajectoryFilter::fillCluster
                   printf("\nCluster with predicted strips %.2f, observed strips %d: GOOD\n", hitPredPos_, hitStrips_);
                   dumpCluster(detId(),sfirst,ampls,mip);
                   dumpAssociatedClusters(detId(),cluster,mip);
+                  pf.apply(cluster.amplitudes(), pfTest, true, sfirst); 
                   peakFinder(detId(),sfirst,ampls,peaks,0.4, 5., 9., 4., true);
                   thresholdRaiser(detId(),sfirst,ampls,peaks,4., 5., 9., true);
               }
@@ -352,11 +407,12 @@ void ClusterShapeDebugTrajectoryFilter::fillCluster
                   printf("\nCluster with predicted strips %.2f, observed strips %d: FAIL\n", hitPredPos_, hitStrips_);
                   dumpCluster(detId(),sfirst,ampls,mip);
                   dumpAssociatedClusters(detId(),cluster,mip);
+                  pf.apply(cluster.amplitudes(), pfTest, true, sfirst); 
                   peakFinder(detId(),sfirst,ampls,peaks,0.4,  5., 9.,  4., true);
                   thresholdRaiser(detId(),sfirst,ampls,peaks, 5., 7., 12., true);
-                  std::vector<uint8_t> amplsOut;
-                  subtractPeaks(detId(),sfirst,ampls,peaksPF,amplsOut,peaks,4,4.,5.,9.,true);
-                  dumpCluster(detId(),sfirst,amplsOut,mip);
+                  //std::vector<uint8_t> amplsOut;
+                  //subtractPeaks(detId(),sfirst,ampls,peaksPF,amplsOut,peaks,4,4.,5.,9.,true);
+                  //dumpCluster(detId(),sfirst,amplsOut,mip);
 #if 0                
                   if (!peaksPF.empty()) {
                     if (peaksPF.size() == 1) {

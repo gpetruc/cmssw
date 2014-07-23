@@ -64,6 +64,7 @@ class ClusterShapeDebugTrajectoryFilter : public TrajectoryFilter {
   mutable int   hitTRNearestStrips_, hitTRNearestNSat_; mutable float hitTRNearestCharge_;
   mutable int   hitTRSmallestStrips_, hitTRSmallestNSat_; mutable float hitTRSmallestCharge_;
   mutable int   hitTRLargestStrips_, hitTRLargestNSat_; mutable float hitTRLargestCharge_;
+  mutable float hitPFTBestMip_, hitPFTBestSN_;
 
   typedef std::pair<unsigned int, unsigned int> Id2;
   virtual void fillAssociations(const TrackingRecHit *hit, std::vector<Id2> &out) const  ;
