@@ -33,31 +33,69 @@
 
 namespace {
     struct PeakFinderTest {
-        PeakFinderTest(uint8_t cut, uint32_t detid, uint32_t firstStrip, float mip, const StripSubClusterShapeTrajectoryFilter &main) :
-            cut_(cut), detid_(detid), firstStrip_(firstStrip), mip_(mip), main_(main) {}
+        PeakFinderTest(float mip, uint32_t detid, uint32_t firstStrip, const SiStripNoises *theNoise,
+                       float seedCutMIPs, float seedCutSN, 
+                       float subclusterCutMIPs, float subclusterCutSN, bool verbose=false) :
+            mip_(mip),  detid_(detid), firstStrip_(firstStrip), noiseObj_(theNoise), noises_(theNoise->getRange(detid)),
+            subclusterCutMIPs_(subclusterCutMIPs), subclusterCutSN_(subclusterCutSN),
+            verbose_(verbose)
+        {
+            cut_ = std::min<float>(seedCutMIPs*mip, seedCutSN*noiseObj_->getNoise(firstStrip+1, noises_));
+        }
    
         bool operator()(uint8_t max, uint8_t min) const {
             return max-min > cut_;
-            //printf("cluster candidate with max = %3d, maxmin = %3d.  (max-min)/mip = %.2f, (max-min)/noise = %.2f\n", int(max), int(min), int(max-min)/mip_, int(max-min)/noise_);
         } 
         bool operator()(const uint8_t *left, const uint8_t *right, const uint8_t *begin, const uint8_t *end) const {
-            return main_.testSubCluster(detid_, firstStrip_, left, right, begin, end, mip_);
+            int yleft  = (left  <  begin ? 0 : *left);
+            int yright = (right >= end   ? 0 : *right);
+            unsigned int sum = 0, sumall = 0, strips = 0; int maxval = 0; float noise = 0;
+            for (const uint8_t *x = left+1; x < right; ++x) {
+                int baseline = (yleft * int(right-x) + yright * int(x-left)) / int(right-left);
+                sumall += int(*x);
+                sum += int(*x) - baseline;
+                noise += std::pow(noiseObj_->getNoise(firstStrip_ + int(x-begin), noises_), 2);
+                maxval = std::max(maxval, int(*x) - baseline);
+                strips++;
+            }
+            if (verbose_) {
+                printf("refined candidate [%4d,%4d] with sum %4d, strips = %d: sum/mip = %5.2f (%+5.2f), sumall/mip = %5.2f (%+5.2f), sum/noise = %6.2f, pede/mip = %5.2f, pede/noise = %6.2f\n", 
+                            int((left+1)-begin)+firstStrip_, int((right-1)-begin)+firstStrip_, sum, strips, sum/mip_, log(sum/mip_), sumall/mip_, log(sumall/mip_), sum/std::sqrt(noise), (sumall-sum)/mip_, (sumall-sum)/std::sqrt(noise));
+            }
+            if (sum/mip_ > subclusterCutMIPs_ && sum/std::sqrt(noise) > subclusterCutSN_) return true;
+            if ((sumall-sum) < 0.3*sum || ( (sumall-sum)/mip_ < 0.2 && (sumall-sum) < 5*std::sqrt(noise) )) {
+                if (sumall/mip_ > subclusterCutMIPs_ && sumall/std::sqrt(noise) > subclusterCutSN_) return true;
+            }
+            return false; 
         }
+
         private:
-            uint8_t cut_;
-            unsigned int detid_; int firstStrip_;
             float mip_;
-            const StripSubClusterShapeTrajectoryFilter & main_;
+            unsigned int detid_; int firstStrip_;
+            const SiStripNoises *noiseObj_;
+            SiStripNoises::Range noises_;
+            uint8_t cut_;
+            float subclusterCutMIPs_, subclusterCutSN_;
+            bool verbose_;
     };
+
 }
 
 /*****************************************************************************/
 StripSubClusterShapeTrajectoryFilter::StripSubClusterShapeTrajectoryFilter
    (const edm::ParameterSet &iCfg, edm::ConsumesCollector& iC) :
    maxNSat_(iCfg.getParameter<uint32_t>("maxNSat")),
-   maxPredSize_(iCfg.getParameter<double>("maxPredSize")),
-   sizeCut_(iCfg.getParameter<double>("sizeCut")),
-   called_(0),test_(0),pass_(0),fullpass_(0),
+   trimMaxADC_(iCfg.getParameter<double>("trimMaxADC")),
+   trimMaxFracTotal_(iCfg.getParameter<double>("trimMaxFracTotal")),
+   trimMaxFracNeigh_(iCfg.getParameter<double>("trimMaxFracNeigh")),
+   maxTrimmedSizeDiffPos_(iCfg.getParameter<double>("maxTrimmedSizeDiffPos")),
+   maxTrimmedSizeDiffNeg_(iCfg.getParameter<double>("maxTrimmedSizeDiffNeg")),
+   subclusterWindow_(iCfg.getParameter<double>("subclusterWindow")),
+   seedCutMIPs_(iCfg.getParameter<double>("seedCutMIPs")),
+   seedCutSN_(iCfg.getParameter<double>("seedCutSN")),
+   subclusterCutMIPs_(iCfg.getParameter<double>("subclusterCutMIPs")),
+   subclusterCutSN_(iCfg.getParameter<double>("subclusterCutSN")),
+   called_(0),saturated_(0),test_(0),passTrim_(0),failTooLarge_(0),passSC_(0),failTooNarrow_(0),
    mteToken_(iC.consumes<MeasurementTrackerEvent>(iCfg.getParameter<edm::InputTag>("MeasurementTrackerEvent"))),
    theFilter(0),
    theTopology(0),
@@ -68,7 +106,13 @@ StripSubClusterShapeTrajectoryFilter::StripSubClusterShapeTrajectoryFilter
 /*****************************************************************************/
 StripSubClusterShapeTrajectoryFilter::~StripSubClusterShapeTrajectoryFilter()
 {
-    std::cout << "StripSubClusterShapeTrajectoryFilter:  called " << called_ << ", tested " << test_ << ", passing " << pass_ << " + " << fullpass_ << " = " << (pass_+fullpass_) << std::endl;
+    std::cout << "StripSubClusterShapeTrajectoryFilter: called " << called_ << std::endl;
+    std::cout << "StripSubClusterShapeTrajectoryFilter: saturated " << saturated_ << std::endl;
+    std::cout << "StripSubClusterShapeTrajectoryFilter: test " << test_ << std::endl;
+    std::cout << "StripSubClusterShapeTrajectoryFilter: passTrim " << passTrim_ << std::endl;
+    std::cout << "StripSubClusterShapeTrajectoryFilter: failTooLarge " << failTooLarge_ << std::endl;
+    std::cout << "StripSubClusterShapeTrajectoryFilter: passSC " << passSC_ << std::endl;
+    std::cout << "StripSubClusterShapeTrajectoryFilter: failTooNarrow " << failTooNarrow_ << std::endl;
 }
 
 
@@ -127,49 +171,70 @@ bool StripSubClusterShapeTrajectoryFilter::testLastHit
       if (!usable) return true;
 
       called_++;
-      if (fabs(hitPredPos) > maxPredSize_) return true;
-      uint32_t nsat = std::count_if(cluster.amplitudes().begin(), cluster.amplitudes().end(), [](const uint8_t v) { return v >= 254; });
-      if (nsat > maxNSat_) return true;
+      const std::vector<uint8_t> &ampls = cluster.amplitudes();
+      
+      // pass-through of trivial case 
+      if (std::abs(hitPredPos) < 1.5f && hitStrips <= 2) {
+        return true;
+      }
 
-      test_++; 
-      if (hitStrips - fabs(hitPredPos) < sizeCut_) {
-          pass_++;
-          return true;
-      } else {
-          const StripGeomDetUnit* stripDetUnit = dynamic_cast<const StripGeomDetUnit *>(det);
-          if (det == 0) throw cms::Exception("Strip not a StripGeomDetUnit?") << " on " << detId.rawId() << " aka " << theTopology->print(detId) << "\n";
 
-          float MeVperADCStrip =  3.61e-06*265; 
-          float mip = 3.9 / ( MeVperADCStrip/stripDetUnit->surface().bounds().thickness() ); // 3.9 MeV/cm = ionization in silicon 
-          uint8_t cut = std::min(0.4*mip, 20.);
-          PeakFinderTest test(cut, detId(), cluster.firstStrip(), mip, *this);
-          utils::SlidingPeakFinder pf(ceil(fabs(hitPredPos)+0.7));
-          if (pf.apply(cluster.amplitudes(), test)) {
-              fullpass_++;
-              return true;
+      // compute number of consecutive saturated strips
+      unsigned int thisSat = (ampls[0] >= 254), maxSat = thisSat;
+      for (unsigned int i = 1, n = ampls.size(); i < n; ++i) {
+          if (ampls[i] >= 254) {
+              thisSat++;
+          } else if (thisSat > 0) {
+              maxSat = std::max<int>(maxSat, thisSat);
+              thisSat = 0;
           }
       }
-        
-      return false;
+      if (thisSat > 0) {
+          maxSat = std::max<int>(maxSat, thisSat);
+      }
+      if (maxSat >= maxNSat_) {
+          saturated_++;
+          return true;
+      }
+     
+      // trimming
+      test_++;
+      unsigned int hitStripsTrim = ampls.size();
+      int sum = std::accumulate(ampls.begin(), ampls.end(), 0);
+      uint8_t trimCut = std::min<uint8_t>(trimMaxADC_, std::floor(trimMaxFracTotal_ * sum));
+      std::vector<uint8_t>::const_iterator begin = ampls.begin();
+      std::vector<uint8_t>::const_iterator last = ampls.end()-1;
+      while (hitStripsTrim > 1 && (*begin < std::max<uint8_t>(trimCut, trimMaxFracNeigh_*(*(begin+1)))) ) { hitStripsTrim--; ++begin; }
+      while (hitStripsTrim > 1 && (*last  < std::max<uint8_t>(trimCut, trimMaxFracNeigh_*(*(last -1)))) ) { hitStripsTrim--; --last; }
+
+      if (hitStripsTrim < std::floor(std::abs(hitPredPos)-maxTrimmedSizeDiffNeg_)) {
+          failTooNarrow_++;
+          return false;
+      } else if (hitStripsTrim <= std::ceil(std::abs(hitPredPos)+maxTrimmedSizeDiffPos_)) {
+          passTrim_++;
+          return true;
+      } 
+
+      const StripGeomDetUnit* stripDetUnit = dynamic_cast<const StripGeomDetUnit *>(det);
+      if (det == 0) throw cms::Exception("Strip not a StripGeomDetUnit?") << " on " << detId.rawId() << " aka " << theTopology->print(detId) << "\n";
+
+      float MeVperADCStrip =  3.61e-06*265; 
+      float mip = 3.9 / ( MeVperADCStrip/stripDetUnit->surface().bounds().thickness() ); // 3.9 MeV/cm = ionization in silicon 
+      float mipnorm = mip/std::abs(ldir.z());
+      utils::SlidingPeakFinder pf(std::max<int>(2,std::ceil(std::abs(hitPredPos)+subclusterWindow_)));
+      PeakFinderTest test(mipnorm, detId(), cluster.firstStrip(), theNoise, seedCutMIPs_, seedCutSN_, subclusterCutMIPs_, subclusterCutSN_);
+      if (pf.apply(cluster.amplitudes(), test)) {
+          passSC_++;
+          return true;
+      } else {
+          failTooLarge_++;
+          return false;
+      }
+
     }
     return true; 
 }
 
-bool StripSubClusterShapeTrajectoryFilter::testSubCluster(uint32_t detid, int firstStrip, const uint8_t *left, const uint8_t *right, const uint8_t *begin, const uint8_t *end, float mip) const {
-    SiStripNoises::Range noises = theNoise->getRange(detid);
-    int yleft  = (left  <  begin ? 0 : *left);
-    int yright = (right >= end   ? 0 : *right);
-    unsigned int sum = 0, strips = 0; int maxval = 0; float noise = 0;
-    for (const uint8_t *x = left+1; x < right; ++x) {
-        int baseline = (yleft * int(right-x) + yright * int(x-left)) / int(right-left);
-        sum += int(*x) - baseline;
-        noise += std::pow(theNoise->getNoise(firstStrip + int(x-begin), noises), 2);
-        maxval = std::max(maxval, int(*x) - baseline);
-        strips++;
-    }
-    printf("refined candidate with sum %d, strips = %d: sum/mip = %.2f, sum/noise = %.2f\n", sum, strips, sum/mip, sum/std::sqrt(noise));
-    return sum/mip > 0.6 && sum/std::sqrt(noise) > 9;
-}
 /*****************************************************************************/
 bool StripSubClusterShapeTrajectoryFilter::qualityFilter
   (const Trajectory& trajectory) const

@@ -38,16 +38,26 @@ class StripSubClusterShapeTrajectoryFilter : public TrajectoryFilter {
 
   virtual void setEvent(const edm::Event &, const edm::EventSetup &) override;
 
-  bool testSubCluster(uint32_t detid, int firstStrip, const uint8_t *left, const uint8_t *right, const uint8_t *begin, const uint8_t *end, float mip) const ;
-
  protected:
 
   virtual bool testLastHit(const TrackingRecHit *hit, const TrajectoryStateOnSurface &tsos, bool mustProject=false) const ;
 
+  // pass-through of clusters with too many consecutive saturated strips
   uint32_t maxNSat_;
-  double maxPredSize_;
-  double sizeCut_;
-  mutable uint64_t called_, test_, pass_, fullpass_;
+
+  // trimming parameters
+  uint8_t trimMaxADC_;
+  float   trimMaxFracTotal_, trimMaxFracNeigh_;
+
+  // maximum difference after peak finding
+  float   maxTrimmedSizeDiffPos_, maxTrimmedSizeDiffNeg_;
+
+  // peak finding parameters
+  float subclusterWindow_;
+  float seedCutMIPs_, seedCutSN_;
+  float subclusterCutMIPs_, subclusterCutSN_;
+ 
+  mutable uint64_t called_, saturated_, test_, passTrim_, failTooLarge_, passSC_, failTooNarrow_;
 
   edm::EDGetTokenT<MeasurementTrackerEvent> mteToken_;
   const ClusterShapeHitFilter   * theFilter;

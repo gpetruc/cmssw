@@ -52,10 +52,30 @@ class ClusterShapeDebugTrajectoryFilter : public TrajectoryFilter {
   mutable const MeasurementTrackerEvent * theMTEvent;
   mutable const SiStripNoises           * theNoise;
 
+  // pass-through of clusters with too many consecutive saturated strips
+  uint32_t maxNSat_;
+
+  // trimming parameters
+  uint8_t trimMaxADC_;
+  uint8_t trimMaxADCTight_;
+  float   trimMaxFracTotal_, trimMaxFracNeigh_;
+  float   trimMaxFracTotalTight_, trimMaxFracNeighTight_;
+
+  // maximum difference after peak finding
+  float   maxTrimmedSizeDiffPos_, maxTrimmedSizeDiffNeg_;
+  float   maxTrimmedSizeDiffPosTight_, maxTrimmedSizeDiffNegTight_;
+
+  // peak finding parameters
+  float subclusterWindow_;
+  float seedCutMIPs_, seedCutSN_;
+  float subclusterCutMIPs_, subclusterCutSN_;
+  float subclusterCutMIPsTight_, subclusterCutSNTight_;
+ 
   mutable TTree * theTree;
   mutable float trackPt_, trackEta_; 
   mutable int   trackAssoc_;
   mutable int   hitDet_, hitLayer_, hitAssoc_, hitSingleSim_, hitUsable_, hitStrips_, hitFirstStrip_, hitCompatPos_, hitCompatNoPos_, hitBadBoundaries_, hitSaturatedStrips_;
+  mutable int   hitStripsTrim_, hitStripsMoreTrim_;
   mutable float hitCharge_,  hitChargeNorm_, hitChargeRms_;
   mutable float hitPredPos_, hitPredNoPos_, hitLocalDyDz_, hitLocalDxDz_, hitDetPitch_, hitDetThickness_;
   mutable int   hitPFNearestStrips_, hitPFNearestNSat_; mutable float hitPFNearestCharge_;

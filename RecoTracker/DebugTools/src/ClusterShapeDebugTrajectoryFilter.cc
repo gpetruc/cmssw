@@ -38,38 +38,42 @@
 
 namespace {
     struct PeakFinderTest {
-        PeakFinderTest(float mip, uint32_t detid, uint32_t firstStrip, const SiStripNoises *theNoise, bool good) :
-            mip_(mip),  detid_(detid), firstStrip_(firstStrip), noiseObj_(theNoise), noises_(theNoise->getRange(detid)), bestChargeNorm_(1e-5), bestSN_(0), good_(good)
+        PeakFinderTest(float mip, uint32_t detid, uint32_t firstStrip, const SiStripNoises *theNoise,
+                       float seedCutMIPs, float seedCutSN, 
+                       float subclusterCutMIPs, float subclusterCutSN, bool verbose=false, bool docut=true) :
+            mip_(mip),  detid_(detid), firstStrip_(firstStrip), noiseObj_(theNoise), noises_(theNoise->getRange(detid)),
+            subclusterCutMIPs_(subclusterCutMIPs), subclusterCutSN_(subclusterCutSN),
+            verbose_(verbose), docut_(docut)
         {
-            cut_ = std::min<double>(0.3*mip, 4*noiseObj_->getNoise(firstStrip+1, noises_));
+            cut_ = std::min<float>(seedCutMIPs*mip, seedCutSN*noiseObj_->getNoise(firstStrip+1, noises_));
         }
    
         bool operator()(uint8_t max, uint8_t min) const {
-            //printf("cluster candidate with max = %3d, maxmin = %3d.  (max-min)/mip = %.2f, (max-min)/noise = %.2f\n", int(max), int(min), int(max-min)/mip_, int(max-min)/noise_);
             return max-min > cut_;
         } 
         bool operator()(const uint8_t *left, const uint8_t *right, const uint8_t *begin, const uint8_t *end) const {
             int yleft  = (left  <  begin ? 0 : *left);
             int yright = (right >= end   ? 0 : *right);
-            unsigned int sum = 0, strips = 0; int maxval = 0; float noise = 0;
+            unsigned int sum = 0, sumall = 0, strips = 0; int maxval = 0; float noise = 0;
             for (const uint8_t *x = left+1; x < right; ++x) {
                 int baseline = (yleft * int(right-x) + yright * int(x-left)) / int(right-left);
+                sumall += int(*x);
                 sum += int(*x) - baseline;
                 noise += std::pow(noiseObj_->getNoise(firstStrip_ + int(x-begin), noises_), 2);
                 maxval = std::max(maxval, int(*x) - baseline);
                 strips++;
             }
-            //printf("refined %1d candidate with sum %d, strips = %d: sum/mip = %.2f (%+.2f), sum/noise = %.2f\n", int(good_), sum, strips, sum/mip_, log(sum/mip_), sum/std::sqrt(noise));
-            if (sum/mip_ > 0.5 && fabs(log(sum/mip_)) < fabs(log(bestChargeNorm_))) {
-                bestChargeNorm_ = sum/mip_;
+            if (verbose_) {
+                printf("refined candidate [%4d,%4d] with sum %4d, strips = %d: sum/mip = %5.2f (%+5.2f), sumall/mip = %5.2f (%+5.2f), sum/noise = %6.2f, pede/mip = %5.2f, pede/noise = %6.2f\n", 
+                            int((left+1)-begin)+firstStrip_, int((right-1)-begin)+firstStrip_, sum, strips, sum/mip_, log(sum/mip_), sumall/mip_, log(sumall/mip_), sum/std::sqrt(noise), (sumall-sum)/mip_, (sumall-sum)/std::sqrt(noise));
             }
-            if (sum/std::sqrt(noise) > bestSN_) {
-                bestSN_ = sum/std::sqrt(noise);
+            if (!docut_) return false;
+            if (sum/mip_ > subclusterCutMIPs_ && sum/std::sqrt(noise) > subclusterCutSN_) return true;
+            if ((sumall-sum) < 0.3*sum || ( (sumall-sum)/mip_ < 0.2 && (sumall-sum) < 5*std::sqrt(noise) )) {
+                if (sumall/mip_ > subclusterCutMIPs_ && sumall/std::sqrt(noise) > subclusterCutSN_) return true;
             }
-            return false; // so we accumulate all
+            return false; 
         }
-        float bestSN() const { return bestSN_; }
-        float bestChargeNorm() const { return bestChargeNorm_; }
 
         private:
             float mip_;
@@ -77,9 +81,11 @@ namespace {
             const SiStripNoises *noiseObj_;
             SiStripNoises::Range noises_;
             uint8_t cut_;
-            mutable float bestChargeNorm_, bestSN_;
-            bool good_;
+            float subclusterCutMIPs_, subclusterCutSN_;
+            bool verbose_, docut_;
     };
+
+
 }
 
 /*****************************************************************************/
@@ -92,6 +98,24 @@ ClusterShapeDebugTrajectoryFilter::ClusterShapeDebugTrajectoryFilter
    theFilter(0),
    theTopology(0),
    theTracker(0),
+   maxNSat_(iCfg.getParameter<uint32_t>("maxNSat")),
+   trimMaxADC_(iCfg.getParameter<double>("trimMaxADC")),
+   trimMaxADCTight_(iCfg.getParameter<double>("trimMaxADCTight")),
+   trimMaxFracTotal_(iCfg.getParameter<double>("trimMaxFracTotal")),
+   trimMaxFracNeigh_(iCfg.getParameter<double>("trimMaxFracNeigh")),
+   trimMaxFracTotalTight_(iCfg.getParameter<double>("trimMaxFracTotalTight")),
+   trimMaxFracNeighTight_(iCfg.getParameter<double>("trimMaxFracNeighTight")),
+   maxTrimmedSizeDiffPos_(iCfg.getParameter<double>("maxTrimmedSizeDiffPos")),
+   maxTrimmedSizeDiffNeg_(iCfg.getParameter<double>("maxTrimmedSizeDiffNeg")),
+   maxTrimmedSizeDiffPosTight_(iCfg.getParameter<double>("maxTrimmedSizeDiffPosTight")),
+   maxTrimmedSizeDiffNegTight_(iCfg.getParameter<double>("maxTrimmedSizeDiffNegTight")),
+   subclusterWindow_(iCfg.getParameter<double>("subclusterWindow")),
+   seedCutMIPs_(iCfg.getParameter<double>("seedCutMIPs")),
+   seedCutSN_(iCfg.getParameter<double>("seedCutSN")),
+   subclusterCutMIPs_(iCfg.getParameter<double>("subclusterCutMIPs")),
+   subclusterCutSN_(iCfg.getParameter<double>("subclusterCutSN")),
+   subclusterCutMIPsTight_(iCfg.getParameter<double>("subclusterCutMIPsTight")),
+   subclusterCutSNTight_(iCfg.getParameter<double>("subclusterCutSNTight")),
    theTree(0)
 {
     if (iCfg.existsAs<std::vector<edm::InputTag>>("referenceStripClusters")) {
@@ -124,6 +148,7 @@ ClusterShapeDebugTrajectoryFilter::initTree() const
    theTree->Branch("hitCompatNoPos", &hitCompatNoPos_, "hitCompatNoPos/I");
    theTree->Branch("hitBadBoundaries", &hitBadBoundaries_, "hitBadBoundaries/I");
    theTree->Branch("hitStrips", &hitStrips_, "hitStrips/I");
+   theTree->Branch("hitStripsTrim", &hitStripsTrim_, "hitStripsTrim/I");
    theTree->Branch("hitFirstStrip", &hitFirstStrip_, "hitFirstStrip/I");
    theTree->Branch("hitCharge", &hitCharge_, "hitCharge/F");
    theTree->Branch("hitChargeNorm", &hitChargeNorm_, "hitChargeNorm/F");
@@ -231,24 +256,6 @@ void ClusterShapeDebugTrajectoryFilter::fillAssociations
    for (const PSimHit &hit : simHits) {
       Id2 id2(hit.eventId().rawId(), hit.trackId());
       out.push_back(id2);
-#if 0
-      // Outgoing?
-      DetId id = DetId(simHit.detUnitId());
-      const GeomDetUnit *gdu = theTracker->idToDetUnit(id);
-      if (gdu == 0) throw cms::Exception("MissingData") << "Missing DetUnit for detid " << id.rawId() << "\n" << std::endl;
-      GlobalVector gvec = theTracker->idToDetUnit(id)->position() - GlobalPoint(0,0,0);
-      LocalVector  lvec = theTracker->idToDetUnit(id)->toLocal(gvec);
-      LocalVector  ldir = simHit.exitPoint() - simHit.entryPoint();
-      bool isOutgoing = (lvec.z()*ldir.z() > 0);
-
-      // From a relevant process? primary or decay
-      bool isRelevant = (simHit.processType() == 2 || simHit.processType() == 4);
-
-      // Fast enough? pt > 50 MeV/c
-      bool isFast = (simHit.momentumAtEntry().perp() > 0.050);
-
-      if (isOutgoing && isRelevant && isFast)
-#endif
    }
 }
  
@@ -324,7 +331,22 @@ void ClusterShapeDebugTrajectoryFilter::fillCluster
       }
       sumx /= sum; sumx2 /= sum;
       hitChargeRms_ = sumx2 - sumx*sumx;
-      
+    
+      uint8_t trimCut = std::min<uint8_t>(trimMaxADC_, std::floor(trimMaxFracTotal_ * sum));
+      hitStripsTrim_ = hitStrips_;
+      std::vector<uint8_t>::const_iterator begin = cluster.amplitudes().begin();
+      std::vector<uint8_t>::const_iterator last = cluster.amplitudes().end()-1;
+      while (hitStripsTrim_ > 1 && (*begin < std::max<uint8_t>(trimCut, trimMaxFracNeigh_*(*(begin+1)))) ) { hitStripsTrim_--; ++begin; }
+      while (hitStripsTrim_ > 1 && (*last  < std::max<uint8_t>(trimCut, trimMaxFracNeigh_*(*(last -1)))) ) { hitStripsTrim_--; --last; }
+    
+      uint8_t trimCutTight = std::min<uint8_t>(trimMaxADCTight_, std::floor(trimMaxFracTotalTight_ * sum));
+      unsigned int hitStripsTrimTight = hitStrips_;
+      begin = cluster.amplitudes().begin();
+      last = cluster.amplitudes().end()-1;
+      while (hitStripsTrimTight > 1 && (*begin < std::max<uint8_t>(trimCutTight, trimMaxFracNeighTight_*(*(begin+1)))) ) { hitStripsTrimTight--; ++begin; }
+      while (hitStripsTrimTight > 1 && (*last  < std::max<uint8_t>(trimCutTight, trimMaxFracNeighTight_*(*(last -1)))) ) { hitStripsTrimTight--; --last; }
+
+
 
       const StripGeomDetUnit* stripDetUnit = dynamic_cast<const StripGeomDetUnit *>(det);
       if (det == 0) throw cms::Exception("Strip not a StripGeomDetUnit?") << " on " << detId.rawId() << " aka " << theTopology->print(detId) << "\n";
@@ -368,7 +390,7 @@ void ClusterShapeDebugTrajectoryFilter::fillCluster
         hitTRNearestStrips_ = hitTRSmallestStrips_ = hitTRLargestStrips_ = -1;
       }
 
-      int thisSat = (ampls[0] >= 254);
+      unsigned int thisSat = (ampls[0] >= 254);
       hitSaturatedStrips_ = thisSat;
       for (unsigned int i = 1, n = ampls.size(); i < n; ++i) {
         if (ampls[i] >= 254) {
@@ -382,52 +404,64 @@ void ClusterShapeDebugTrajectoryFilter::fillCluster
           hitSaturatedStrips_ = std::max<int>(hitSaturatedStrips_, thisSat);
       }
 
-      utils::SlidingPeakFinder pf(std::max<int>(2,std::ceil(fabs(hitPredPos_)+0.7)));
-      PeakFinderTest pfTest(mip/std::abs(ldir.z()),detId(),sfirst,theNoise,hitUsable_ && trackAssoc_ == 1 && hitAssoc_ == 1);
-      pf.apply(cluster.amplitudes(), pfTest, false, sfirst); 
-      hitPFTBestMip_ = pfTest.bestChargeNorm();
-      hitPFTBestSN_  = pfTest.bestSN();
-      theTree->Fill();
-      static int i_good = 0, i_bad = 0;
-      if (hitUsable_ && trackAssoc_ == 1 && hitAssoc_ == 1) {
+      if (hitUsable_) {
           std::vector<Peak> peaks;
-          if (hitCompatPos_) {
-              if (i_good < 200) {
-                  i_good++;
-                  printf("\nCluster with predicted strips %.2f, observed strips %d: GOOD\n", hitPredPos_, hitStrips_);
-                  dumpCluster(detId(),sfirst,ampls,mip);
-                  dumpAssociatedClusters(detId(),cluster,mip);
-                  pf.apply(cluster.amplitudes(), pfTest, true, sfirst); 
-                  peakFinder(detId(),sfirst,ampls,peaks,0.4, 5., 9., 4., true);
-                  thresholdRaiser(detId(),sfirst,ampls,peaks,4., 5., 9., true);
+         
+          if (hitSaturatedStrips_ < int(maxNSat_) && !(std::abs(hitPredPos_)<1.5f && hitStrips_ <= 2)) {
+              int tooNarrowTight = std::floor(std::abs(hitPredPos_)-maxTrimmedSizeDiffNegTight_);
+              int tooNarrowLoose = std::floor(std::abs(hitPredPos_)-maxTrimmedSizeDiffNeg_);
+              int narrowTight = std::max<int>(2,std::ceil(std::abs(hitPredPos_)+maxTrimmedSizeDiffPosTight_));
+              int narrowLoose = std::max<int>(2,std::ceil(std::abs(hitPredPos_)+maxTrimmedSizeDiffPos_));
+              printf("\nCluster with predicted strips %.2f, observed strips %d (consec. saturated strips: %d), trimmed size %d (tight %d); tooNarrow if < %d(%d), narrow if <= %d(%d) \n", hitPredPos_, hitStrips_, hitSaturatedStrips_, hitStripsTrim_, hitStripsTrimTight, tooNarrowLoose, tooNarrowTight, narrowLoose, narrowTight);
+              if (trackAssoc_ == 1 && hitAssoc_ == 1) {
+                printf("  cluster corresponds to a GOOD match\n");
+              } else {
+                printf("  cluster corresponds to a BAD match\n");
               }
-          } else {    
-              if (i_bad < 500) {
-                  i_bad++;
-                  printf("\nCluster with predicted strips %.2f, observed strips %d: FAIL\n", hitPredPos_, hitStrips_);
+              if (hitStripsTrim_ != int(hitStripsTrimTight)) {
                   dumpCluster(detId(),sfirst,ampls,mip);
-                  dumpAssociatedClusters(detId(),cluster,mip);
-                  pf.apply(cluster.amplitudes(), pfTest, true, sfirst); 
-                  peakFinder(detId(),sfirst,ampls,peaks,0.4,  5., 9.,  4., true);
-                  thresholdRaiser(detId(),sfirst,ampls,peaks, 5., 7., 12., true);
-                  //std::vector<uint8_t> amplsOut;
-                  //subtractPeaks(detId(),sfirst,ampls,peaksPF,amplsOut,peaks,4,4.,5.,9.,true);
-                  //dumpCluster(detId(),sfirst,amplsOut,mip);
-#if 0                
-                  if (!peaksPF.empty()) {
-                    if (peaksPF.size() == 1) {
-                        if (peaksTR.size() == 1 &&
-                               (fabs(hitPFNearestStrips_-fabs(hitPredPos_)) < 3) && 
-                               (fabs(hitTRNearestStrips_-fabs(hitPredPos_)) < 3)) {
-                            printf("----> Identified as a trimmable cluster.\n");
-                        } else {
-                        }
-                    }
+              }
+
+              //dumpAssociatedClusters(detId(),cluster,mip);
+              if (hitStripsTrim_ < std::floor(std::abs(hitPredPos_)-maxTrimmedSizeDiffNegTight_)) {
+                  printf(" --> REJECTED (too narrow, tight cut)\n");
+              } else if (hitStripsTrim_ < std::floor(std::abs(hitPredPos_)-maxTrimmedSizeDiffNeg_)) {
+                  printf(" --> REJECTED (too narrow)\n");
+                  dumpCluster(detId(),sfirst,ampls,mip);
+              } else if (hitStripsTrim_ <= std::max<int>(2,std::ceil(std::abs(hitPredPos_)+maxTrimmedSizeDiffPosTight_))) {
+                  printf(" --> ACCEPTED (after trimming, tight cut)\n");
+              } else if (hitStripsTrim_ <= std::max<int>(2,std::ceil(std::abs(hitPredPos_)+maxTrimmedSizeDiffPos_))) {
+                  printf(" --> ACCEPTED (after trimming)\n");
+                  dumpCluster(detId(),sfirst,ampls,mip);
+              } else {
+                  float mipnorm = mip/std::abs(ldir.z());
+                  utils::SlidingPeakFinder pf(std::max<int>(2,std::ceil(std::abs(hitPredPos_)+subclusterWindow_)));
+                  PeakFinderTest pfCutTight(mipnorm, detId(), cluster.firstStrip(), theNoise, seedCutMIPs_, seedCutSN_, subclusterCutMIPsTight_, subclusterCutSNTight_);
+                  PeakFinderTest pfCut(mipnorm, detId(), cluster.firstStrip(), theNoise, seedCutMIPs_, seedCutSN_, subclusterCutMIPs_, subclusterCutSN_);
+
+                  if (!pf.apply(cluster.amplitudes(), pfCutTight)) {
+                      dumpCluster(detId(),sfirst,ampls,mip);
+                      printf("running sliding peak finder with window %d strips\n", std::max<int>(2,std::ceil(std::abs(hitPredPos_)+subclusterWindow_)));
+                      printf("  expected charge due to track angle: %.2f normal MIPs = %.1f\n", 1.0/std::abs(ldir.z()), mipnorm);
+                      PeakFinderTest pfTest(mipnorm, detId(), cluster.firstStrip(), theNoise, seedCutMIPs_, seedCutSN_, subclusterCutMIPs_, subclusterCutSN_, true, false);
+                      pf.apply(cluster.amplitudes(), pfTest, false, sfirst); 
+
+                      if (!pf.apply(cluster.amplitudes(), pfCut)) {
+                        printf(" --> REJECTED (too large)\n");
+                      } else {
+                        printf(" --> ACCEPTED (subcluster, tight cut)\n");
+                      }
+                  } else {
+                      printf(" --> ACCEPTED (subcluster, tight cut)\n");
                   }
-#endif
               }
-          } 
+
+              //peakFinder(detId(),sfirst,ampls,peaks,0.4, 5., 9., 4., true);
+              //thresholdRaiser(detId(),sfirst,ampls,peaks,4., 5., 9., true);
+          }
       }
+
+      theTree->Fill();
    }
 }
 
