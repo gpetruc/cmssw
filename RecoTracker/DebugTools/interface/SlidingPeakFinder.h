@@ -15,7 +15,7 @@ class SlidingPeakFinder {
         template<typename Test>
         bool apply(const uint8_t *x, const uint8_t *begin, const uint8_t *end, const Test & test, bool verbose=false, int firststrip=0) {
             const uint8_t * ileft  = (x != begin)      ? std::min_element(x-1,x+half_)                     : begin - 1;
-            const uint8_t * iright = ((x+size_) < end) ? std::min_element(x+half_,std::min(x+size_+1,end)) : end   + 1;
+            const uint8_t * iright = ((x+size_) < end) ? std::min_element(x+half_,std::min(x+size_+1,end)) : end;
             uint8_t left   = (ileft  <  begin ? 0 : *ileft );
             uint8_t right =  (iright >= end   ? 0 : *iright);
             uint8_t center = *std::max_element(x, std::min(x+size_,end));
