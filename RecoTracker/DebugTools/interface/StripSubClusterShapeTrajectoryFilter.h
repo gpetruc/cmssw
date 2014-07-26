@@ -8,6 +8,7 @@
 #include "FWCore/Framework/interface/ESHandle.h"
 #include "FWCore/Utilities/interface/EDGetToken.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
+#include "RecoTracker/TkSeedingLayers/interface/SeedComparitor.h"
 
 class ClusterShapeHitFilter;
 class TrackerTopology;
@@ -20,27 +21,19 @@ class TTree;
 namespace edm { class Event; class EventSetup; class ConsumesCollector; }
 
 
-class StripSubClusterShapeTrajectoryFilter : public TrajectoryFilter {
+class StripSubClusterShapeFilterBase {
  public:
-  //  StripSubClusterShapeTrajectoryFilter(const edm::EventSetup& es);
-
-  StripSubClusterShapeTrajectoryFilter(const edm::ParameterSet &iConfig, edm::ConsumesCollector& iC);
-
-  virtual ~StripSubClusterShapeTrajectoryFilter();
-
-  virtual bool qualityFilter(const TempTrajectory&) const override;
-  virtual bool qualityFilter(const Trajectory&) const override;
- 
-  virtual bool toBeContinued(TempTrajectory&) const override;
-  virtual bool toBeContinued(Trajectory&) const override;
-
-  virtual std::string name() const { return "StripSubClusterShapeTrajectoryFilter"; }
-
-  virtual void setEvent(const edm::Event &, const edm::EventSetup &) override;
+  StripSubClusterShapeFilterBase(const edm::ParameterSet &iConfig, edm::ConsumesCollector& iC);
+  virtual ~StripSubClusterShapeFilterBase();
 
  protected:
 
-  virtual bool testLastHit(const TrackingRecHit *hit, const TrajectoryStateOnSurface &tsos, bool mustProject=false) const ;
+  void setEventBase(const edm::Event &, const edm::EventSetup &) ;
+
+  bool testLastHit(const TrackingRecHit *hit, const TrajectoryStateOnSurface &tsos, bool mustProject=false) const ;
+
+  // who am i
+  std::string label_;
 
   // pass-through of clusters with too many consecutive saturated strips
   uint32_t maxNSat_;
@@ -59,13 +52,51 @@ class StripSubClusterShapeTrajectoryFilter : public TrajectoryFilter {
  
   mutable uint64_t called_, saturated_, test_, passTrim_, failTooLarge_, passSC_, failTooNarrow_;
 
-  edm::EDGetTokenT<MeasurementTrackerEvent> mteToken_;
   const ClusterShapeHitFilter   * theFilter;
-  const TrackerTopology         * theTopology;
   const TrackerGeometry         * theTracker;
-  const MeasurementTrackerEvent * theMTEvent;
   const SiStripNoises           * theNoise;
 
 };
+
+class StripSubClusterShapeTrajectoryFilter: public StripSubClusterShapeFilterBase, public TrajectoryFilter {
+    public:
+        StripSubClusterShapeTrajectoryFilter(const edm::ParameterSet &iConfig, edm::ConsumesCollector& iC):
+            StripSubClusterShapeFilterBase(iConfig,iC) {}
+
+        virtual ~StripSubClusterShapeTrajectoryFilter() {}
+
+        virtual bool qualityFilter(const TempTrajectory&) const override;
+        virtual bool qualityFilter(const Trajectory&) const override;
+
+        virtual bool toBeContinued(TempTrajectory&) const override;
+        virtual bool toBeContinued(Trajectory&) const override;
+
+        virtual std::string name() const { return "StripSubClusterShapeTrajectoryFilter"; }
+
+        virtual void setEvent(const edm::Event & e, const edm::EventSetup & es) override {
+            setEventBase(e,es);
+        }
+};
+
+class StripSubClusterShapeSeedFilter: public StripSubClusterShapeFilterBase, public SeedComparitor {
+    public:
+        StripSubClusterShapeSeedFilter(const edm::ParameterSet &iConfig, edm::ConsumesCollector& iC):
+            StripSubClusterShapeFilterBase(iConfig,iC) {}
+
+        virtual ~StripSubClusterShapeSeedFilter() {}
+
+        virtual void init(const edm::Event& ev, const edm::EventSetup& es) override {
+            setEventBase(ev,es);
+        }
+        // implemented
+        virtual bool compatible(const TrajectoryStateOnSurface &tsos,  SeedingHitSet::ConstRecHitPointer hit) const ;
+        // not implemented 
+        virtual bool compatible(const SeedingHitSet &hits, const TrackingRegion & region) const { return true; }
+        virtual bool compatible(const TrajectorySeed &seed) const { return true; }
+        virtual bool compatible(const SeedingHitSet &hits, const GlobalTrajectoryParameters &helixStateAtVertex, const FastHelix &helix, const TrackingRegion & region) const { return true; }
+        virtual bool compatible(const SeedingHitSet &hits, const GlobalTrajectoryParameters &straightLineStateAtVertex, const TrackingRegion & region) const { return true; }
+};
+
+
 
 #endif

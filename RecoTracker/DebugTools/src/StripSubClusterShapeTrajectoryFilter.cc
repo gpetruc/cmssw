@@ -63,9 +63,9 @@ namespace {
                             int((left+1)-begin)+firstStrip_, int((right-1)-begin)+firstStrip_, sum, strips, sum/mip_, log(sum/mip_), sumall/mip_, log(sumall/mip_), sum/std::sqrt(noise), (sumall-sum)/mip_, (sumall-sum)/std::sqrt(noise));
             }
             if (sum/mip_ > subclusterCutMIPs_ && sum/std::sqrt(noise) > subclusterCutSN_) return true;
-            if ((sumall-sum) < 0.3*sum || ( (sumall-sum)/mip_ < 0.2 && (sumall-sum) < 5*std::sqrt(noise) )) {
-                if (sumall/mip_ > subclusterCutMIPs_ && sumall/std::sqrt(noise) > subclusterCutSN_) return true;
-            }
+            //if ((sumall-sum) < 0.3*sum || ( (sumall-sum)/mip_ < 0.2 && (sumall-sum) < 5*std::sqrt(noise) )) {
+            //    if (sumall/mip_ > subclusterCutMIPs_ && sumall/std::sqrt(noise) > subclusterCutSN_) return true;
+            //}
             return false; 
         }
 
@@ -82,8 +82,9 @@ namespace {
 }
 
 /*****************************************************************************/
-StripSubClusterShapeTrajectoryFilter::StripSubClusterShapeTrajectoryFilter
+StripSubClusterShapeFilterBase::StripSubClusterShapeFilterBase
    (const edm::ParameterSet &iCfg, edm::ConsumesCollector& iC) :
+   label_(iCfg.getUntrackedParameter<std::string>("label","")),
    maxNSat_(iCfg.getParameter<uint32_t>("maxNSat")),
    trimMaxADC_(iCfg.getParameter<double>("trimMaxADC")),
    trimMaxFracTotal_(iCfg.getParameter<double>("trimMaxFracTotal")),
@@ -96,49 +97,25 @@ StripSubClusterShapeTrajectoryFilter::StripSubClusterShapeTrajectoryFilter
    subclusterCutMIPs_(iCfg.getParameter<double>("subclusterCutMIPs")),
    subclusterCutSN_(iCfg.getParameter<double>("subclusterCutSN")),
    called_(0),saturated_(0),test_(0),passTrim_(0),failTooLarge_(0),passSC_(0),failTooNarrow_(0),
-   mteToken_(iC.consumes<MeasurementTrackerEvent>(iCfg.getParameter<edm::InputTag>("MeasurementTrackerEvent"))),
    theFilter(0),
-   theTopology(0),
    theTracker(0)
 {
 }
 
 /*****************************************************************************/
-StripSubClusterShapeTrajectoryFilter::~StripSubClusterShapeTrajectoryFilter()
+StripSubClusterShapeFilterBase::~StripSubClusterShapeFilterBase()
 {
-    std::cout << "StripSubClusterShapeTrajectoryFilter: called " << called_ << std::endl;
-    std::cout << "StripSubClusterShapeTrajectoryFilter: saturated " << saturated_ << std::endl;
-    std::cout << "StripSubClusterShapeTrajectoryFilter: test " << test_ << std::endl;
-    std::cout << "StripSubClusterShapeTrajectoryFilter: passTrim " << passTrim_ << std::endl;
-    std::cout << "StripSubClusterShapeTrajectoryFilter: failTooLarge " << failTooLarge_ << std::endl;
-    std::cout << "StripSubClusterShapeTrajectoryFilter: passSC " << passSC_ << std::endl;
-    std::cout << "StripSubClusterShapeTrajectoryFilter: failTooNarrow " << failTooNarrow_ << std::endl;
+    std::cout << "StripSubClusterShapeFilterBase " << label_ <<": called        " << called_ << std::endl;
+    std::cout << "StripSubClusterShapeFilterBase " << label_ <<": saturated     " << saturated_ << std::endl;
+    std::cout << "StripSubClusterShapeFilterBase " << label_ <<": test          " << test_ << std::endl;
+    std::cout << "StripSubClusterShapeFilterBase " << label_ <<": failTooNarrow " << failTooNarrow_ << std::endl;
+    std::cout << "StripSubClusterShapeFilterBase " << label_ <<": passTrim      " << passTrim_ << std::endl;
+    std::cout << "StripSubClusterShapeFilterBase " << label_ <<": passSC        " << passSC_ << std::endl;
+    std::cout << "StripSubClusterShapeFilterBase " << label_ <<": failTooLarge  " << failTooLarge_ << std::endl;
 }
 
 
-/*****************************************************************************/
-bool StripSubClusterShapeTrajectoryFilter::toBeContinued
-(Trajectory& trajectory) const 
-{
-   throw cms::Exception("toBeContinued(Traj) instead of toBeContinued(TempTraj)");
-}
-
-/*****************************************************************************/
-bool StripSubClusterShapeTrajectoryFilter::toBeContinued
-(TempTrajectory& trajectory) const 
-{
-   const TempTrajectory::DataContainer & tms = trajectory.measurements();
-
-   const TrajectoryMeasurement &last = *tms.rbegin();
-   const TrackingRecHit* hit = last.recHit()->hit();
-   if (!last.updatedState().isValid()) return true;
-   if (hit == 0 || !hit->isValid()) return true;
-   if (hit->geographicalId().subdetId() <= 2) return true; // we look only at strips for now
-   return testLastHit(hit, last.updatedState(), false);
-}
-
- 
-bool StripSubClusterShapeTrajectoryFilter::testLastHit
+bool StripSubClusterShapeFilterBase::testLastHit
    (const TrackingRecHit *hit, const TrajectoryStateOnSurface &tsos, bool mustProject) const
 {
    const TrackerSingleRecHit *stripHit = 0;
@@ -216,7 +193,7 @@ bool StripSubClusterShapeTrajectoryFilter::testLastHit
       } 
 
       const StripGeomDetUnit* stripDetUnit = dynamic_cast<const StripGeomDetUnit *>(det);
-      if (det == 0) throw cms::Exception("Strip not a StripGeomDetUnit?") << " on " << detId.rawId() << " aka " << theTopology->print(detId) << "\n";
+      if (det == 0) throw cms::Exception("Strip not a StripGeomDetUnit?") << " on " << detId.rawId() << "\n";
 
       float MeVperADCStrip =  3.61e-06*265; 
       float mip = 3.9 / ( MeVperADCStrip/stripDetUnit->surface().bounds().thickness() ); // 3.9 MeV/cm = ionization in silicon 
@@ -233,6 +210,48 @@ bool StripSubClusterShapeTrajectoryFilter::testLastHit
 
     }
     return true; 
+}
+
+void StripSubClusterShapeFilterBase::setEventBase
+  (const edm::Event &event, const edm::EventSetup &es) 
+{
+  // Get tracker geometry
+  edm::ESHandle<TrackerGeometry> tracker;
+  es.get<TrackerDigiGeometryRecord>().get(tracker);
+  theTracker = tracker.product();
+
+  edm::ESHandle<ClusterShapeHitFilter> shape;
+  es.get<CkfComponentsRecord>().get("ClusterShapeHitFilter",shape);
+  theFilter = shape.product();
+
+  //Retrieve tracker topology from geometry
+  edm::ESHandle<TrackerTopology> tTopo;
+  es.get<IdealGeometryRecord>().get(tTopo);
+
+  edm::ESHandle<SiStripNoises>  noise;
+  es.get<SiStripNoisesRcd>().get(noise);
+  theNoise = noise.product();
+}
+
+/*****************************************************************************/
+bool StripSubClusterShapeTrajectoryFilter::toBeContinued
+(Trajectory& trajectory) const 
+{
+   throw cms::Exception("toBeContinued(Traj) instead of toBeContinued(TempTraj)");
+}
+
+/*****************************************************************************/
+bool StripSubClusterShapeTrajectoryFilter::toBeContinued
+(TempTrajectory& trajectory) const 
+{
+   const TempTrajectory::DataContainer & tms = trajectory.measurements();
+
+   const TrajectoryMeasurement &last = *tms.rbegin();
+   const TrackingRecHit* hit = last.recHit()->hit();
+   if (!last.updatedState().isValid()) return true;
+   if (hit == 0 || !hit->isValid()) return true;
+   if (hit->geographicalId().subdetId() <= 2) return true; // we look only at strips for now
+   return testLastHit(hit, last.updatedState(), false);
 }
 
 /*****************************************************************************/
@@ -264,29 +283,13 @@ bool StripSubClusterShapeTrajectoryFilter::qualityFilter
 
 }
 
-void StripSubClusterShapeTrajectoryFilter::setEvent
-  (const edm::Event &event, const edm::EventSetup &es) 
+/*****************************************************************************/
+bool StripSubClusterShapeSeedFilter::compatible
+  (const  TrajectoryStateOnSurface & tsos, SeedingHitSet::ConstRecHitPointer thit) const
 {
-  // Get tracker geometry
-  edm::ESHandle<TrackerGeometry> tracker;
-  es.get<TrackerDigiGeometryRecord>().get(tracker);
-  theTracker = tracker.product();
-
-  edm::ESHandle<ClusterShapeHitFilter> shape;
-  es.get<CkfComponentsRecord>().get("ClusterShapeHitFilter",shape);
-  theFilter = shape.product();
-
-  //Retrieve tracker topology from geometry
-  edm::ESHandle<TrackerTopology> tTopo;
-  es.get<IdealGeometryRecord>().get(tTopo);
-  theTopology = tTopo.product();
-
-  edm::ESHandle<SiStripNoises>  noise;
-  es.get<SiStripNoisesRcd>().get(noise);
-  theNoise = noise.product();
-  
-  edm::Handle<MeasurementTrackerEvent> mte;
-  event.getByToken(mteToken_, mte);
-  theMTEvent = mte.product();
+   const TrackingRecHit* hit = thit->hit();
+   if (hit == 0 || !hit->isValid()) return true;
+   if (hit->geographicalId().subdetId() <= 2) return true; // we look only at strips for now
+   return testLastHit(hit, tsos, false);
 }
 
