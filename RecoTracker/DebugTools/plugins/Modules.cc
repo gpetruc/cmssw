@@ -14,9 +14,10 @@ using cms::CkfDebugTrackCandidateMaker;
 #include "RecoTracker/DebugTools/interface/ClusterShapeDebugTrajectoryFilter.h"
 #include "RecoTracker/DebugTools/interface/ClusterShapeRecoDebugTrajectoryFilter.h"
 #include "RecoTracker/DebugTools/interface/StripSubClusterShapeTrajectoryFilter.h"
+#include "RecoTracker/TkSeedingLayers/interface/SeedComparitorFactory.h"
 
 DEFINE_EDM_PLUGIN(TrajectoryFilterFactory, ClusterShapeDebugTrajectoryFilter, "ClusterShapeDebugTrajectoryFilter");
 DEFINE_EDM_PLUGIN(TrajectoryFilterFactory, ClusterShapeRecoDebugTrajectoryFilter, "ClusterShapeRecoDebugTrajectoryFilter");
 
 DEFINE_EDM_PLUGIN(TrajectoryFilterFactory, StripSubClusterShapeTrajectoryFilter, "StripSubClusterShapeTrajectoryFilter");
-
+DEFINE_EDM_PLUGIN(SeedComparitorFactory,   StripSubClusterShapeSeedFilter, "StripSubClusterShapeSeedFilter");

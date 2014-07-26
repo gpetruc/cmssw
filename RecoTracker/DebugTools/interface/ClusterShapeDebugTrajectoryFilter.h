@@ -70,6 +70,8 @@ class ClusterShapeDebugTrajectoryFilter : public TrajectoryFilter {
   float seedCutMIPs_, seedCutSN_;
   float subclusterCutMIPs_, subclusterCutSN_;
   float subclusterCutMIPsTight_, subclusterCutSNTight_;
+
+  uint32_t maxBadHits_;
  
   mutable TTree * theTree;
   mutable float trackPt_, trackEta_; 
@@ -88,7 +90,7 @@ class ClusterShapeDebugTrajectoryFilter : public TrajectoryFilter {
 
   typedef std::pair<unsigned int, unsigned int> Id2;
   virtual void fillAssociations(const TrackingRecHit *hit, std::vector<Id2> &out) const  ;
-  void fillCluster(const TrackingRecHit *hit, const TrajectoryStateOnSurface &tsos, Id2 simtk, bool mustProject=false) const ;
+  bool fillCluster(const TrackingRecHit *hit, const TrajectoryStateOnSurface &tsos, Id2 simtk, bool mustProject=false) const ;
   bool hasBadStrip(unsigned int detid, int strip) const ;
   mutable std::unordered_map<unsigned int, unsigned int> theStripDetLookup;
   void    indexStripDets() const ;

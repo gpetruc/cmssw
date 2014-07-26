@@ -69,9 +69,9 @@ namespace {
             }
             if (!docut_) return false;
             if (sum/mip_ > subclusterCutMIPs_ && sum/std::sqrt(noise) > subclusterCutSN_) return true;
-            if ((sumall-sum) < 0.3*sum || ( (sumall-sum)/mip_ < 0.2 && (sumall-sum) < 5*std::sqrt(noise) )) {
-                if (sumall/mip_ > subclusterCutMIPs_ && sumall/std::sqrt(noise) > subclusterCutSN_) return true;
-            }
+            //if ((sumall-sum) < 0.3*sum || ( (sumall-sum)/mip_ < 0.2 && (sumall-sum) < 5*std::sqrt(noise) )) {
+            //    if (sumall/mip_ > subclusterCutMIPs_ && sumall/std::sqrt(noise) > subclusterCutSN_) return true;
+            //}
             return false; 
         }
 
@@ -116,6 +116,7 @@ ClusterShapeDebugTrajectoryFilter::ClusterShapeDebugTrajectoryFilter
    subclusterCutSN_(iCfg.getParameter<double>("subclusterCutSN")),
    subclusterCutMIPsTight_(iCfg.getParameter<double>("subclusterCutMIPsTight")),
    subclusterCutSNTight_(iCfg.getParameter<double>("subclusterCutSNTight")),
+   maxBadHits_(iCfg.getParameter<uint32_t>("maxBadHits")),
    theTree(0)
 {
     if (iCfg.existsAs<std::vector<edm::InputTag>>("referenceStripClusters")) {
@@ -242,8 +243,8 @@ bool ClusterShapeDebugTrajectoryFilter::toBeContinued
    if (hit == 0 || !hit->isValid()) return true;
    if (hit->geographicalId().subdetId() <= 2) return true; // we look only at strips for now
 
-   fillCluster(hit, last.updatedState(), bestSim);
-   return true;
+   bool theOk = fillCluster(hit, last.updatedState(), bestSim);
+   return theOk ? true : true; // stupid
 }
 
 void ClusterShapeDebugTrajectoryFilter::fillAssociations
@@ -259,7 +260,7 @@ void ClusterShapeDebugTrajectoryFilter::fillAssociations
    }
 }
  
-void ClusterShapeDebugTrajectoryFilter::fillCluster
+bool ClusterShapeDebugTrajectoryFilter::fillCluster
    (const TrackingRecHit *hit, const TrajectoryStateOnSurface &tsos, Id2 simtk, bool mustProject) const
 {
    const TrackerSingleRecHit *stripHit = 0;
@@ -267,12 +268,12 @@ void ClusterShapeDebugTrajectoryFilter::fillCluster
       const SiStripMatchedRecHit2D & mhit = static_cast<const SiStripMatchedRecHit2D &>(*hit);
       SiStripRecHit2D mono = mhit.monoHit();
       SiStripRecHit2D stereo = mhit.stereoHit();
-      fillCluster(&mono,   tsos, simtk, true);
-      fillCluster(&stereo, tsos, simtk, true);
+      return  fillCluster(&mono,   tsos, simtk, true) && 
+              fillCluster(&stereo, tsos, simtk, true);
    } else if (typeid(*hit) == typeid(ProjectedSiStripRecHit2D)) {
       const ProjectedSiStripRecHit2D & mhit = static_cast<const ProjectedSiStripRecHit2D &>(*hit);
       const SiStripRecHit2D &orig = mhit.originalHit();
-      fillCluster(&orig,   tsos, simtk, true);
+      return fillCluster(&orig,   tsos, simtk, true);
    } else if ((stripHit = dynamic_cast<const TrackerSingleRecHit *>(hit)) != 0) {
       DetId detId = hit->geographicalId();
       Id2 mylayer = Id2(detId.subdetId(), theTopology->layer(detId));
@@ -413,26 +414,32 @@ void ClusterShapeDebugTrajectoryFilter::fillCluster
               int narrowTight = std::max<int>(2,std::ceil(std::abs(hitPredPos_)+maxTrimmedSizeDiffPosTight_));
               int narrowLoose = std::max<int>(2,std::ceil(std::abs(hitPredPos_)+maxTrimmedSizeDiffPos_));
               printf("\nCluster with predicted strips %.2f, observed strips %d (consec. saturated strips: %d), trimmed size %d (tight %d); tooNarrow if < %d(%d), narrow if <= %d(%d) \n", hitPredPos_, hitStrips_, hitSaturatedStrips_, hitStripsTrim_, hitStripsTrimTight, tooNarrowLoose, tooNarrowTight, narrowLoose, narrowTight);
+              std::string verdict;
               if (trackAssoc_ == 1 && hitAssoc_ == 1) {
-                printf("  cluster corresponds to a GOOD match\n");
+                verdict = "GOOD";
               } else {
-                printf("  cluster corresponds to a BAD match\n");
+                verdict = "BAD";
               }
+              printf("  cluster corresponds to a %s match\n", verdict.c_str());
               if (hitStripsTrim_ != int(hitStripsTrimTight)) {
                   dumpCluster(detId(),sfirst,ampls,mip);
               }
 
               //dumpAssociatedClusters(detId(),cluster,mip);
               if (hitStripsTrim_ < std::floor(std::abs(hitPredPos_)-maxTrimmedSizeDiffNegTight_)) {
-                  printf(" --> REJECTED (too narrow, tight cut)\n");
+                  printf(" --> %s REJECTED (too narrow, tight cut)\n", verdict.c_str());
+                  theTree->Fill(); return false;
               } else if (hitStripsTrim_ < std::floor(std::abs(hitPredPos_)-maxTrimmedSizeDiffNeg_)) {
-                  printf(" --> REJECTED (too narrow)\n");
+                  printf(" --> %s REJECTED (too narrow)\n", verdict.c_str());
                   dumpCluster(detId(),sfirst,ampls,mip);
+                  theTree->Fill(); return false;
               } else if (hitStripsTrim_ <= std::max<int>(2,std::ceil(std::abs(hitPredPos_)+maxTrimmedSizeDiffPosTight_))) {
-                  printf(" --> ACCEPTED (after trimming, tight cut)\n");
+                  printf(" --> %s ACCEPTED (after trimming, tight cut)\n", verdict.c_str());
+                  theTree->Fill(); return true;
               } else if (hitStripsTrim_ <= std::max<int>(2,std::ceil(std::abs(hitPredPos_)+maxTrimmedSizeDiffPos_))) {
-                  printf(" --> ACCEPTED (after trimming)\n");
+                  printf(" --> %s ACCEPTED (after trimming)\n", verdict.c_str());
                   dumpCluster(detId(),sfirst,ampls,mip);
+                  theTree->Fill(); return true;
               } else {
                   float mipnorm = mip/std::abs(ldir.z());
                   utils::SlidingPeakFinder pf(std::max<int>(2,std::ceil(std::abs(hitPredPos_)+subclusterWindow_)));
@@ -447,12 +454,15 @@ void ClusterShapeDebugTrajectoryFilter::fillCluster
                       pf.apply(cluster.amplitudes(), pfTest, false, sfirst); 
 
                       if (!pf.apply(cluster.amplitudes(), pfCut)) {
-                        printf(" --> REJECTED (too large)\n");
+                        printf(" --> %s REJECTED (too large)\n", verdict.c_str());
+                        theTree->Fill(); return false;
                       } else {
-                        printf(" --> ACCEPTED (subcluster, tight cut)\n");
+                        printf(" --> %s ACCEPTED (subcluster)\n", verdict.c_str());
+                        theTree->Fill(); return true;
                       }
                   } else {
-                      printf(" --> ACCEPTED (subcluster, tight cut)\n");
+                      printf(" --> %s ACCEPTED (subcluster, tight cut)\n", verdict.c_str());
+                      theTree->Fill(); return true;
                   }
               }
 
@@ -463,20 +473,113 @@ void ClusterShapeDebugTrajectoryFilter::fillCluster
 
       theTree->Fill();
    }
+   return true;
 }
 
 /*****************************************************************************/
 bool ClusterShapeDebugTrajectoryFilter::qualityFilter
   (const Trajectory& trajectory) const
 {
-  return true;
+   Trajectory::DataContainer tms = trajectory.measurements();
+
+   std::vector<Id2> work;
+   std::map<Id2,std::set<Id2> > scoreboard;
+   std::set<Id2> countlayers;
+   for(Trajectory::DataContainer::const_iterator tm = tms.begin(); tm!= tms.end(); ++tm)
+   {
+       const TrackingRecHit* hit = tm->recHit()->hit();
+       if(hit == 0 || !hit->isValid() || hit->geographicalId().rawId() == 0) continue;
+
+       Id2 mylayer = Id2(hit->geographicalId().subdetId(), theTopology->layer(hit->geographicalId()));
+       countlayers.insert(mylayer);
+
+       fillAssociations(hit, work);
+       for (Id2 simtk: work) {
+           scoreboard[simtk].insert(mylayer);
+       }
+   }
+
+   Id2 bestSim; unsigned int layers = 0;
+   for (const auto &p : scoreboard) {
+      if (p.second.size() > layers) {
+         layers = p.second.size();
+         bestSim = p.first;
+      }
+   }
+   EncodedEventId evid(bestSim.first);
+
+   if (layers >= 3 && layers >= 0.67*countlayers.size()) {
+      trackAssoc_ = (evid.bunchCrossing() == 0 ? 1 : -1); 
+   } else {
+      trackAssoc_ = 0;
+   }
+
+   printf("======== QUALITYFILTER called for Trajectory with %d/%d associated layers ======\n", layers, int(countlayers.size()));
+   unsigned int badHits = 0;
+   for (auto i = tms.rbegin(), e = tms.rend(); i != e; --i) {
+       const TrackingRecHit* hit = i->recHit()->hit();
+       if (!i->updatedState().isValid()) continue;
+       if (hit == 0 || !hit->isValid()) continue;
+       if (hit->geographicalId().subdetId() <= 2) continue; // we look only at strips for now
+       bool theOk = fillCluster(hit, i->updatedState(), bestSim);
+       if (!theOk) badHits++;
+   }
+   printf("======== QUALITYFILTER called for Trajectory with %d/%d associated layers --> %d bad hits ======\n", layers, int(countlayers.size()), badHits);
+  
+   return true;
 }
 
 /*****************************************************************************/
 bool ClusterShapeDebugTrajectoryFilter::qualityFilter
   (const TempTrajectory& trajectory) const
 {
-  return true;
+   TempTrajectory::DataContainer tms = trajectory.measurements();
+
+   std::vector<Id2> work;
+   std::map<Id2,std::set<Id2> > scoreboard;
+   std::set<Id2> countlayers;
+   for(TempTrajectory::DataContainer::const_iterator tm = tms.rbegin(); tm!= tms.rend(); --tm)
+   {
+       const TrackingRecHit* hit = tm->recHit()->hit();
+       if(hit == 0 || !hit->isValid() || hit->geographicalId().rawId() == 0) continue;
+
+       Id2 mylayer = Id2(hit->geographicalId().subdetId(), theTopology->layer(hit->geographicalId()));
+       countlayers.insert(mylayer);
+
+       fillAssociations(hit, work);
+       for (Id2 simtk: work) {
+           scoreboard[simtk].insert(mylayer);
+       }
+   }
+
+   Id2 bestSim; unsigned int layers = 0;
+   for (const auto &p : scoreboard) {
+      if (p.second.size() > layers) {
+         layers = p.second.size();
+         bestSim = p.first;
+      }
+   }
+   EncodedEventId evid(bestSim.first);
+
+   if (layers >= 3 && layers >= 0.67*countlayers.size()) {
+      trackAssoc_ = (evid.bunchCrossing() == 0 ? 1 : -1); 
+   } else {
+      trackAssoc_ = 0;
+   }
+
+   printf("======== QUALITYFILTER called for TempTrajectory with %d/%d associated layers ======\n", layers, int(countlayers.size()));
+   unsigned int badHits = 0;
+   for (auto i = tms.rbegin(), e = tms.rend(); i != e; --i) {
+       const TrackingRecHit* hit = i->recHit()->hit();
+       if (!i->updatedState().isValid()) continue;
+       if (hit == 0 || !hit->isValid()) continue;
+       if (hit->geographicalId().subdetId() <= 2) continue; // we look only at strips for now
+       bool theOk = fillCluster(hit, i->updatedState(), bestSim);
+       if (!theOk) badHits++;
+   }
+   printf("======== QUALITYFILTER called for TempTrajectory with %d/%d associated layers --> %d bad hits ======\n", layers, int(countlayers.size()), badHits);
+  
+   return true;
 }
 
 void ClusterShapeDebugTrajectoryFilter::setEvent
