@@ -27,7 +27,7 @@
 #include "TrackingTools/PatternTools/interface/TempTrajectory.h"
 #include "TrackingTools/PatternTools/interface/Trajectory.h"
 #include "SimDataFormats/TrackingHit/interface/PSimHit.h"
-#include "SimTracker/TrackerHitAssociation/interface/TrackerHitAssociator.h"
+#include "SimDataFormats/TrackingAnalysis/interface/TrackingParticle.h"
 #include "FWCore/Framework/interface/ConsumesCollector.h"
 #include "RecoTracker/DebugTools/interface/SlidingPeakFinder.h"
 
@@ -116,6 +116,8 @@ ClusterShapeDebugTrajectoryFilter::ClusterShapeDebugTrajectoryFilter
    subclusterCutSN_(iCfg.getParameter<double>("subclusterCutSN")),
    subclusterCutMIPsTight_(iCfg.getParameter<double>("subclusterCutMIPsTight")),
    subclusterCutSNTight_(iCfg.getParameter<double>("subclusterCutSNTight")),
+   filterLoopers_(iCfg.getParameter<bool>("filterLoopers")),
+   ptMin_(iCfg.getParameter<double>("ptMin")),
    maxBadHits_(iCfg.getParameter<uint32_t>("maxBadHits")),
    theTree(0)
 {
@@ -124,6 +126,9 @@ ClusterShapeDebugTrajectoryFilter::ClusterShapeDebugTrajectoryFilter
         for (const auto &t : tags) {
             clusterTokens_.push_back(iC.consumes<edmNew::DetSetVector<SiStripCluster>>(t));
         }
+    }
+    if (theConfig.existsAs<edm::InputTag>("cluster2TPSrc")) {
+        ctpaToken_ = iC.consumes<ClusterTPAssociationList>(theConfig.getParameter<edm::InputTag>("cluster2TPSrc"));
     }
     if (iCfg.exists("layerMask")) {
         const edm::ParameterSet &iLM = iCfg.getParameter<edm::ParameterSet>("layerMask");
@@ -227,46 +232,6 @@ bool ClusterShapeDebugTrajectoryFilter::toBeContinued
    if (theTree == 0) initTree();
    TempTrajectory::DataContainer tms = trajectory.measurements();
 
-   std::vector<Id2> work;
-   std::map<Id2,std::set<Id2> > scoreboard;
-   std::set<Id2> countlayers;
-   for(TempTrajectory::DataContainer::const_iterator
-         tm = tms.rbegin(); tm!= tms.rend(); --tm)
-   {
-      if (tm == tms.rbegin()) continue; // skip last measurement
-      const TrackingRecHit* hit = tm->recHit()->hit();
-
-      if(hit == 0 || !hit->isValid() || hit->geographicalId().rawId() == 0) continue;
-
-      Id2 mylayer = Id2(hit->geographicalId().subdetId(), theTopology->layer(hit->geographicalId()));
-      countlayers.insert(mylayer);
-
-      fillAssociations(hit, work);
-      //std::cout << "  on layer " << mylayer.first << "/" << mylayer.second << " found match with " << work.size() << " simtracks." << std::endl;
-      for (Id2 simtk: work) {
-         //std::cout << "       simtk  " << simtk.first << "/" << simtk.second << std::endl;
-         scoreboard[simtk].insert(mylayer);
-      }
-   }
-
-   Id2 bestSim; unsigned int layers = 0;
-   for (const auto &p : scoreboard) {
-      if (p.second.size() > layers) {
-         layers = p.second.size();
-         bestSim = p.first;
-      }
-   }
-   EncodedEventId evid(bestSim.first);
-   //if (layers > 0) {
-   //}
-
-   if (layers >= 3 && layers >= 0.67*countlayers.size()) {
-      trackAssoc_ = (evid.bunchCrossing() == 0 ? 1 : -1); 
-      //std::cout << "best match: " << layers << " layers (out of " << countlayers.size() << "), id " << bestSim.first << ", tk " << bestSim.second << ", event/bx = " << evid.event() << "/" << evid.bunchCrossing() << std::endl;
-   } else {
-      trackAssoc_ = 0;
-   }
-
    const TrajectoryMeasurement &last = *tms.rbegin();
    const TrackingRecHit* hit = last.recHit()->hit();
    if (!last.updatedState().isValid()) return true;
@@ -282,22 +247,75 @@ bool ClusterShapeDebugTrajectoryFilter::toBeContinued
            return true; // no filtering here
        }
    }
+   if (trajectory.isLooper() && !filterLoopers_) return true;
+   if (ptMin_ > 0 && last.updatedState().globalMomentum().perp() < ptMin_) return true;
+
+
+   std::vector<Id2> work;
+   std::map<Id2,std::set<Id2> > scoreboard;
+   std::set<Id2> countlayers;
+   //std::cout << "Doing MC association by hits" << std::endl;
+   for(TempTrajectory::DataContainer::const_iterator
+         tm = tms.rbegin(); tm!= tms.rend(); --tm)
+   {
+      if (tm == tms.rbegin()) continue; // skip last measurement
+      const TrackingRecHit* hit = tm->recHit()->hit();
+
+      if(hit == 0 || !hit->isValid() || hit->geographicalId().rawId() == 0) continue;
+
+      Id2 mylayer = Id2(hit->geographicalId().subdetId(), theTopology->layer(hit->geographicalId()));
+      countlayers.insert(mylayer);
+
+      fillAssociations(hit, work);
+      //std::cout << "  for hit " << hit->geographicalId()() << " on layer " << mylayer.first << "/" << mylayer.second << " found match with " << work.size() << " simtracks." << std::endl;
+      for (Id2 simtk: work) {
+         //std::cout << "       simtk  " << simtk.first << "/" << simtk.second << std::endl;
+         scoreboard[simtk].insert(mylayer);
+      }
+   }
+
+   Id2 bestSim; unsigned int layers = 0;
+   for (const auto &p : scoreboard) {
+      if (p.second.size() > layers) {
+         layers = p.second.size();
+         bestSim = p.first;
+      }
+   }
+   EncodedEventId evid(bestSim.first);
+
+   if (layers >= 3 && layers >= 0.67*countlayers.size()) {
+      trackAssoc_ = (evid.bunchCrossing() == 0 ? 1 : -1); 
+      //std::cout << "best match: " << layers << " layers (out of " << countlayers.size() << "), id " << bestSim.first << ", tk " << bestSim.second << ", event/bx = " << evid.event() << "/" << evid.bunchCrossing() << std::endl;
+   } else {
+      trackAssoc_ = 0;
+   }
 
    bool theOk = fillCluster(hit, last.updatedState(), bestSim);
    return theOk ? true : true; // stupid
 }
 
 void ClusterShapeDebugTrajectoryFilter::fillAssociations
-   (const TrackingRecHit *hit, std::vector<Id2> &out) const
+   (const TrackingRecHit *hit, std::vector<Id2> &out, bool clearBefore) const
 {
-   assert(theAssociator);
-   out.clear();
-   std::vector<PSimHit> simHits = theAssociator->associateHit(*hit);
-   hitSingleSim_ = (simHits.size() == 1);
-   for (const PSimHit &hit : simHits) {
-      Id2 id2(hit.eventId().rawId(), hit.trackId());
-      out.push_back(id2);
-   }
+    if (clearBefore) out.clear();
+    const TrackerSingleRecHit *stripHit = 0;
+    if (typeid(*hit) == typeid(SiStripMatchedRecHit2D)) {
+        const SiStripMatchedRecHit2D & mhit = static_cast<const SiStripMatchedRecHit2D &>(*hit);
+        SiStripRecHit2D mono = mhit.monoHit();
+        SiStripRecHit2D stereo = mhit.stereoHit();
+        fillAssociations(&mono,   out, false);
+        fillAssociations(&stereo, out, false);
+    } else if (typeid(*hit) == typeid(ProjectedSiStripRecHit2D)) {
+        const ProjectedSiStripRecHit2D & mhit = static_cast<const ProjectedSiStripRecHit2D &>(*hit);
+        const SiStripRecHit2D &orig = mhit.originalHit();
+        fillAssociations(&orig, out, false);
+    } else if ((stripHit = dynamic_cast<const TrackerSingleRecHit *>(hit)) != 0) {
+        // http://stackoverflow.com/questions/6167598/why-was-pair-range-access-removed-from-c11
+        const auto &range = theAssociator.equal_range(stripHit->omniClusterRef().rawIndex());
+        for (auto it = range.first; it != range.second; ++it) {
+            out.push_back(it->second);
+        }
+    }
 }
  
 bool ClusterShapeDebugTrajectoryFilter::fillCluster
@@ -321,6 +339,9 @@ bool ClusterShapeDebugTrajectoryFilter::fillCluster
       hitLayer_ = mylayer.second;
       std::vector<Id2> work;
       fillAssociations(hit, work);
+      //for (Id2 simtk: work) {
+      //   std::cout << "       last hit associated to:  " << simtk.first << "/" << simtk.second << std::endl;
+      //}
       if (work.empty()) {
          hitAssoc_ = 0;
       } else if (simtk.second != 0 && std::find(work.begin(), work.end(), simtk) != work.end()) {
@@ -668,7 +689,12 @@ void ClusterShapeDebugTrajectoryFilter::setEvent
 
 void ClusterShapeDebugTrajectoryFilter::initAssociator(const edm::Event &event, const edm::EventSetup &)
 {
-  theAssociator.reset(new TrackerHitAssociator(event, theConfig));
+  theAssociator.clear();
+  edm::Handle<ClusterTPAssociationList> assoc;
+  event.getByToken(ctpaToken_, assoc);
+  for (const auto & p : *assoc) {
+    theAssociator.insert( std::make_pair(p.first.rawIndex(), Id2(p.second->eventId().rawId(), p.second.key())) );
+  }
 }
 
 

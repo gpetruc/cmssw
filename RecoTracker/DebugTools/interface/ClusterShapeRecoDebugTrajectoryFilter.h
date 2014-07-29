@@ -9,7 +9,7 @@ class ClusterShapeRecoDebugTrajectoryFilter : public ClusterShapeDebugTrajectory
         ClusterShapeRecoDebugTrajectoryFilter(const edm::ParameterSet &iConfig, edm::ConsumesCollector& iC);
 
     private:
-        virtual void fillAssociations(const TrackingRecHit *hit, std::vector<Id2> &out) const  override;
+        virtual void fillAssociations(const TrackingRecHit *hit, std::vector<Id2> &out, bool clearBefore=false) const  override;
         virtual void initAssociator(const edm::Event &, const edm::EventSetup &) override;
 
         edm::EDGetTokenT<std::vector<reco::Track>> theTracks_;

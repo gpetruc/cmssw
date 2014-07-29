@@ -9,11 +9,12 @@
 #include "FWCore/Utilities/interface/EDGetToken.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 #include "RecoTracker/DebugTools/interface/TrackMixingAssociator.h"
+#include "DataFormats/TrackerRecHit2D/interface/OmniClusterRef.h"
+#include "SimDataFormats/TrackingAnalysis/interface/TrackingParticleFwd.h"
 
 class ClusterShapeHitFilter;
 class TrackerTopology;
 class TrackerGeometry;
-class TrackerHitAssociator;
 class TrajectoryMeasurement;
 class TrajectoryStateOnSurface;
 class MeasurementTrackerEvent;
@@ -41,10 +42,14 @@ class ClusterShapeDebugTrajectoryFilter : public TrajectoryFilter {
   virtual void setEvent(const edm::Event &, const edm::EventSetup &) override;
   void initTree() const;
  protected:
+  typedef std::pair<unsigned int, unsigned int> Id2;
+  typedef std::vector<std::pair<OmniClusterRef, TrackingParticleRef> > ClusterTPAssociationList;
+
   edm::ParameterSet              theConfig;
   edm::EDGetTokenT<MeasurementTrackerEvent> mteToken_;
+  edm::EDGetTokenT<ClusterTPAssociationList> ctpaToken_;
   std::vector<edm::EDGetTokenT<edmNew::DetSetVector<SiStripCluster>>> clusterTokens_;
-  std::unique_ptr<TrackerHitAssociator>  theAssociator;
+  std::unordered_multimap<unsigned int, Id2> theAssociator;
   std::unique_ptr<TrackMixingAssociator> theRecoAssociator;
   mutable const ClusterShapeHitFilter   * theFilter;
   mutable const TrackerTopology         * theTopology;
@@ -74,6 +79,9 @@ class ClusterShapeDebugTrajectoryFilter : public TrajectoryFilter {
   // layers in which to apply the filter 
   std::array<std::array<uint8_t,10>, 7> layerMask_;
 
+  // loopers and pt min cut
+  bool filterLoopers_; float ptMin_;
+
   uint32_t maxBadHits_;
  
   mutable TTree * theTree;
@@ -91,8 +99,7 @@ class ClusterShapeDebugTrajectoryFilter : public TrajectoryFilter {
   mutable int   hitTRLargestStrips_, hitTRLargestNSat_; mutable float hitTRLargestCharge_;
   mutable float hitPFTBestMip_, hitPFTBestSN_;
 
-  typedef std::pair<unsigned int, unsigned int> Id2;
-  virtual void fillAssociations(const TrackingRecHit *hit, std::vector<Id2> &out) const  ;
+  virtual void fillAssociations(const TrackingRecHit *hit, std::vector<Id2> &out, bool clearBefore=true) const  ;
   bool fillCluster(const TrackingRecHit *hit, const TrajectoryStateOnSurface &tsos, Id2 simtk, bool mustProject=false) const ;
   bool hasBadStrip(unsigned int detid, int strip) const ;
   mutable std::unordered_map<unsigned int, unsigned int> theStripDetLookup;

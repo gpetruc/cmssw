@@ -7,9 +7,9 @@ ClusterShapeRecoDebugTrajectoryFilter::ClusterShapeRecoDebugTrajectoryFilter(con
 {
 }
 
-void ClusterShapeRecoDebugTrajectoryFilter::fillAssociations(const TrackingRecHit *hit, std::vector<Id2> &out) const
+void ClusterShapeRecoDebugTrajectoryFilter::fillAssociations(const TrackingRecHit *hit, std::vector<Id2> &out, bool clearBefore) const
 {
-    out.clear();
+    if (clearBefore) out.clear();
     std::vector<TrackMixingAssociator::TrackAssociation> assoc;
     theRecoAssociator->associateToTracks(*hit, assoc);
     for (const auto & a : assoc) {

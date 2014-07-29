@@ -2,6 +2,7 @@
 <use name="rootmath"/>
 <use name="boost"/>
 <use name="SimDataFormats/TrackingHit"/>
+<use name="SimDataFormats/TrackingAnalysis"/>
 <use name="Geometry/CommonDetUnit"/>
 <use name="TrackingTools/TrajectoryParametrization"/>
 <use name="TrackingTools/TrajectoryState"/>
