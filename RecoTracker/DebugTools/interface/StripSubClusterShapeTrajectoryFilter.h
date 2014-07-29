@@ -49,13 +49,16 @@ class StripSubClusterShapeFilterBase {
   float subclusterWindow_;
   float seedCutMIPs_, seedCutSN_;
   float subclusterCutMIPs_, subclusterCutSN_;
- 
+
+  // layers in which to apply the filter 
+  std::array<std::array<uint8_t,10>, 7> layerMask_;
+
   mutable uint64_t called_, saturated_, test_, passTrim_, failTooLarge_, passSC_, failTooNarrow_;
 
-  const ClusterShapeHitFilter   * theFilter;
-  const TrackerGeometry         * theTracker;
-  const SiStripNoises           * theNoise;
-
+  edm::ESHandle<TrackerGeometry> theTracker;
+  edm::ESHandle<ClusterShapeHitFilter> theFilter;
+  edm::ESHandle<SiStripNoises>  theNoise;
+  edm::ESHandle<TrackerTopology> theTopology;
 };
 
 class StripSubClusterShapeTrajectoryFilter: public StripSubClusterShapeFilterBase, public TrajectoryFilter {

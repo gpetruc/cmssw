@@ -125,6 +125,36 @@ ClusterShapeDebugTrajectoryFilter::ClusterShapeDebugTrajectoryFilter
             clusterTokens_.push_back(iC.consumes<edmNew::DetSetVector<SiStripCluster>>(t));
         }
     }
+    if (iCfg.exists("layerMask")) {
+        const edm::ParameterSet &iLM = iCfg.getParameter<edm::ParameterSet>("layerMask");
+        const char *ndets[4] =  { "TIB", "TID", "TOB", "TEC" };
+        const int   idets[4] =  {   3,     4,     5,     6   };
+        for (unsigned int i = 0; i < 4; ++i) {
+            if (iLM.existsAs<bool>(ndets[i])) {
+                std::fill(layerMask_[idets[i]].begin(), layerMask_[idets[i]].end(), iLM.getParameter<bool>(ndets[i]));
+            } else {
+                layerMask_[idets[i]][0] = 2;
+                std::fill(layerMask_[idets[i]].begin()+1, layerMask_[idets[i]].end(), 0);
+                for (uint32_t lay : iLM.getParameter<std::vector<uint32_t>>(ndets[i])) {
+                    layerMask_[idets[i]][lay] = 1;
+                }
+            }
+        }
+    } else {
+        for (auto & arr : layerMask_) {
+            std::fill(arr.begin(), arr.end(), 1);
+        }
+    }
+    printf("Layer mask: \n");
+    for (unsigned int i = 3; i <= 6; ++i) {
+        printf("Subdetector %d mode = %d: layers: ", i, layerMask_[i][0]);
+        for (unsigned int j = 1; j < layerMask_[i].size(); ++j) {
+            printf("[%d] = %d   ", j, layerMask_[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+
 }
 
 /*****************************************************************************/
@@ -241,7 +271,20 @@ bool ClusterShapeDebugTrajectoryFilter::toBeContinued
    const TrackingRecHit* hit = last.recHit()->hit();
    if (!last.updatedState().isValid()) return true;
    if (hit == 0 || !hit->isValid()) return true;
-   if (hit->geographicalId().subdetId() <= 2) return true; // we look only at strips for now
+   DetId detId = hit->geographicalId();
+   if (detId.subdetId() <= 2) return true; // we look only at strips for now
+
+   if (layerMask_[detId.subdetId()][0] == 0) {
+       std::cout << "Not filtering on " << detId.subdetId() << std::endl;
+       return true; // no filtering here
+   } else if (layerMask_[detId.subdetId()][0] == 2) {
+       std::cout << "Selective filtering on " << detId.subdetId() << std::endl;
+       unsigned int ilayer = theTopology->layer(detId);          
+       if (layerMask_[detId.subdetId()][ilayer] == 0) {
+           std::cout << "Not filtering on " << detId.subdetId() << "/" << ilayer << std::endl;
+           return true; // no filtering here
+       }
+   }
 
    bool theOk = fillCluster(hit, last.updatedState(), bestSim);
    return theOk ? true : true; // stupid
@@ -514,9 +557,10 @@ bool ClusterShapeDebugTrajectoryFilter::qualityFilter
       trackAssoc_ = 0;
    }
 
+   if (maxBadHits_ > 1) {
    printf("======== QUALITYFILTER called for Trajectory with %d/%d associated layers ======\n", layers, int(countlayers.size()));
    unsigned int badHits = 0;
-   for (auto i = tms.rbegin(), e = tms.rend(); i != e; --i) {
+   for (auto i = tms.begin(), e = tms.end(); i != e; ++i) {
        const TrackingRecHit* hit = i->recHit()->hit();
        if (!i->updatedState().isValid()) continue;
        if (hit == 0 || !hit->isValid()) continue;
@@ -525,6 +569,7 @@ bool ClusterShapeDebugTrajectoryFilter::qualityFilter
        if (!theOk) badHits++;
    }
    printf("======== QUALITYFILTER called for Trajectory with %d/%d associated layers --> %d bad hits ======\n", layers, int(countlayers.size()), badHits);
+   }
   
    return true;
 }
@@ -567,6 +612,7 @@ bool ClusterShapeDebugTrajectoryFilter::qualityFilter
       trackAssoc_ = 0;
    }
 
+   if (maxBadHits_ > 1) {
    printf("======== QUALITYFILTER called for TempTrajectory with %d/%d associated layers ======\n", layers, int(countlayers.size()));
    unsigned int badHits = 0;
    for (auto i = tms.rbegin(), e = tms.rend(); i != e; --i) {
@@ -578,6 +624,7 @@ bool ClusterShapeDebugTrajectoryFilter::qualityFilter
        if (!theOk) badHits++;
    }
    printf("======== QUALITYFILTER called for TempTrajectory with %d/%d associated layers --> %d bad hits ======\n", layers, int(countlayers.size()), badHits);
+   }
   
    return true;
 }

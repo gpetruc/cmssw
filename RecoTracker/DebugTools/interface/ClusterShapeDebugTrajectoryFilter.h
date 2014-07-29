@@ -71,6 +71,9 @@ class ClusterShapeDebugTrajectoryFilter : public TrajectoryFilter {
   float subclusterCutMIPs_, subclusterCutSN_;
   float subclusterCutMIPsTight_, subclusterCutSNTight_;
 
+  // layers in which to apply the filter 
+  std::array<std::array<uint8_t,10>, 7> layerMask_;
+
   uint32_t maxBadHits_;
  
   mutable TTree * theTree;
