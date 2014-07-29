@@ -78,6 +78,7 @@ namespace cms{
     //    if (!conf.exists("src"))
     //      theSeedLabel = InputTag(conf_.getParameter<std::string>("SeedProducer"),conf_.getParameter<std::string>("SeedLabel"));
     //    else
+      theSeedLabelLabel = conf.getParameter<edm::InputTag>("src");
       theSeedLabel= iC.consumes<edm::View<TrajectorySeed> >(conf.getParameter<edm::InputTag>("src"));
       if ( conf.exists("maxSeedsBeforeCleaning") ) 
 	   maxSeedsBeforeCleaning_=conf.getParameter<unsigned int>("maxSeedsBeforeCleaning");
@@ -185,6 +186,7 @@ namespace cms{
     std::auto_ptr<TrackCandidateCollection> output(new TrackCandidateCollection);    
     std::auto_ptr<std::vector<Trajectory> > outputT (new std::vector<Trajectory>());
 
+    std::cout << "GIO DEBUG: seeds = " << (*collseed).size() << " for " << theSeedLabelLabel.encode() << std::endl;
     if ( (*collseed).size()>theMaxNSeeds ) {
       LogError("TooManySeeds")<<"Exceeded maximum numeber of seeds! theMaxNSeeds="<<theMaxNSeeds<<" nSeed="<<(*collseed).size();
       if (theTrackCandidateOutput){ e.put(output);}
@@ -399,6 +401,7 @@ namespace cms{
     // method for debugging
     deleteAssocDebugger();
 
+    std::cout << "GIO DEBUG: track candidates = " << (*output).size() << " for " << theSeedLabelLabel.encode() << std::endl;
     // Step G: write output to file
     if (theTrackCandidateOutput){ e.put(output);}
     if (theTrajectoryOutput){e.put(outputT);}
