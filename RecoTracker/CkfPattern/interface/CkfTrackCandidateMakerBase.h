@@ -70,7 +70,8 @@ namespace cms
     RedundantSeedCleaner*  theSeedCleaner;
 
     unsigned int maxSeedsBeforeCleaning_;
-    
+   
+    edm::InputTag theSeedLabelLabel; 
     edm::EDGetTokenT<edm::View<TrajectorySeed> >  theSeedLabel;
     edm::EDGetTokenT<MeasurementTrackerEvent>     theMTELabel;
 
