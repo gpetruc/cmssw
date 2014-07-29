@@ -38,7 +38,7 @@ public:
 
         /// Include one shared hit
         void addSharedHit(const TrackingRecHit &hit) {
-            sharedHitPattern.set(hit, sharedHits);
+            sharedHitPattern.appendHit(hit);
             sharedHits++;
         }
 
@@ -80,11 +80,11 @@ public:
 
         /// Add one hit; if exclusive is false, it assumes the hit is shared
         void addHit(const TrackingRecHit &hit, bool exclusive) {
-            allHitPattern.set(hit, allHits); allHits++;
+            allHitPattern.appendHit(hit); allHits++;
             if (exclusive) {
-                exclusiveHitPattern.set(hit, exclusiveHits); exclusiveHits++;
+                exclusiveHitPattern.appendHit(hit); exclusiveHits++;
             } else {
-                sharedHitPattern.set(hit, sharedHits); sharedHits++;
+                sharedHitPattern.appendHit(hit); sharedHits++;
             }
         }
 
