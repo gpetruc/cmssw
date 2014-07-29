@@ -145,15 +145,15 @@ ClusterShapeDebugTrajectoryFilter::ClusterShapeDebugTrajectoryFilter
             std::fill(arr.begin(), arr.end(), 1);
         }
     }
-    printf("Layer mask: \n");
+    //printf("Layer mask: \n");
     for (unsigned int i = 3; i <= 6; ++i) {
-        printf("Subdetector %d mode = %d: layers: ", i, layerMask_[i][0]);
+        //printf("Subdetector %d mode = %d: layers: ", i, layerMask_[i][0]);
         for (unsigned int j = 1; j < layerMask_[i].size(); ++j) {
-            printf("[%d] = %d   ", j, layerMask_[i][j]);
+            //printf("[%d] = %d   ", j, layerMask_[i][j]);
         }
-        printf("\n");
+        //printf("\n");
     }
-    printf("\n");
+    //printf("\n");
 
 }
 
@@ -275,13 +275,10 @@ bool ClusterShapeDebugTrajectoryFilter::toBeContinued
    if (detId.subdetId() <= 2) return true; // we look only at strips for now
 
    if (layerMask_[detId.subdetId()][0] == 0) {
-       std::cout << "Not filtering on " << detId.subdetId() << std::endl;
        return true; // no filtering here
    } else if (layerMask_[detId.subdetId()][0] == 2) {
-       std::cout << "Selective filtering on " << detId.subdetId() << std::endl;
        unsigned int ilayer = theTopology->layer(detId);          
        if (layerMask_[detId.subdetId()][ilayer] == 0) {
-           std::cout << "Not filtering on " << detId.subdetId() << "/" << ilayer << std::endl;
            return true; // no filtering here
        }
    }
