@@ -96,10 +96,28 @@ StripSubClusterShapeFilterBase::StripSubClusterShapeFilterBase
    seedCutSN_(iCfg.getParameter<double>("seedCutSN")),
    subclusterCutMIPs_(iCfg.getParameter<double>("subclusterCutMIPs")),
    subclusterCutSN_(iCfg.getParameter<double>("subclusterCutSN")),
-   called_(0),saturated_(0),test_(0),passTrim_(0),failTooLarge_(0),passSC_(0),failTooNarrow_(0),
-   theFilter(0),
-   theTracker(0)
+   called_(0),saturated_(0),test_(0),passTrim_(0),failTooLarge_(0),passSC_(0),failTooNarrow_(0)
 {
+    if (iCfg.exists("layerMask")) {
+        const edm::ParameterSet &iLM = iCfg.getParameter<edm::ParameterSet>("layerMask");
+        const char *ndets[4] =  { "TIB", "TID", "TOB", "TEC" };
+        const int   idets[4] =  {   3,     4,     5,     6   };
+        for (unsigned int i = 0; i < 4; ++i) {
+            if (iLM.existsAs<bool>(ndets[i])) {
+                std::fill(layerMask_[idets[i]].begin(), layerMask_[idets[i]].end(), iLM.getParameter<bool>(ndets[i]));
+            } else {
+                layerMask_[idets[i]][0] = 2;
+                std::fill(layerMask_[idets[i]].begin()+1, layerMask_[idets[i]].end(), 0);
+                for (uint32_t lay : iLM.getParameter<std::vector<uint32_t>>(ndets[i])) {
+                    layerMask_[idets[i]][lay] = 1;
+                }
+            }
+        }
+    } else {
+        for (auto & arr : layerMask_) {
+            std::fill(arr.begin(), arr.end(), 1);
+        }
+    }
 }
 
 /*****************************************************************************/
@@ -130,6 +148,15 @@ bool StripSubClusterShapeFilterBase::testLastHit
       return testLastHit(&orig,   tsos, true);
    } else if ((stripHit = dynamic_cast<const TrackerSingleRecHit *>(hit)) != 0) {
       DetId detId = hit->geographicalId();
+
+      if (layerMask_[detId.subdetId()][0] == 0) {
+          return true; // no filtering here
+      } else if (layerMask_[detId.subdetId()][0] == 2) {
+          unsigned int ilayer = theTopology->layer(detId);          
+          if (layerMask_[detId.subdetId()][ilayer] == 0) {
+              return true; // no filtering here
+          }
+      }
 
       GlobalVector gdir = tsos.globalDirection();
       GlobalPoint  gpos = tsos.globalPosition();
@@ -199,7 +226,7 @@ bool StripSubClusterShapeFilterBase::testLastHit
       float mip = 3.9 / ( MeVperADCStrip/stripDetUnit->surface().bounds().thickness() ); // 3.9 MeV/cm = ionization in silicon 
       float mipnorm = mip/std::abs(ldir.z());
       utils::SlidingPeakFinder pf(std::max<int>(2,std::ceil(std::abs(hitPredPos)+subclusterWindow_)));
-      PeakFinderTest test(mipnorm, detId(), cluster.firstStrip(), theNoise, seedCutMIPs_, seedCutSN_, subclusterCutMIPs_, subclusterCutSN_);
+      PeakFinderTest test(mipnorm, detId(), cluster.firstStrip(), &*theNoise, seedCutMIPs_, seedCutSN_, subclusterCutMIPs_, subclusterCutSN_);
       if (pf.apply(cluster.amplitudes(), test)) {
           passSC_++;
           return true;
@@ -216,21 +243,15 @@ void StripSubClusterShapeFilterBase::setEventBase
   (const edm::Event &event, const edm::EventSetup &es) 
 {
   // Get tracker geometry
-  edm::ESHandle<TrackerGeometry> tracker;
-  es.get<TrackerDigiGeometryRecord>().get(tracker);
-  theTracker = tracker.product();
+  es.get<TrackerDigiGeometryRecord>().get(theTracker);
 
-  edm::ESHandle<ClusterShapeHitFilter> shape;
-  es.get<CkfComponentsRecord>().get("ClusterShapeHitFilter",shape);
-  theFilter = shape.product();
+  es.get<CkfComponentsRecord>().get("ClusterShapeHitFilter",theFilter);
 
   //Retrieve tracker topology from geometry
-  edm::ESHandle<TrackerTopology> tTopo;
-  es.get<IdealGeometryRecord>().get(tTopo);
+  es.get<IdealGeometryRecord>().get(theTopology);
 
-  edm::ESHandle<SiStripNoises>  noise;
-  es.get<SiStripNoisesRcd>().get(noise);
-  theNoise = noise.product();
+  es.get<SiStripNoisesRcd>().get(theNoise);
+
 }
 
 /*****************************************************************************/
