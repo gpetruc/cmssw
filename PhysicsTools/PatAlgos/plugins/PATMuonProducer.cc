@@ -213,7 +213,9 @@ void PATMuonProducer::produce(edm::Event & iEvent, const edm::EventSetup & iSetu
 	// get the tracks
 	reco::TrackRef innerTrack = muonBaseRef->innerTrack();
 	reco::TrackRef globalTrack= muonBaseRef->globalTrack();
-	reco::TrackRef bestTrack  = muon::muonBestTrack(*muonBaseRef, reco::defaultTuneP).first;
+	reco::TrackRef bestTrack  = (muonBaseRef->isGlobalMuon() || muonBaseRef->isTrackerMuon() || muonBaseRef->isStandAloneMuon()) ? 
+                                        muon::muonBestTrack(*muonBaseRef, reco::defaultTuneP).first :
+                                        innerTrack;
 
 	// Make sure the collection it points to is there
 	if ( bestTrack.isNonnull() && bestTrack.isAvailable() ) {
@@ -309,7 +311,9 @@ void PATMuonProducer::produce(edm::Event & iEvent, const edm::EventSetup & iSetu
 	// get the tracks
 	reco::TrackRef innerTrack = itMuon->innerTrack();
 	reco::TrackRef globalTrack= itMuon->globalTrack();
-	reco::TrackRef bestTrack  = muon::muonBestTrack(*itMuon, reco::defaultTuneP).first;
+	reco::TrackRef bestTrack  = (itMuon->isGlobalMuon() || itMuon->isTrackerMuon() || itMuon->isStandAloneMuon()) ? 
+                                        muon::muonBestTrack(*itMuon, reco::defaultTuneP).first :
+                                        innerTrack;
 
 	// Make sure the collection it points to is there
 	if ( bestTrack.isNonnull() && bestTrack.isAvailable() ) {
@@ -372,11 +376,13 @@ void PATMuonProducer::fillMuon( Muon& aMuon, const MuonBaseRef& muonRef, const r
   if (useParticleFlow_)
     aMuon.setP4( aMuon.pfCandidateRef()->p4() );
   if (embedBestTrack_)         aMuon.embedMuonBestTrack();
-  reco::Muon::MuonTrackTypePair newBestTrack = muon::muonBestTrack(aMuon, reco::defaultTuneP);
-  aMuon.setBestTrack(newBestTrack.second);
-  if (embedImprovedBestTrack_) aMuon.embedImprovedMuonBestTrack();
-  reco::Muon::MuonTrackTypePair newImprovedBestTrack = muon::muonBestTrack(aMuon, reco::improvedTuneP);
-  aMuon.setImprovedBestTrack(newImprovedBestTrack.second);
+  if (aMuon.isTrackerMuon() || aMuon.isGlobalMuon() || aMuon.isStandAloneMuon()) {
+      reco::Muon::MuonTrackTypePair newBestTrack = muon::muonBestTrack(aMuon, reco::defaultTuneP);
+      aMuon.setBestTrack(newBestTrack.second);
+      if (embedImprovedBestTrack_) aMuon.embedImprovedMuonBestTrack();
+      reco::Muon::MuonTrackTypePair newImprovedBestTrack = muon::muonBestTrack(aMuon, reco::improvedTuneP);
+      aMuon.setImprovedBestTrack(newImprovedBestTrack.second);
+  }
   if (embedTrack_)          aMuon.embedTrack();
   if (embedStandAloneMuon_) aMuon.embedStandAloneMuon();
   if (embedCombinedMuon_)   aMuon.embedCombinedMuon();
