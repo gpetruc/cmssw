@@ -20,7 +20,7 @@ except TypeError:
     print "fraction must be a floating point number (e.g. 0.5)"
     sys.exit(2)
 
-input  = ROOT.TFile(args[0])
+input  = ROOT.TFile.Open(args[0])
 output = ROOT.TFile(args[2], "RECREATE")
 for k in input.GetListOfKeys():
     print k.GetName(), k.GetClassName()

@@ -50,13 +50,19 @@ class TagProbeFitter {
   /// set number of bins to use when making the plots; 0 = automatic
   void setBinsForMassPlots(int bins) ;
 
+  //// turn on or off the saving of distribution plots)
+  void setSaveDistributionsPlot(bool saveDistributionsPlot_) { doSaveDistributionsPlot = saveDistributionsPlot_; }
+
   /// set a variable to be used as weight for a dataset. empty string means no weights.
   void setWeightVar(const std::string &weight);
 
   /// suppress most of the output from RooFit and Minuit
   void setQuiet(bool quiet_=true);
 
+  bool setupIgProfDumpHook();
+
   protected:
+
   ///pointer to the input TTree Chain of data
   TChain* inputTree;
 
@@ -71,6 +77,9 @@ class TagProbeFitter {
 
   ///the default option wether to save the workspace for each bin
   bool saveWorkspace;
+
+  ///save distribution plots
+  bool doSaveDistributionsPlot;
 
   ///do binned fit; 0 = automatic, 1 = yes, -1 = no. d
   int binnedFit;
@@ -141,12 +150,12 @@ class TagProbeFitter {
   ///saves the efficiency plots
   void saveEfficiencyPlots(RooDataSet& eff, TString effName, RooArgSet& binnedVariables, RooArgSet& mappedCategories);
   
-  ///makes the 1D plot
-  void makeEfficiencyPlot1D(RooDataSet& eff, RooRealVar& v, TString plotName, TString plotTitle, TString effName);
+  ///makes the 1D plot, possibly selecting a value for a category
+  void makeEfficiencyPlot1D(RooDataSet& eff, RooRealVar& v, TString plotName, TString plotTitle, TString effName, const char *catName = 0, int catIndex = -1);
   
   ///makes the 2D plot
-  void makeEfficiencyPlot2D(RooDataSet& eff, RooRealVar& v1, RooRealVar& v2, TString plotName, TString plotTitle, TString effName);
-  
+  void makeEfficiencyPlot2D(RooDataSet& eff, RooRealVar& v1, RooRealVar& v2, TString plotName, TString plotTitle, TString effName, const char *catName = 0, int catIndex = -1);
+
 };
 
 #endif //TagProbeFitter_h

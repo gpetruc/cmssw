@@ -34,11 +34,16 @@ TagProbeFitTreeAnalyzer::TagProbeFitTreeAnalyzer(const edm::ParameterSet& pset):
 {
   fitter.setQuiet(pset.getUntrackedParameter("Quiet",false));
 
+  if (pset.getUntrackedParameter("SetupIGProf",false)) fitter.setupIgProfDumpHook();
+
   if (pset.existsAs<bool>("binnedFit")) {
     bool binned = pset.getParameter<bool>("binnedFit");
     fitter.setBinnedFit(binned, binned ? pset.getParameter<uint32_t>("binsForFit") : 0);
   } else if (pset.existsAs<uint32_t>("binsForMassPlots")) {
     fitter.setBinsForMassPlots(pset.getParameter<uint32_t>("binsForMassPlots"));
+  }
+  if (pset.existsAs<bool>("saveDistributionsPlot")) {
+     fitter.setSaveDistributionsPlot(pset.getParameter<bool>("saveDistributionsPlot"));
   }
 
   if (pset.existsAs<std::string>("WeightVariable")) {
