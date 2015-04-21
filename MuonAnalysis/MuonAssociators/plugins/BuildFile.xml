@@ -5,6 +5,10 @@
 <use   name="SimTracker/Records"/>
 <use   name="SimTracker/TrackAssociation"/>
 <use   name="MuonAnalysis/MuonAssociators"/>
+<use   name="RecoTracker/TrackProducer"/>
+<use   name="TrackingTools/TrajectoryState"/>
+<use   name="TrackingTools/PatternTools"/>
+<use   name="TrackingTools/TrackRefitter"/>
 <export>
 </export>
 <library   name="MuonAnalysisMuonAssociators_plugins" file="*.cc">
