@@ -235,6 +235,19 @@ void L2MuonSeedGeneratorFromL1T::produce(edm::Event& iEvent, const edm::EventSet
       LogTrace(metname) << debug.dumpFTS(state);
 
       if (tsos.isValid()) {
+       if (useOfflineSeed && !useUnassociatedL1) {
+           const TrajectorySeed *assoOffseed = associateOfflineSeedToL1(offlineSeedHandle, offlineSeedMap, tsos);
+           if(assoOffseed!=0) {
+               edm::OwnVector<TrackingRecHit> container;
+               PTrajectoryStateOnDet const & seedTSOS = assoOffseed->startingState();
+               TrajectorySeed::const_iterator tsci = assoOffseed->recHits().first, tscie = assoOffseed->recHits().second;
+               for(; tsci!=tscie; ++tsci) {
+                   container.push_back(*tsci);
+               }
+               output->push_back(L2MuonTrajectorySeed(seedTSOS,container,alongMomentum,
+                           MuonRef(muColl,  distance(muColl->begin(muColl->getFirstBX()),it)  )));
+           }
+       } else {
         // Get the compatible dets on the layer
         std::vector< pair<const GeomDet*,TrajectoryStateOnSurface> > 
       detsWithStates = detLayer->compatibleDets(tsos, 
@@ -268,7 +281,7 @@ void L2MuonSeedGeneratorFromL1T::produce(edm::Event& iEvent, const edm::EventSet
 
             if(useOfflineSeed) {
               const TrajectorySeed *assoOffseed = 
-                associateOfflineSeedToL1(offlineSeedHandle, offlineSeedMap, newTSOS);
+                associateOfflineSeedToL1(offlineSeedHandle, offlineSeedMap, tsos);
 
               if(assoOffseed!=0) {
                 PTrajectoryStateOnDet const & seedTSOS = assoOffseed->startingState();
@@ -301,6 +314,7 @@ void L2MuonSeedGeneratorFromL1T::produce(edm::Event& iEvent, const edm::EventSet
           }
         }
       }
+    }
     }
 
   }
