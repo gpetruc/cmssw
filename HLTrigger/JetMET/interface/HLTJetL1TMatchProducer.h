@@ -16,6 +16,7 @@
 #include "DataFormats/JetReco/interface/PFJetCollection.h"
 #include "DataFormats/JetReco/interface/TrackJetCollection.h"
 #include "DataFormats/JetReco/interface/BasicJetCollection.h"
+#include "DataFormats/HLTReco/interface/TriggerFilterObjectWithRefs.h"
 
 template<typename T>
 class HLTJetL1TMatchProducer : public edm::stream::EDProducer<> {
@@ -28,10 +29,13 @@ class HLTJetL1TMatchProducer : public edm::stream::EDProducer<> {
  private:
   edm::EDGetTokenT<std::vector<T>> m_theJetToken;
   edm::EDGetTokenT<l1t::JetBxCollection> m_theL1JetToken;
+  edm::EDGetTokenT<trigger::TriggerFilterObjectWithRefs> m_theL1FilterToken;
   edm::InputTag jetsInput_;
   edm::InputTag L1Jets_;
+  edm::InputTag L1Filter_;
   //  std::string jetType_;
   double DeltaR_;         // DeltaR(HLT,L1)
+  bool useL1Filter_;
 };
 
 #endif
