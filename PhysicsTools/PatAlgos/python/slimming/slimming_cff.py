@@ -18,3 +18,4 @@ from PhysicsTools.PatAlgos.slimming.metFilterPaths_cff   import *
 from PhysicsTools.PatAlgos.slimming.MicroEventContent_cff import *
 from RecoEgamma.EgammaPhotonProducers.reducedEgamma_cfi  import *
 from RecoLuminosity.LumiProducer.bunchSpacingProducer_cfi import bunchSpacingProducer
+from RecoLuminosity.LumiProducer.instLumiFromScalers_cfi import instLumiFromScalers

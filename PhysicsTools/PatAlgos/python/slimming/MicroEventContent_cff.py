@@ -65,7 +65,7 @@ MicroEventContent = cms.PSet(
         'keep recoCSCHaloData_CSCHaloData_*_*',
         'keep recoBeamHaloSummary_BeamHaloSummary_*_*',
         # Lumi
-        'keep LumiScalerss_scalersRawToDigi_*_*',
+        'keep float_instLumiFromScalers_*_*',
     )
 )
 MicroEventContentMC = cms.PSet(

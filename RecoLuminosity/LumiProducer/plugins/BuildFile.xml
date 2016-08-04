@@ -86,6 +86,12 @@
   <use name="DataFormats/Luminosity"/>
   <flags EDM_PLUGIN="1"/>
 </library>
+<library file="InstLumiAsFloatProducer.cc" name="InstLumiAsFloatProducer">
+  <use name="RecoLuminosity/LumiProducer"/>
+  <use name="FWCore/PluginManager"/>
+  <use name="DataFormats/Luminosity"/>
+  <flags EDM_PLUGIN="1"/>
+</library>
 <library file="DIPLumiProducer.cc" name="DIPLumiProducer">
   <use name="RecoLuminosity/LumiProducer"/>
   <use name="FWCore/PluginManager"/>
