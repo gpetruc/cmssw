@@ -76,8 +76,6 @@ namespace pat {
 pat::L1MuonMatcher::L1MuonMatcher(const edm::ParameterSet & iConfig) :
     matcher_(iConfig),
     recoToken_(consumes<edm::View<reco::Candidate> >(iConfig.getParameter<edm::InputTag>("src"))),
-    l1Token_(consumes<std::vector<l1extra::L1MuonParticle> >(iConfig.getParameter<edm::InputTag>("matched"))),
-    l1tToken_(consumes<l1t::MuonBxCollection>(iConfig.getParameter<edm::InputTag>("matched"))),
     labelL1_(iConfig.getParameter<std::string>("setL1Label")),
     labelProp_(iConfig.getParameter<std::string>("setPropLabel")),
     writeExtraInfo_(iConfig.getParameter<bool>("writeExtraInfo")),
@@ -85,6 +83,11 @@ pat::L1MuonMatcher::L1MuonMatcher(const edm::ParameterSet & iConfig) :
     firstBX_(iConfig.getParameter<int>("firstBX")),
     lastBX_(iConfig.getParameter<int>("lastBX"))
 {
+    if (useStage2L1_) {
+        l1tToken_ = consumes<l1t::MuonBxCollection>(iConfig.getParameter<edm::InputTag>("matched"));
+    } else {
+        l1Token_ = consumes<std::vector<l1extra::L1MuonParticle> >(iConfig.getParameter<edm::InputTag>("matched"));
+    }
     produces<PATPrimitiveCollection>("l1muons");        // l1 in PAT format
     produces<PATPrimitiveCollection>("propagatedReco"); // reco to muon station 2
     produces<PATTriggerAssociation>("propagatedReco");  // asso reco to propagated reco
