@@ -27,3 +27,8 @@ EcalDeadCellTriggerPrimitiveFilter = cms.EDFilter(
     useTTsum = cms.bool ( True ),
     usekTPSaturated = cms.bool ( False)
 )
+
+
+## Workaround: this does not work for PhaseII
+from Configuration.StandardSequences.Eras import eras
+eras.phase2_common.toReplaceWith(  EcalDeadCellTriggerPrimitiveFilter, cms.EDFilter("HLTBool", result=cms.bool(True)) )
