@@ -1,8 +1,11 @@
 import FWCore.ParameterSet.Config as cms
 
 from PhysicsTools.SelectorUtils.tools.vid_id_tools import *
+from Configuration.StandardSequences.Eras import eras
+
 
 def miniAOD_customizeCommon(process):
+    process.load("PhysicsTools.PatAlgos.slimming.era_customizers")
     process.patMuons.isoDeposits = cms.PSet()
     process.patElectrons.isoDeposits = cms.PSet()
     process.patTaus.isoDeposits = cms.PSet()
@@ -322,3 +325,13 @@ def miniAOD_customizeAllMC(process):
     miniAOD_customizeCommon(process)
     miniAOD_customizeMC(process)
     return process
+
+def miniAOD_forPhase2(process):
+    print "Switching off electron and photon IDs (not yet working for Phase2 era)"
+    process.patElectrons.addElectronID = False
+    process.patElectrons.electronIDSources = cms.PSet()
+    process.patPhotons.addPhotonID = False 
+    process.patPhotons.photonIDSources = cms.PSet()
+    process.slimmedElectrons.modifyElectrons = False
+    process.slimmedPhotons.modifyPhotons = False
+
