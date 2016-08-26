@@ -96,3 +96,11 @@ metFilters = cms.Sequence(
    chargedHadronTrackResolutionFilter *
    muonBadTrackFilter
 )
+
+from Configuration.StandardSequences.Eras import eras
+_metFiltersPhase2 = metFilters.copy()
+_metFiltersPhase2.remove(HBHENoiseFilterResultProducer)
+_metFiltersPhase2.remove(HBHENoiseFilter)
+_metFiltersPhase2.remove(EcalDeadCellTriggerPrimitiveFilter)
+_metFiltersPhase2.remove(eeBadScFilter)
+eras.phase2_common.toReplaceWith( metFilters, _metFiltersPhase2 )
