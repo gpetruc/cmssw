@@ -72,6 +72,9 @@ private:
   //! apply or not the maxN cut on top of the sumPt (or nominall eff) < cuts
   bool theApplyCutsORmaxNTracks;
 
+  //! offset to apply to the isolation value before applying the cut 
+  double theIsolationOffset;
+
   // Print out debug info
 
   bool printDebug;

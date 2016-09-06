@@ -113,6 +113,7 @@ L3MuonCombinedRelativeIsolationProducer::L3MuonCombinedRelativeIsolationProducer
   // (kludge) additional cut on the number of tracks
   theMaxNTracks = cutsPSet.getParameter<int>("maxNTracks");
   theApplyCutsORmaxNTracks = cutsPSet.getParameter<bool>("applyCutsORmaxNTracks");
+  theIsolationOffset = cutsPSet.getParameter<double>("offset");
 
 }
 
@@ -140,6 +141,7 @@ void L3MuonCombinedRelativeIsolationProducer::fillDescriptions(edm::Configuratio
     cutsPSet.add<std::vector<double> >("Thresholds",std::vector<double>(1, 0.1));
     cutsPSet.add<int>("maxNTracks",-1);
     cutsPSet.add<std::vector<double> >("EtaBounds",std::vector<double>(1, 2.411));
+    cutsPSet.add<double>("offset",0);
     cutsPSet.add<bool>("applyCutsORmaxNTracks",false);
   }
   desc.add<edm::ParameterSetDescription>("CutsPSet",cutsPSet);
@@ -303,7 +305,7 @@ void L3MuonCombinedRelativeIsolationProducer::produce(Event& event, const EventS
 
     double muPt = mu->pt();
     if( muPt<1. ) muPt = 1.;
-    double combinedRelativeDeposit = ((trkIsoSum + caloIsoSum ) / muPt);
+    double combinedRelativeDeposit = ((trkIsoSum + caloIsoSum + theIsolationOffset) / muPt);
     bool result = ( combinedRelativeDeposit < cut.threshold);
     if (theApplyCutsORmaxNTracks ) result |= count <= theMaxNTracks;
     if (printDebug) std::cout  <<"  trk dep in cone:  " << trkIsoSum << "  with count "<<count <<std::endl
