@@ -55,6 +55,7 @@ BadGlobalMuonTagger::BadGlobalMuonTagger(const edm::ParameterSet & iConfig) :
     taggingMode_(iConfig.getParameter<bool> ("taggingMode")),
     verbose_(iConfig.getUntrackedParameter<bool> ("verbose",true))
 {
+    produces<bool>();
     produces<edm::PtrVector<reco::Muon>>("bad");
 }
 
@@ -97,7 +98,7 @@ BadGlobalMuonTagger::filter(edm::Event & iEvent, const edm::EventSetup & iSetup)
         }
     }
 
-    bool found = false;
+    bool pass = true;
     for (unsigned int i = 0, n = muons.size(); i < n; ++i) {
         if (muons[i].pt() < ptCut_ || goodMuon[i] != 0) continue;
         if (verbose_) printf("potentially bad muon %d of pt %.1f eta %+.3f phi %+.3f\n", int(i+1), muons[i].pt(), muons[i].eta(), muons[i].phi());
@@ -116,13 +117,15 @@ BadGlobalMuonTagger::filter(edm::Event & iEvent, const edm::EventSetup & iSetup)
             }
         }
         if (bad) {
-            found = true;
+            pass = false;
             out->push_back(muons.ptrAt(i));
         }
     }
 
+    iEvent.put(std::auto_ptr<bool>(new bool(pass)));
     iEvent.put(std::move(out), "bad");
-    return taggingMode_ || found;
+
+    return taggingMode_ || pass;
 }
 
 
