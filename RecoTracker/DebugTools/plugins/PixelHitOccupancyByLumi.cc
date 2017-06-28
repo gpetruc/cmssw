@@ -46,19 +46,23 @@ class PixelHitOccupancyByLumi : public edm::one::EDAnalyzer<edm::one::WatchLumin
 
     private:
         virtual void analyze(const edm::Event&, const edm::EventSetup&) ;
-        void beginLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&) { firstEventInLS_ = true; waitNextLS_ = false; }
+        void beginLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&) { firstEventInLS_ = true; } // waitNextLS_ = false; }
         void endLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&) ;
 
         // ----------member data ---------------------------
-        const edm::EDGetTokenT<MeasurementTrackerEvent> tracker_;
-        unsigned int maxHitsPerROC_;
+        //const edm::EDGetTokenT<MeasurementTrackerEvent> tracker_;
+        const edm::EDGetTokenT<edmNew::DetSetVector<SiPixelCluster>> pixelClusterLabel_;
+        //unsigned int maxHitsPerROC_;
 
         edm::ESHandle<TrackerTopology> theTrkTopo;
+        edm::ESHandle<TrackerGeometry> theGeometry;
+        uint32_t theGeometryCacheID;
 
-        std::vector<unsigned int> pxb1ModuleIndices_;
-        std::map<std::pair<int,int>,unsigned int> rocHits_;
-        std::map<std::pair<int,int>,unsigned int> tpmHits_;
-        bool firstEventInLS_, waitNextLS_;
+        std::unordered_map<unsigned int, unsigned int> detIdToIndexMap_;
+        std::vector<unsigned int> detIds_;
+        std::vector<std::array<unsigned int, 4>> tpmHits_;
+        std::vector<std::array<unsigned int,16>> rocHits_;
+        bool firstEventInLS_; //, waitNextLS_;
 
         TTree *tree_;
         int run_, lumi_;    
@@ -70,9 +74,11 @@ class PixelHitOccupancyByLumi : public edm::one::EDAnalyzer<edm::one::WatchLumin
 // constructors and destructor
 //
 PixelHitOccupancyByLumi::PixelHitOccupancyByLumi(const edm::ParameterSet& iConfig):
-    tracker_(consumes<MeasurementTrackerEvent>(iConfig.getParameter<edm::InputTag>("tracker"))),
-    maxHitsPerROC_(iConfig.getParameter<uint32_t>("maxHitsPerROC")),
-    firstEventInLS_(true), waitNextLS_(false)
+    //tracker_(consumes<MeasurementTrackerEvent>(iConfig.getParameter<edm::InputTag>("tracker"))),
+    pixelClusterLabel_(consumes<edmNew::DetSetVector<SiPixelCluster>>(iConfig.getParameter<edm::InputTag>("pixelClusters"))),
+    //maxHitsPerROC_(iConfig.getParameter<uint32_t>("maxHitsPerROC")),
+    theGeometryCacheID(0),
+    firstEventInLS_(true)//, waitNextLS_(false)
 {
     usesResource("TFileService");
     edm::Service<TFileService> fs;
@@ -92,43 +98,42 @@ PixelHitOccupancyByLumi::~PixelHitOccupancyByLumi()
 void
 PixelHitOccupancyByLumi::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
-    using namespace edm;
     using namespace std;
-
-    iSetup.get<TrackerTopologyRcd>().get(theTrkTopo);
-    Handle<MeasurementTrackerEvent> tracker;
-
-    iEvent.getByToken(tracker_, tracker);
-    const auto & pixelData = tracker->pixelData();
-    unsigned int ndet = pixelData.nDet();
     if (firstEventInLS_) {
-        pxb1ModuleIndices_.clear();
-        // zero out existing, if any
-        for (auto &p : rocHits_) p.second = 0;
-        for (auto &p : tpmHits_) p.second = 0;
-        // make sure all ids are here
-        for (unsigned int idet = 0; idet < ndet; ++idet) {
-            DetId id(pixelData.id(idet));
-            if (id.subdetId() == PixelSubdetector::SubDetector::PixelBarrel && theTrkTopo->layer(id) == 1) {
-                for (unsigned int i = 0; i < 16; ++i) {
-                    rocHits_[make_pair(id(),i)] = 0;
-                }
-                for (unsigned int i = 0; i < 4; ++i) {
-                    tpmHits_[make_pair(id(),i)] = 0;
+        unsigned int geocache = iSetup.get<TrackerDigiGeometryRecord>().cacheIdentifier();
+        if (geocache != theGeometryCacheID) {
+            iSetup.get<TrackerTopologyRcd>().get(theTrkTopo);
+            iSetup.get<TrackerDigiGeometryRecord>().get(theGeometry);
+            detIdToIndexMap_.clear();
+            detIds_.clear();
+            for (const auto * det : theGeometry->detsPXB()) {
+                DetId id = det->geographicalId();
+                if (theTrkTopo->layer(id) == 1) {
+                    detIds_.push_back(id());
+                    detIdToIndexMap_[id()] = detIds_.size()-1;
                 }
             }
-            pxb1ModuleIndices_.push_back(idet);
+            tpmHits_.resize(detIds_.size());
+            rocHits_.resize(detIds_.size());
+            theGeometryCacheID = geocache;
         }
+        // zero out existing, if any
+        for (auto &p : rocHits_) fill(p.begin(), p.end(), 0);
+        for (auto &p : tpmHits_) fill(p.begin(), p.end(), 0);
         firstEventInLS_ = false;
-        waitNextLS_ = false;
+        //waitNextLS_ = false;
     }
-    if (waitNextLS_) return;
-    unsigned int minNonZero = 0;
-    for (unsigned int i = 0, n = pxb1ModuleIndices_.size(); i < n; ++i) {
-        int idet = pxb1ModuleIndices_[i];
-        if (pixelData.empty(idet) || !pixelData.isActive(idet)) continue;
-        int detid = pixelData.id(idet);
-        for (const SiPixelCluster & cluster : pixelData.detSet(idet)) { 
+    //if (waitNextLS_) return;
+
+    //unsigned int minNonZero = 0;
+    iSetup.get<TrackerTopologyRcd>().get(theTrkTopo);
+    edm::Handle<edmNew::DetSetVector<SiPixelCluster> > pixelClusters; 
+    iEvent.getByToken(pixelClusterLabel_, pixelClusters); 
+    for (const auto & detset : *pixelClusters) {
+        DetId id(detset.detId());
+        if (id.subdetId() != PixelSubdetector::SubDetector::PixelBarrel || theTrkTopo->layer(id) != 1) continue;
+        int index = detIdToIndexMap_[id()];
+        for (const SiPixelCluster & cluster : detset) { 
             int ix1 = (cluster.maxPixelRow()/80);
             int iy1 = (cluster.maxPixelCol()/52);
             int ix2 = (cluster.minPixelRow()/80);
@@ -136,13 +141,13 @@ PixelHitOccupancyByLumi::analyze(const edm::Event& iEvent, const edm::EventSetup
             if (ix1 != ix2 || iy1 != iy2) continue; // skip ones on the border for the moment
             int itpm = iy1/4 + ix1*2;
             int iroc = iy1 + ix1*8;
-            tpmHits_[make_pair(detid,itpm)]++;
-            unsigned int & hits = rocHits_[make_pair(detid,iroc)]; hits++;
-            if (hits > 0 && (minNonZero == 0 || minNonZero > hits)) minNonZero = hits;
+            tpmHits_[index][itpm]++;
+            rocHits_[index][iroc]++;
+            //if (rocHits_[index][iroc]> 0 && (minNonZero == 0 || minNonZero > rocHits_[index][iroc])) minNonZero = rocHits_[index][iroc];
         }
     }
-    printf("Min number of hits on non-empty ROC: %u\n", minNonZero);
-    if (minNonZero > maxHitsPerROC_) waitNextLS_ = true;
+    //printf("Min number of hits on non-empty ROC: %u\n", minNonZero);
+    //if (minNonZero > maxHitsPerROC_) waitNextLS_ = true;
 }
 
 void 
@@ -150,21 +155,24 @@ PixelHitOccupancyByLumi::endLuminosityBlock(edm::LuminosityBlock const& iLumi, e
 {
     run_  = iLumi.run();
     lumi_ = iLumi.luminosityBlock();
-
-    for (const auto &p : tpmHits_) {
-        detid_ =  p.first.first;
-        tpm_ = p.first.second;
-        if (p.second == 0) {
-            roc_ = -1;
-            tree_->Fill();
-        } else {
-            tpm_ = -1;
-            for (unsigned int i = 0; i < 4; ++i) {
-                unsigned int hits = rocHits_[std::make_pair(p.first.first,p.first.second*4+i)];
-                if (hits == 0) { roc_ = i; tree_->Fill(); }
+    unsigned int entries = 0;
+    for (unsigned int i = 0, n = detIds_.size(); i < n; ++i) {
+        detid_ = detIds_[i];
+        for (tpm_ = 0; tpm_ < 4; ++tpm_) { 
+            if (tpmHits_[i][tpm_] == 0) {
+                roc_ = -1;
+                tree_->Fill(); entries++;
+            } else {
+                for (roc_ = tpm_*4; roc_ < (tpm_+1)*4; ++roc_) { 
+                    if (rocHits_[i][roc_] == 0) {
+                        tree_->Fill();
+                        entries++;
+                    }
+                }
             }
         }
     }
+    printf("Wrote %u entries for this lumi\n", entries);
 }
 
 

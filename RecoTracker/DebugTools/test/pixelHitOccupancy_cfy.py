@@ -52,11 +52,14 @@ process.pixelOccupancy = cms.EDProducer("PixelHitOccupancy",
 )
 
 process.pixelOccupancyByLumi = cms.EDAnalyzer("PixelHitOccupancyByLumi",
-    tracker = cms.InputTag("MeasurementTrackerEvent"),
+    #tracker = cms.InputTag("MeasurementTrackerEvent"),
+    pixelClusters = cms.InputTag("siPixelClusters"),
     maxHitsPerROC = cms.uint32(100), # stop processing LS after I have at least this number of hits on all ROCs that have hits
 )
+process.pre10 = cms.EDFilter("Prescaler", prescaleFactor = cms.int32(10), prescaleOffset = cms.int32(0) )
 process.occupancy = cms.Path(
-    process.MeasurementTrackerEvent +
+    process.pre10 +
+    #process.MeasurementTrackerEvent +
     #process.triggerResultsFilter +
     process.pixelOccupancyByLumi
 )
