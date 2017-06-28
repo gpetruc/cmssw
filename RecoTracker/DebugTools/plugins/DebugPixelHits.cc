@@ -78,9 +78,9 @@ class DebugPixelHits : public edm::one::EDAnalyzer<edm::one::SharedResources> {
         int run_, lumi_, bx_, instLumi_, npv_; uint64_t event_; 
         float pair_mass_, track_pt_, track_eta_, track_phi_;
         int source_det_, source_layer_;
-        int detid_, hitFound_, hitOnTrack_, detIsActive_, maybeBadROC_, trackHasHit_, trackHasLostHit_;
+        int detid_, hitFound_, hitOnTrack_, detIsActive_, maybeBadROC_, trackHasHit_, trackHasLostHit_, hitInRandomWindow_;
         float track_global_phi_, track_global_z_, track_local_x_, track_local_y_, track_exp_sizeX_, track_exp_sizeY_, track_exp_charge_;
-        float hit_global_phi_, hit_global_z_, hit_local_x_, hit_local_y_, hit_sizeX_, hit_sizeY_, hit_firstpixel_x_, hit_firstpixel_y_, hit_chi2_, hit_charge_;
+        float hit_global_phi_, hit_global_z_, hit_local_x_, hit_local_y_, hit_sizeX_, hit_sizeY_, hit_firstpixel_x_, hit_firstpixel_y_, hit_chi2_, hit_charge_, hitInRandomWindowDistance_;
 
         int debug_;
 };
@@ -141,6 +141,8 @@ DebugPixelHits::DebugPixelHits(const edm::ParameterSet& iConfig):
     tree_->Branch("source_layer", &source_layer_, "source_layer/I");
     tree_->Branch("hitFound", &hitFound_, "hitFound/I");
     tree_->Branch("hitOnTrack", &hitOnTrack_, "hitOnTrack/I");
+    tree_->Branch("hitInRandomWindow", &hitInRandomWindow_, "hitInRandomWindow/I");
+    tree_->Branch("hitInRandomWindowDistance", &hitInRandomWindowDistance_, "hitInRandomWindowDistance/F");
     tree_->Branch("detIsActive", &detIsActive_, "detIsActive/I");
     tree_->Branch("maybeBadROC", &maybeBadROC_, "maybeBadROC/I");
     tree_->Branch("trackHasHit", &trackHasHit_, "trackHasHit/I");
@@ -277,8 +279,8 @@ DebugPixelHits::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
                 //MeasurementPoint rocixiy((badROC/8)*80+40, (badROC%8)*52 + 26);
                 //LocalPoint rocxy = (dynamic_cast<const PixelGeomDetUnit*>(detAndState.first))->specificTopology().localPosition(MeasurementPoint(rocixiy));
                 //printf("      bad ROC local x = %+6.3f            y = %+6.3f    (top) \n",  rocxy.x(), rocxy.y());
-                if (std::abs(rocx - tkpos.x()) < (40*0.0100 + 2*0.0100 + 5*std::sqrt(tkerr.xx()))) maybeBadROC_ = true; // 1 ROC + 2 pixels + 5 sigma
-                if (std::abs(rocy - tkpos.y()) < (26*0.0150 + 2*0.0150 + 5*std::sqrt(tkerr.yy()))) maybeBadROC_ = true; // 1 ROC + 2 pixels + 5 sigma
+                if (std::abs(rocx - tkpos.x()) < (40*0.0100 + 2*0.0100 + 5*std::sqrt(tkerr.xx()))) maybeBadROC_ = true; // 1 half-ROC + 2 pixels + 5 sigma
+                if (std::abs(rocy - tkpos.y()) < (26*0.0150 + 2*0.0150 + 5*std::sqrt(tkerr.yy()))) maybeBadROC_ = true; // 1 half-ROC + 2 pixels + 5 sigma
             }
             //auto rechits = mdet.recHits(detAndState.second);
             //for (const auto & hit : rechits) {
@@ -286,14 +288,26 @@ DebugPixelHits::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
             for (const auto & hitAndChi2 : mdet.fastMeasurements(detAndState.second, tsosPXB2, *thePropagatorOpposite, *theEstimator)) {
                 if (hitAndChi2.recHit()->isValid()) rechitsAndChi2.emplace_back(hitAndChi2.estimate(), hitAndChi2.recHit());
             } 
+            const auto & allhits = mdet.recHits(detAndState.second);
             if (rechitsAndChi2.empty()) {
-                for (const auto & hit : mdet.recHits(detAndState.second)) { 
-                    if (hit->isValid() && std::max(std::abs(hit->localPosition().x()-tkpos.x()), std::abs(hit->localPosition().y()-tkpos.y())) < 0.2) {
-                         rechitsAndChi2.emplace_back(-99, hit);
+                for (const auto & hit : allhits) { 
+                    float distance = std::max(std::abs(hit->localPosition().x()-tkpos.x()), std::abs(hit->localPosition().y()-tkpos.y()));
+                    if (hit->isValid() && distance < 0.2) {
+                         rechitsAndChi2.emplace_back(99 + distance, hit);
                     }
                 }
             }
             std::sort(rechitsAndChi2.begin(), rechitsAndChi2.end());
+            // now we make the matching around a fake position, in the same TBM; go inwards by one ROC if one is not in the innermost ROC
+            bool innermostROC = std::abs(tkpos.y()) < 0.8;
+            float fakey = tkpos.y() + std::copysign(tkpos.y(), 0.8)*(innermostROC ? +1 : -1); 
+            hitInRandomWindow_ = false; hitInRandomWindowDistance_ = 0.2;
+            for (const auto & hit : allhits) { 
+                float distance = std::max(std::abs(hit->localPosition().x()-tkpos.x()), std::abs(hit->localPosition().y()-fakey));
+                if (hit->isValid() && distance < hitInRandomWindowDistance_) {
+                    hitInRandomWindow_ = true; hitInRandomWindowDistance_ = distance;
+                }
+            }
             for (const auto & hitAndChi2 : rechitsAndChi2) {
                 const auto & hit = hitAndChi2.second;
                 const auto &hitpos = hit->localPosition();
