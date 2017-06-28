@@ -38,6 +38,10 @@
 #include "RecoTracker/MeasurementDet/src/TkMeasurementDetSet.h"
 #include "../interface/BadComponents.h"
 
+#include "DataFormats/Scalers/interface/LumiScalers.h"
+#include "DataFormats/Luminosity/interface/LumiDetails.h"
+#include "DataFormats/VertexReco/interface/Vertex.h"
+
 #include "FWCore/ServiceRegistry/interface/Service.h"
 #include "CommonTools/UtilAlgos/interface/TFileService.h"
 #include <TTree.h>
@@ -53,7 +57,9 @@ class DebugPixelHits : public edm::one::EDAnalyzer<edm::one::SharedResources> {
         // ----------member data ---------------------------
         const edm::EDGetTokenT<edm::View<reco::Candidate>> pairs_;    
         const edm::EDGetTokenT<edmNew::DetSetVector<SiPixelCluster>> pixelClusterLabel_;
-        edm::EDGetTokenT<MeasurementTrackerEvent> tracker_;
+        const edm::EDGetTokenT<MeasurementTrackerEvent> tracker_;
+        const edm::EDGetTokenT<LumiScalersCollection> lumiScaler_;
+        const edm::EDGetTokenT<std::vector<reco::Vertex>> vertices_; 
         /// Track Transformer
         TrackTransformer refitter_;
         const std::string propagatorOpposite_;
@@ -69,11 +75,12 @@ class DebugPixelHits : public edm::one::EDAnalyzer<edm::one::SharedResources> {
         BadComponents theBadComponents;
 
         TTree *tree_;
-        int run_, lumi_; uint64_t event_; 
+        int run_, lumi_, bx_, instLumi_, npv_; uint64_t event_; 
         float pair_mass_, track_pt_, track_eta_, track_phi_;
+        int source_det_, source_layer_;
         int detid_, hitFound_, hitOnTrack_, detIsActive_, maybeBadROC_, trackHasHit_, trackHasLostHit_;
         float track_global_phi_, track_global_z_, track_local_x_, track_local_y_, track_exp_sizeX_, track_exp_sizeY_, track_exp_charge_;
-        float hit_global_phi_, hit_global_z_, hit_local_x_, hit_local_y_, hit_sizeX_, hit_sizeY_, hit_chi2_, hit_charge_;
+        float hit_global_phi_, hit_global_z_, hit_local_x_, hit_local_y_, hit_sizeX_, hit_sizeY_, hit_firstpixel_x_, hit_firstpixel_y_, hit_chi2_, hit_charge_;
 
         int debug_;
 };
@@ -85,6 +92,8 @@ DebugPixelHits::DebugPixelHits(const edm::ParameterSet& iConfig):
     pairs_(consumes<edm::View<reco::Candidate>>(iConfig.getParameter<edm::InputTag>("pairs"))),
     //pixelClusterLabel_(consumes<edmNew::DetSetVector<SiPixelCluster>>(iConfig.getParameter<edm::InputTag>("pixelClusters"))),
     tracker_(consumes<MeasurementTrackerEvent>(iConfig.getParameter<edm::InputTag>("tracker"))),
+    lumiScaler_(consumes<LumiScalersCollection>(iConfig.getParameter<edm::InputTag>("lumiScalers"))),
+    vertices_(consumes<std::vector<reco::Vertex>>(iConfig.getParameter<edm::InputTag>("vertices"))),
     refitter_(iConfig),
     propagatorOpposite_(iConfig.getParameter<std::string>("PropagatorOpposite")),
     estimatorName_(iConfig.getParameter<std::string>("Chi2MeasurementEstimator")),
@@ -101,6 +110,9 @@ DebugPixelHits::DebugPixelHits(const edm::ParameterSet& iConfig):
     tree_ = fs->make<TTree>("tree","tree");
     tree_->Branch("run",  &run_,  "run/i");
     tree_->Branch("lumi", &lumi_, "lumi/i");
+    tree_->Branch("bx", &bx_, "bx/i");
+    tree_->Branch("instLumi", &instLumi_, "instLumi/i");
+    tree_->Branch("npv", &npv_, "npv/i");
     tree_->Branch("detid", &detid_, "detid/F");
     tree_->Branch("pair_mass", &pair_mass_, "pair_mass/F");
     tree_->Branch("track_pt", &track_pt_, "track_pt/F");
@@ -117,12 +129,16 @@ DebugPixelHits::DebugPixelHits(const edm::ParameterSet& iConfig):
     tree_->Branch("hit_global_z", &hit_global_z_, "hit_global_z/F");
     tree_->Branch("hit_local_x", &hit_local_x_, "hit_local_x/F");
     tree_->Branch("hit_local_y", &hit_local_y_, "hit_local_y/F");
+    tree_->Branch("hit_firstpixel_x", &hit_firstpixel_x_, "hit_firstpixel_x/F");
+    tree_->Branch("hit_firstpixel_y", &hit_firstpixel_y_, "hit_firstpixel_y/F");
     tree_->Branch("hit_sizeX", &hit_sizeX_, "hit_sizeX/F");
     tree_->Branch("hit_sizeY", &hit_sizeY_, "hit_sizeY/F");
     tree_->Branch("hit_chi2", &hit_chi2_, "hit_chi2/F");
     tree_->Branch("hit_charge", &hit_charge_, "hit_charge/F");
 
     tree_->Branch("detid", &detid_, "detid/I");
+    tree_->Branch("source_det", &source_det_, "source_det/I");
+    tree_->Branch("source_layer", &source_layer_, "source_layer/I");
     tree_->Branch("hitFound", &hitFound_, "hitFound/I");
     tree_->Branch("hitOnTrack", &hitOnTrack_, "hitOnTrack/I");
     tree_->Branch("detIsActive", &detIsActive_, "detIsActive/I");
@@ -143,6 +159,15 @@ DebugPixelHits::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
     using namespace edm;
     run_  = iEvent.id().run();
     lumi_ = iEvent.id().luminosityBlock();
+    bx_   = iEvent.bunchCrossing();
+
+    edm::Handle<LumiScalersCollection> lumiScaler;
+    iEvent.getByToken(lumiScaler_, lumiScaler);
+    instLumi_ = (!lumiScaler->empty()) ? lumiScaler->front().instantLumi() : -99;
+
+    edm::Handle<std::vector<reco::Vertex>> vertices;
+    iEvent.getByToken(vertices_, vertices);
+    npv_ = vertices->size();
 
     // read input
     Handle<View<reco::Candidate> > pairs;
@@ -177,10 +202,12 @@ DebugPixelHits::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
         trackHasLostHit_ = mutk.hitPattern().numberOfLostPixelBarrelHits(reco::HitPattern::MISSING_INNER_HITS);
         bool PXB1Valid =  mutk.hitPattern().hasValidHitInPixelLayer(PixelSubdetector::SubDetector::PixelBarrel, 1);
         bool PXB2Valid =  mutk.hitPattern().hasValidHitInPixelLayer(PixelSubdetector::SubDetector::PixelBarrel, 2);
-        if (debug_) printf("\n\nMuon with pt %f eta %f, found PXB hits: %d, lost PXB inner hits along: %d, lost PXB inner hits before: %d, PXB1 hit: %d, PXB2 hit: %d, PXB3 hit: %d\n",
+        if (debug_) printf("\n\nMuon with pt %f eta %f, found PXB hits: %d, lost PXB inner hits along: %d, lost PXB inner hits before: %d, PXB1 hit: %d, PXB2 hit: %d, PXB3 hit: %d, PXF1 hit: %d, PXF2 hit: %d\n",
                             mu.pt(),  mu.eta(), mutk.hitPattern().numberOfValidPixelBarrelHits(), 
                             mutk.hitPattern().numberOfLostPixelBarrelHits(reco::HitPattern::TRACK_HITS), mutk.hitPattern().numberOfLostPixelBarrelHits(reco::HitPattern::MISSING_INNER_HITS), 
-                            PXB1Valid, PXB2Valid, mutk.hitPattern().hasValidHitInPixelLayer(PixelSubdetector::SubDetector::PixelBarrel, 3));
+                            PXB1Valid, PXB2Valid, mutk.hitPattern().hasValidHitInPixelLayer(PixelSubdetector::SubDetector::PixelBarrel, 3),
+                            mutk.hitPattern().hasValidHitInPixelLayer(PixelSubdetector::SubDetector::PixelEndcap, 1), 
+                            mutk.hitPattern().hasValidHitInPixelLayer(PixelSubdetector::SubDetector::PixelEndcap, 2));
         int nhits = mutk.recHitsSize();
         std::vector<Trajectory> traj  = refitter_.transform(mutk);
         if (traj.size() != 1) continue; 
@@ -200,18 +227,20 @@ DebugPixelHits::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
             if (PXB1Clusters.empty()) std::cout << "WARNING: did not find Cluster for PXB1 Hit" << std::endl;
         }
         TrajectoryStateOnSurface tsosPXB2;
-        if (PXB2Valid) {
-            for (const auto &tm : traj.front().measurements()) {
-                if (tm.recHit().get() && tm.recHitR().isValid()) {
-                    DetId where = tm.recHitR().geographicalId();
-                    if (where.subdetId() == PixelSubdetector::SubDetector::PixelBarrel && theTrkTopo->layer(where) == 2) {
-                        tsosPXB2 = tm.updatedState().isValid() ? tm.updatedState() : tm.backwardPredictedState();
-                        break;
-                    }
+        for (const auto &tm : traj.front().measurements()) {
+            if (tm.recHit().get() && tm.recHitR().isValid()) {
+                DetId where = tm.recHitR().geographicalId();
+                source_det_ = where.subdetId();
+                source_layer_ = theTrkTopo->layer(where);
+                if (source_det_ != PixelSubdetector::SubDetector::PixelBarrel ||  source_layer_ != 1) {
+                    tsosPXB2 = tm.updatedState().isValid() ? tm.updatedState() : tm.backwardPredictedState();
+                    if (debug_) printf("starting state on det %d, layer %d, r = %5.1f, z = %+6.1f\n", 
+                                        source_det_, source_layer_, tsosPXB2.globalPosition().perp(), tsosPXB2.globalPosition().z());
+                    break;
                 }
             }
-            if (!tsosPXB2.isValid()) std::cout << "WARNING: did not find state for PXB2 Hit" << std::endl;
         }
+        if (!tsosPXB2.isValid()) std::cout << "WARNING: did not find state for PXB2 Hit" << std::endl;
         if (!tsosPXB2.isValid()) continue; // for now
         tsosPXB2.rescaleError(rescaleError_);
         const GeometricSearchTracker * gst = tracker->geometricSearchTracker();
@@ -276,6 +305,8 @@ DebugPixelHits::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
                 hit_global_z_   = hitgpos.z();
                 hit_local_x_ = hitpos.x();
                 hit_local_y_ = hitpos.y();
+                hit_firstpixel_x_ = clustref->minPixelRow();
+                hit_firstpixel_y_ = clustref->minPixelCol();
                 hit_chi2_ = hitAndChi2.first;
                 hit_charge_ = clustref->charge();
                 hit_sizeX_ = clustref->sizeX();

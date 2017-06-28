@@ -23,7 +23,7 @@ process.source = cms.Source("PoolSource",
 #import FWCore.PythonUtilities.LumiList as LumiList
 #process.source.lumisToProcess = LumiList.LumiList(filename = JSON).getVLuminosityBlockRange()
 
-#process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1000) )    
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1000) )    
 
 process.load('Configuration.StandardSequences.GeometryRecoDB_cff')
 process.load('Configuration.StandardSequences.MagneticField_cff')
@@ -31,8 +31,7 @@ process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_condD
 process.load("Configuration.StandardSequences.Reconstruction_cff")
 
 from Configuration.AlCa.GlobalTag import GlobalTag
-process.GlobalTag = GlobalTag(process.GlobalTag, '80X_dataRun2_Express_v10', '')
-#process.GlobalTag = GlobalTag(process.GlobalTag, '80X_dataRun2_Prompt_v8', '')
+process.GlobalTag = GlobalTag(process.GlobalTag, '92X_dataRun2_Express_v2', '')
 
 #process.load("HLTrigger.HLTfilters.triggerResultsFilter_cfi")
 process.triggerResultsFilter = cms.EDFilter("TriggerResultsFilter",
@@ -54,7 +53,7 @@ process.oneTag  = cms.EDFilter("CandViewCountFilter", src = cms.InputTag("tagMuo
 
 process.probeMuons = cms.EDFilter("MuonSelector",
     src = cms.InputTag("muons"),
-    cut = cms.string("pt > 10 && numberOfMatchedStations >= 1 && innerTrack.isNonnull && abs(eta) < 1.7"), 
+    cut = cms.string("pt > 10 && numberOfMatchedStations >= 1 && innerTrack.isNonnull"), 
 )
 process.tpPairs = cms.EDProducer("CandViewShallowCloneCombiner",
     cut = cms.string('60 < mass < 140'),
@@ -71,6 +70,8 @@ process.HitCollectorForDebug = TrackingTools.KalmanUpdators.Chi2MeasurementEstim
 process.clusterInfo = cms.EDAnalyzer("DebugPixelHits",
         pairs = cms.InputTag("tpPairs"),
         tracker = cms.InputTag("MeasurementTrackerEvent"),
+        vertices = cms.InputTag("offlinePrimaryVertices"),
+        lumiScalers = cms.InputTag("scalersRawToDigi"),
         # configuraton for refitter
         DoPredictionsOnly = cms.bool(False),
         Fitter = cms.string('KFFitterForRefitInsideOut'),
