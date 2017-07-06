@@ -77,8 +77,9 @@ class DebugPixelHits : public edm::one::EDAnalyzer<edm::one::SharedResources> {
         TTree *tree_;
         int run_, lumi_, bx_, instLumi_, npv_; uint64_t event_; 
         float pair_mass_, track_pt_, track_eta_, track_phi_;
+        float pv_ndof_, pv_z0_, tag_dz_, tag_dxy_, pv_xyErr_, pv_zErr_, track_dz_, track_dxy_, track_dzErr_, track_dxyErr_;
         int source_det_, source_layer_;
-        int detid_, hitFound_, hitOnTrack_, detIsActive_, maybeBadROC_, trackHasHit_, trackHasLostHit_, hitInRandomWindow_;
+        int detid_, roc_, hitFound_, hitOnTrack_, detIsActive_, maybeBadROC_, trackHasHit_, trackHasLostHit_, hitInRandomWindow_;
         float track_global_phi_, track_global_z_, track_local_x_, track_local_y_, track_exp_sizeX_, track_exp_sizeY_, track_exp_charge_;
         float hit_global_phi_, hit_global_z_, hit_local_x_, hit_local_y_, hit_sizeX_, hit_sizeY_, hit_firstpixel_x_, hit_firstpixel_y_, hit_chi2_, hit_charge_, hitInRandomWindowDistance_;
 
@@ -113,7 +114,6 @@ DebugPixelHits::DebugPixelHits(const edm::ParameterSet& iConfig):
     tree_->Branch("bx", &bx_, "bx/i");
     tree_->Branch("instLumi", &instLumi_, "instLumi/i");
     tree_->Branch("npv", &npv_, "npv/i");
-    tree_->Branch("detid", &detid_, "detid/F");
     tree_->Branch("pair_mass", &pair_mass_, "pair_mass/F");
     tree_->Branch("track_pt", &track_pt_, "track_pt/F");
     tree_->Branch("track_eta", &track_eta_, "track_eta/F");
@@ -136,7 +136,19 @@ DebugPixelHits::DebugPixelHits(const edm::ParameterSet& iConfig):
     tree_->Branch("hit_chi2", &hit_chi2_, "hit_chi2/F");
     tree_->Branch("hit_charge", &hit_charge_, "hit_charge/F");
 
+    tree_->Branch("pv_ndof", &pv_ndof_, "pv_ndof/F");
+    tree_->Branch("pv_z0", &pv_z0_, "pv_z0/F");
+    tree_->Branch("tag_dz", &tag_dz_, "tag_dz/F");
+    tree_->Branch("tag_dxy", &tag_dxy_, "tag_dxy/F");
+    tree_->Branch("pv_xyErr", &pv_xyErr_, "pv_xyErr/F");
+    tree_->Branch("pv_zErr", &pv_zErr_, "pv_zErr/F");
+    tree_->Branch("track_dz", &track_dz_, "track_dz/F");
+    tree_->Branch("track_dxy", &track_dxy_, "track_dxy/F");
+    tree_->Branch("track_dzErr", &track_dzErr_, "track_dzErr/F");
+    tree_->Branch("track_dxyErr", &track_dxyErr_, "track_dxyErr/F");
+
     tree_->Branch("detid", &detid_, "detid/I");
+    tree_->Branch("roc", &roc_, "roc/I");
     tree_->Branch("source_det", &source_det_, "source_det/I");
     tree_->Branch("source_layer", &source_layer_, "source_layer/I");
     tree_->Branch("hitFound", &hitFound_, "hitFound/I");
@@ -194,12 +206,30 @@ DebugPixelHits::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
     std::vector<int> badROCs;
     for (const reco::Candidate & pair : *pairs) {
         pair_mass_ = pair.mass();
+        const reco::Muon &tag = dynamic_cast<const reco::Muon &>(*pair.daughter(0)->masterClone());
+        if (tag.innerTrack().isNull()) continue;
         const reco::Muon &mu = dynamic_cast<const reco::Muon &>(*pair.daughter(1)->masterClone());
         if (mu.innerTrack().isNull()) continue;
+        const reco::Vertex *bestPV = &vertices->front();
+        float bestDZ = std::abs(tag.innerTrack()->dz(bestPV->position()));
+        for (const reco::Vertex &pv : *vertices) {
+            float thisDZ = std::abs(tag.innerTrack()->dz(pv.position()));
+            if (thisDZ < bestDZ) { bestDZ = thisDZ; bestPV = &pv; }
+        }
+        pv_ndof_ = bestPV->ndof();
+        pv_z0_ = bestPV->z();
+        pv_xyErr_ = std::hypot(bestPV->xError(), bestPV->yError());
+        pv_zErr_ = bestPV->zError();
+        tag_dz_ = tag.innerTrack()->dz(bestPV->position());
+        tag_dxy_ = tag.innerTrack()->dxy(bestPV->position());
         const reco::Track & mutk = *mu.innerTrack();
         track_pt_ = mutk.pt();
         track_eta_ = mutk.eta();
         track_phi_ = mutk.phi();
+        track_dz_ = mutk.dz(bestPV->position());
+        track_dxy_ = mutk.dxy(bestPV->position());
+        track_dzErr_ = mutk.dzError();
+        track_dxyErr_ = mutk.dxyError();
         trackHasHit_ = mutk.hitPattern().hasValidHitInPixelLayer(PixelSubdetector::SubDetector::PixelBarrel, 1);
         trackHasLostHit_ = mutk.hitPattern().numberOfLostPixelBarrelHits(reco::HitPattern::MISSING_INNER_HITS);
         bool PXB1Valid =  mutk.hitPattern().hasValidHitInPixelLayer(PixelSubdetector::SubDetector::PixelBarrel, 1);
@@ -267,6 +297,7 @@ DebugPixelHits::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
             track_global_z_   = detAndState.second.globalPosition().z();
             track_local_x_ = tkpos.x();
             track_local_y_ = tkpos.y();
+            roc_ = (tkpos.x() > 0)*8 + std::min(std::max<int>(0,std::floor(tkpos.y()+3.24)),7);
             track_exp_sizeX_ = 1.5f;
             track_exp_sizeY_ = std::max<float>(1.f, std::hypot(1.3f, 1.9f*mutk.pz()/mutk.pt()));
             track_exp_charge_ = std::sqrt(1.08f + std::pow(mutk.pz()/mutk.pt(),2)) * 26000;
@@ -333,6 +364,11 @@ DebugPixelHits::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
                                     hitpos.x()-tkpos.x(), std::sqrt(hiterr.xx()+tkerr.xx()), hitpos.y()-tkpos.y(), std::sqrt(hiterr.yy()+tkerr.yy()), hitAndChi2.first,
                                     (hitOnTrack_ ? 'Y' : 'n'));
                 if (debug_) printf(" size: %3d (%2d x %2d), raw charge %8d   corr charge %8.1f\n", clustref->size(), clustref->sizeX(), clustref->sizeY(), clustref->charge(), clustref->charge()*chargeCorr);
+                if (debug_) {
+                    for (const auto &P : clustref->pixels()) {
+                        printf("      pixel at x = %3d y = %3d \n", P.x, P.y);
+                    }
+                }
             }
             if (!found) {
                 hitFound_ = false;

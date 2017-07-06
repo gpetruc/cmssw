@@ -78,7 +78,7 @@ process.clusterInfo = cms.EDAnalyzer("DebugPixelHits",
         TrackerRecHitBuilder = cms.string('WithAngleAndTemplate'),
         Smoother = cms.string('KFSmootherForRefitInsideOut'),
         MuonRecHitBuilder = cms.string('MuonRecHitBuilder'),
-        RefitDirection = cms.string('alongMomentum'),
+        RefitDirection = cms.string('oppositeToMomentum'),
         RefitRPCHits = cms.bool(True),
         Propagator = cms.string('SmartPropagatorAnyRKOpposite'),
         #Propagators
@@ -89,6 +89,7 @@ process.clusterInfo = cms.EDAnalyzer("DebugPixelHits",
         #SiPixelQuality = cms.string(''),
         badComponentsFile = cms.string('/afs/cern.ch/work/g/gpetrucc/Tracking/CMSSW_9_2_3_patch2/src/RecoTracker/DebugTools/test/badComponents.txt'),
         ## https://github.com/cms-sw/cmssw/blob/9b7f92a91b55fe1bf3e38435a6afd5b97dea4c9f/RecoLocalTracker/SubCollectionProducers/src/JetCoreClusterSplitter.cc#L139-L153
+        debug = cms.untracked.int32(100)
 )
 
 process.tagAndProbe = cms.Path( 
@@ -113,3 +114,17 @@ process.out = cms.OutputModule("PoolOutputModule",
 # this below probably not needed
 process.TFileService = cms.Service("TFileService", fileName = cms.string("debugHits.root"))
 
+if False:
+    del process.clusterInfo.badComponentsFile
+    process.TFileService = cms.Service("TFileService", fileName = cms.string("debugHits_MC.root"))
+    process.GlobalTag = GlobalTag(process.GlobalTag, '92X_upgrade2017_realistic_v2', '')
+    process.source.fileNames = [
+        '/store/relval/CMSSW_9_2_3/RelValZMM_13/GEN-SIM-RECO/PUpmx25ns_92X_upgrade2017_realistic_v2_earlyBS2017-v1/10000/1A171A5A-4D51-E711-B321-0025905A6084.root',
+        '/store/relval/CMSSW_9_2_3/RelValZMM_13/GEN-SIM-RECO/PUpmx25ns_92X_upgrade2017_realistic_v2_earlyBS2017-v1/10000/5EA8A130-5151-E711-B44C-0025905A6138.root',
+        '/store/relval/CMSSW_9_2_3/RelValZMM_13/GEN-SIM-RECO/PUpmx25ns_92X_upgrade2017_realistic_v2_earlyBS2017-v1/10000/7A7BDC00-4D51-E711-B8D2-0CC47A4D7602.root',
+        '/store/relval/CMSSW_9_2_3/RelValZMM_13/GEN-SIM-RECO/PUpmx25ns_92X_upgrade2017_realistic_v2_earlyBS2017-v1/10000/8AD53130-4F51-E711-A9FC-0025905A6138.root',
+        '/store/relval/CMSSW_9_2_3/RelValZMM_13/GEN-SIM-RECO/PUpmx25ns_92X_upgrade2017_realistic_v2_earlyBS2017-v1/10000/A460431D-4C51-E711-96AA-0CC47A7452DA.root',
+        '/store/relval/CMSSW_9_2_3/RelValZMM_13/GEN-SIM-RECO/PUpmx25ns_92X_upgrade2017_realistic_v2_earlyBS2017-v1/10000/AEFA23A6-4851-E711-B314-003048FFD772.root',
+        '/store/relval/CMSSW_9_2_3/RelValZMM_13/GEN-SIM-RECO/PUpmx25ns_92X_upgrade2017_realistic_v2_earlyBS2017-v1/10000/C2F6268C-4F51-E711-A9E5-0CC47A7C3572.root',
+        '/store/relval/CMSSW_9_2_3/RelValZMM_13/GEN-SIM-RECO/PUpmx25ns_92X_upgrade2017_realistic_v2_earlyBS2017-v1/10000/FC2154C1-5051-E711-ABCA-0CC47A4C8F08.root',
+    ]
