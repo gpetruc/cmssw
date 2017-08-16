@@ -244,6 +244,7 @@ void  CustomParticleFactory::getMassTable(std::ifstream *configFile) {
       << ", CustomPDGParser::s_isRHadron(pdgId) = " << CustomPDGParser::s_isRHadron(pdgId)    
       << ", CustomPDGParser::s_isstopHadron(pdgId) = " << CustomPDGParser::s_isstopHadron(pdgId); 
     
+    bool addedAnti = false;
     if (aParticle && 
 	!CustomPDGParser::s_isRHadron(pdgId)    && 
 	!CustomPDGParser::s_isstopHadron(pdgId) && 
@@ -271,12 +272,13 @@ void  CustomParticleFactory::getMassTable(std::ifstream *configFile) {
 	  << -pdgId << ", mass " << mass << ", name " << tmp; 
 	addCustomParticle(-pdgId, mass, tmp);
 	theParticleTable->FindParticle(pdgId)->SetAntiPDGEncoding(-pdgId);
+ 	addedAnti = true;
       }
       else theParticleTable->FindParticle(pdgId)->SetAntiPDGEncoding(pdgId);      
     }
     
     if(pdgId==1000039) theParticleTable->FindParticle(pdgId)->SetAntiPDGEncoding(pdgId); // gravitino     
-    if(pdgId==1000024 || pdgId==1000037 || pdgId==37) {   
+    if((pdgId==1000024 || pdgId==1000037 || pdgId==37) && !addedAnti) {   
       tmp = "anti_"+name;
       edm::LogInfo("SimG4CoreCustomPhysics") 
 	<<"CustomParticleFactory: Calling addCustomParticle for antiparticle (2) with pdgId: " 

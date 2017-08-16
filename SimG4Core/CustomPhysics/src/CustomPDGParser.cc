@@ -77,7 +77,7 @@ bool CustomPDGParser::s_isSbaryon(int pdg)
 bool CustomPDGParser::s_isChargino( int pdg )
 {
   int pdgAbs = abs(pdg);
-  return (pdgAbs == 1000024);  
+  return (pdgAbs == 1000024) || (pdgAbs == 1000037);  
 }
 
 
