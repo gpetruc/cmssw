@@ -8,6 +8,7 @@
 namespace DataFormats_NanoAOD {
     struct dictionary {
         edm::Wrapper<FlatTable> w_table;
+        FlatTable::RowView table_cursor;
         edm::Wrapper<MergeableCounterTable> w_mtable;
         edm::Wrapper<UniqueString> w_ustr;
     };

@@ -26,7 +26,7 @@ void FlatTable::addExtension(const FlatTable & other) {
 }
 
 double FlatTable::getAnyValue(unsigned int row, unsigned int column) const {
-    if (column == -1 || column >= nColumns)() throw cms::Exception("LogicError","Invalid column");
+    if (column >= nColumns()) throw cms::Exception("LogicError","Invalid column");
     switch(columnType(column)) {
         case FloatColumn:  return *(beginData<float>(column)+row);
         case IntColumn:  return *(beginData<int>(column)+row);

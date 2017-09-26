@@ -6,6 +6,8 @@
     <class name="FlatTable" ClassVersion="3">
         <version ClassVersion="3" checksum="3559888950"/>
     </class>
+    <class name="FlatTable::RowView" transient="true" />
+
     <class name="edm::Wrapper<FlatTable>" />
 
     <class name="MergeableCounterTable::FloatColumn" ClassVersion="3">
