@@ -51,6 +51,7 @@ class MatrixReader(object):
                              'relval_2023':'2023-',
                              'relval_identity':'id-',
                              'relval_machine': 'mach-',
+                             'relval_nanoaod': 'nano-',
                              'relval_unsch': 'unsch-',
                              'relval_premix': 'premix-'
                              }
@@ -67,6 +68,7 @@ class MatrixReader(object):
                       'relval_2023',
                       'relval_identity',
                       'relval_machine',
+                      'relval_nanoaod',
                       'relval_unsch',
                       'relval_premix'
                       ]
@@ -82,6 +84,7 @@ class MatrixReader(object):
                              'relval_2023':True,
                              'relval_identity':False,
                              'relval_machine':True,
+                             'relval_nanoaod':False,
                              'relval_unsch':True,
                              'relval_premix':True
                              }

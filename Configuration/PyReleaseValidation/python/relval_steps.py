@@ -1939,6 +1939,41 @@ steps['DBLMINIAODMCUP15NODQM'] = merge([{'--conditions':'auto:run2_mc',
                                    '--datatier' : 'MINIAODSIM',
                                    '--eventcontent':'MINIAOD',},stepMiniAODMC])
 
+
+stepNanoAODDefaults = { '-s': 'NANO', '--datatier': 'NANO', '-n': 1000 }
+stepNanoAODData = merge([{ '--data':'', '--eventcontent' : 'NANOAOD'    }, stepNanoAODDefaults ])
+stepNanoAODMC   = merge([{ '--mc':''  , '--eventcontent' : 'NANOAODSIM' }, stepNanoAODDefaults ])
+
+steps['NANOAOD2016']   = merge([{'--conditions': 'auto:run2_data_relval', '--era': 'Run2_2016'}, stepNanoAODData ])
+steps['NANOAOD2017']   = merge([{'--conditions': 'auto:run2_data_relval', '--era': 'Run2_2017'}, stepNanoAODData ])
+
+steps['NANOAOD2016_80X'] = merge([{'--era': 'Run2_2016,run2_miniAOD_80XLegacy'}, steps['NANOAOD2016'] ])
+steps['NANOAOD2017_92X'] = merge([{'--era': 'Run2_2017,run2_nanoAOD_92X'},       steps['NANOAOD2017'] ])
+
+steps['NANOAODMC2016'] = merge([{'--conditions': 'auto:run2_mc',               '--era': 'Run2_2016'}, stepNanoAODMC ])
+steps['NANOAODMC2017'] = merge([{'--conditions': 'auto:phase1_2017_realistic', '--era': 'Run2_2017'}, stepNanoAODMC ])
+
+steps['NANOAODMC2016_80X'] = merge([{'--era': 'Run2_2016,run2_miniAOD_80XLegacy'}, steps['NANOAODMC2016'] ])
+steps['NANOAODMC2017_92X'] = merge([{'--era': 'Run2_2017,run2_nanoAOD_92X'},       steps['NANOAODMC2017'] ])
+
+## INPUTS FOR NANOAOD FROM MC
+steps['TT_2016_80X_NANO_INPUT'] = { 'INPUT':InputInfo(dataSet='/TT_TuneCUETP8M2T4_13TeV-powheg-pythia8/RunIISummer16MiniAODv2-PUMoriond17_80X_mcRun2_asymptotic_2016_TrancheIV_v6-v1/MINIAODSIM',location='STD') }
+steps['TT_2017_92X_NANO_INPUT'] = { 'INPUT':InputInfo(dataSet='/TT_TuneCUETP8M2T4_13TeV-powheg-pythia8/RunIISummer17MiniAOD-92X_upgrade2017_realistic_v10_ext1-v2/MINIAODSIM',location='STD') }
+steps['TT_2017_94X_NANO_INPUT'] = { 'INPUT':InputInfo(dataSet='/RelValTTbar_13/CMSSW_9_4_0_pre1-PU25ns_93X_mc2017_realistic_v3-v1/MINIAODSIM',location='STD') }
+
+## INPUTS FOR NANOAOD FROM DATA (2017)
+Run2017C_R299649={'299649':[[155,180]]}
+steps['RunJetHT2017C_R299649_NANO_INPUT']={'INPUT':InputInfo(dataSet='/JetHT/Run2017C-PromptReco-v1/MINIAOD',label='jetHT2017C_R299649',events=100000,location='STD', ls=Run2017C_R299649)}
+steps['RunMET2017C_R299649_NANO_INPUT']={'INPUT':InputInfo(dataSet='/MET/Run2017C-PromptReco-v1/MINIAOD',label='met2017C_R299649',events=100000,location='STD', ls=Run2017C_R299649)}
+steps['RunSingleEl2017C_R299649_NANO_INPUT']={'INPUT':InputInfo(dataSet='/SingleElectron/Run2017C-PromptReco-v1/MINIAOD',label='sigEl2017C_R299649',events=100000,location='STD', ls=Run2017C_R299649)}
+steps['RunSingleMu2017C_R299649_NANO_INPUT']={'INPUT':InputInfo(dataSet='/SingleMuon/Run2017C-PromptReco-v1/MINIAOD',label='sigMu2017C_R299649',events=100000,location='STD', ls=Run2017C_R299649)}
+
+## INPUTS FOR NANOAOD FROM DATA (2016)
+steps['RunSingleEl2016H_NANO_INPUT']={'INPUT':InputInfo(dataSet='/SingleElectron/Run2016H-03Feb2017_ver2-v1/MINIAOD',label='sigEl2016H',events=100000,location='STD', ls=Run2016H)}
+steps['RunSingleMu2016H_NANO_INPUT']={'INPUT':InputInfo(dataSet='/SingleMuon/Run2016H-03Feb2017_ver2-v1/MINIAOD',label='sigMu2016H',events=100000,location='STD', ls=Run2016H)}
+steps['RunJetHT2016H_NANO_INPUT']={'INPUT':InputInfo(dataSet='/JetHT/Run2016H-03Feb2017_ver2-v1/MINIAOD',label='jetHT2016H',events=100000,location='STD', ls=Run2016H)}
+steps['RunMET2016H_NANO_INPUT']={'INPUT':InputInfo(dataSet='/MET/Run2016H-03Feb2017_ver2-v1/MINIAOD',label='met2016H',events=100000,location='STD', ls=Run2016H)}
+
 #################################################################################
 ####From this line till the end of the file :
 ####UPGRADE WORKFLOWS IN PREPARATION - Gaelle's sandbox -
