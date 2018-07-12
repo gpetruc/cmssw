@@ -11,6 +11,8 @@
 #include "DataFormats/EgammaReco/interface/ElectronSeed.h"
 #include "RecoParticleFlow/PFProducer/interface/PFBlockElementSCEqual.h"
 
+#include "RecoEgamma/EgammaIsolationAlgos/interface/EgammaHadTower.h"
+
 class GSFTrackImporter : public BlockElementImporterBase {
 public:
   GSFTrackImporter(const edm::ParameterSet& conf,
@@ -20,17 +22,25 @@ public:
     _isSecondary(conf.getParameter<bool>("gsfsAreSecondary")),
     _superClustersArePF(conf.getParameter<bool>("superClustersArePF")){}
   
+  void updateEventSetup( const edm::EventSetup& es ) override;
+  
   void importToBlock( const edm::Event& ,
 		      ElementList& ) const override;
 
 private:
   edm::EDGetTokenT<reco::GsfPFRecTrackCollection> _src;
   const bool _isSecondary, _superClustersArePF;
+  std::unique_ptr<EgammaHadTower> _hadTower;
 };
 
 DEFINE_EDM_PLUGIN(BlockElementImporterFactory, 
 		  GSFTrackImporter, 
 		  "GSFTrackImporter");
+
+void GSFTrackImporter::
+updateEventSetup(const edm::EventSetup& es) {
+  _hadTower.reset(new EgammaHadTower(es,EgammaHadTower::SingleTower));
+}
 
 void GSFTrackImporter::
 importToBlock( const edm::Event& e, 
@@ -73,6 +83,7 @@ importToBlock( const edm::Event& e,
 	      new reco::PFBlockElementSuperCluster(scref);
 	    scbe->setFromGsfElectron(true);
 	    scbe->setFromPFSuperCluster(_superClustersArePF);
+	    scbe->setHcalStatus(_hadTower->hasActiveHcal(*scref));
 	    SCs_end = elems.insert(SCs_end,ElementType(scbe));
 	    ++SCs_end; // point to element *after* the new one
 	  }

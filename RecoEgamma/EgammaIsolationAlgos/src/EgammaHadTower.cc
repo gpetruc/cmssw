@@ -112,41 +112,32 @@ double EgammaHadTower::getDepth2HcalESum(const std::vector<CaloTowerDetId> & tow
 
 bool EgammaHadTower::hasActiveHcal( const std::vector<CaloTowerDetId> & towers ) const {
   bool active = false;
-  std::cout << "DEBUG: hasActiveHcal called with " << towers.size() << " detids. First tower detid ieta " << towers.front().ieta() << " iphi " << towers.front().iphi() << std::endl;
-
-  CaloTowerCollection::const_iterator trItr = towerCollection_->begin();
-  CaloTowerCollection::const_iterator trItrEnd = towerCollection_->end();
-  unsigned int ngood = 0, nbad = 0;
   int statusMask = ((1<<HcalChannelStatus::HcalCellOff) | (1<<HcalChannelStatus::HcalCellMask) | (1<<HcalChannelStatus::HcalCellDead));
-
-  for( ;  trItr != trItrEnd ; ++trItr){
-      std::vector<CaloTowerDetId>::const_iterator itcheck = find(towers.begin(), towers.end(), trItr->id());
-      if( itcheck != towers.end() ) {
-          std::cout << "  found CaloTower ieta " << trItr->ieta() << " iphi " << trItr->iphi() << " H = " << trItr->hadEnergy() << ", bad hcal " << trItr->numBadHcalCells() << "/" << trItr->numProblematicHcalCells() << ", constituents: " << trItr->constituentsSize() << std::endl;
-          for (DetId id : trItr->constituents()) {
-              if (id.det() != DetId::Hcal) {
-                  std::cout << "      skip constituent on det " << id.det() << std::endl;
-              }
-              HcalDetId hid(id);
-              std::cout << "      hcal constituent on subdet " << hid.subdet() << ", ieta " << hid.ieta() << " iphi " << hid.iphi() << ", depth " << hid.depth() << std::endl;
-              if (hid.subdet() != HcalBarrel && hid.subdet() != HcalEndcap) continue; 
-              int status = hcalQuality_->getValues(id)->getValue();
-              if (status & statusMask) {
-                  std::cout << "          BAD!" << std::endl;
-                  nbad++; 
-              } else {
-                  ngood++;
-              }
+  //std::cout << "DEBUG: hasActiveHcal called with " << towers.size() << " detids. First tower detid ieta " << towers.front().ieta() << " iphi " << towers.front().iphi() << std::endl;
+  for (auto towerid : towers) {
+      unsigned int ngood = 0, nbad = 0;
+      for (DetId id : towerMap_->constituentsOf(towerid)) {
+          if (id.det() != DetId::Hcal) {
+              //std::cout << "      skip constituent on det " << id.det() << std::endl;
+              continue;
           }
-          std::cout << "    overall ngood " << ngood << " nbad " << nbad << std::endl;
-          if (nbad == 0 || (ngood > 0 && nbad < ngood)) {
-              active = true;
+          HcalDetId hid(id);
+          //std::cout << "      hcal constituent on subdet " << hid.subdet() << ", ieta " << hid.ieta() << " iphi " << hid.iphi() << ", depth " << hid.depth() << std::endl;
+          if (hid.subdet() != HcalBarrel && hid.subdet() != HcalEndcap) continue; 
+          int status = hcalQuality_->getValues(id)->getValue();
+          if (status & statusMask) {
+              //std::cout << "          BAD!" << std::endl;
+              nbad++; 
+          } else {
+              ngood++;
           }
       }
+      //std::cout << "    overall ngood " << ngood << " nbad " << nbad << std::endl;
+      if (nbad == 0 || (ngood > 0 && nbad < ngood)) {
+          active = true;
+      }
   }
-
   return active;
-    
 }
 
 double EgammaHadTower::getDepth1HcalESum( const reco::SuperCluster& sc ) const {

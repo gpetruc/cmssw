@@ -992,7 +992,7 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
     //}
     //--- option (2) --
     bool hasDeadHcal = false;
-    if (!hcalElems.empty() && deadArea[hcalElems.front().second]) {
+    if (!hcalElems.empty() && deadArea[hcalElems.begin()->second]) {
         hasDeadHcal = true;
         hcalElems.clear();
     }
@@ -1567,7 +1567,7 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 	}
       }
 
-    }
+    } // end if( hcalElems.empty() )
 
 
     // In case several HCAL elements are linked to this track, 
