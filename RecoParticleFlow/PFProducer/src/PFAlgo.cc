@@ -632,8 +632,8 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
   if(useEGammaFilters_) {
 
     // const edm::ValueMap<reco::GsfElectronRef> & myGedElectronValMap(*valueMapGedElectrons_);
-    bool egmLocalDebug = false;
-    bool egmLocalBlockDebug = false;
+    bool egmLocalDebug = debug_;
+    bool egmLocalBlockDebug = debug_;
 
     unsigned int negmcandidates = pfEgammaCandidates_->size();
     for(unsigned int ieg=0 ; ieg <  negmcandidates; ++ieg) {
@@ -666,7 +666,11 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 		cout << "** Good Electron, pt " << gedEleRef->pt()
 		     << " eta, phi " << gedEleRef->eta() << ", " << gedEleRef->phi() 
 		     << " charge " << gedEleRef->charge() 
-		     << " isPrimary " << isPrimaryElectron  << endl;
+		     << " isPrimary " << isPrimaryElectron
+                     << " isoDr03 " << (gedEleRef->dr03TkSumPt() + gedEleRef->dr03EcalRecHitSumEt() + gedEleRef->dr03HcalTowerSumEt()) 
+                     << " mva_isolated " << gedEleRef->mva_Isolated() 
+                     << " mva_e_pi " << gedEleRef->mva_e_pi() 
+                     << endl;
 	    }
 
 	   
@@ -910,6 +914,13 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
     // we're now dealing with a track
     unsigned iTrack = iEle;
     reco::MuonRef muonRef = elements[iTrack].muonRef();    
+    if (debug_ && muonRef.isNonnull()) {
+        cout << "track " << iTrack << " has a valid muon reference. " << std::endl;
+        cout << "   - isMuon: " << PFMuonAlgo::isMuon(muonRef) << endl; 
+        cout << "   - isGlobalTightMuon: " << PFMuonAlgo::isGlobalTightMuon(muonRef) << endl; 
+        cout << "   - isTrackerTightMuon: " << PFMuonAlgo::isTrackerTightMuon(muonRef) << endl; 
+        cout << "   - isIsolatedMuon: " << PFMuonAlgo::isIsolatedMuon(muonRef) << endl; 
+    }
 
     //Check if the track is a primary track of a secondary interaction
     //If that is the case reconstruct a charged hadron noly using that
@@ -1004,12 +1015,12 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 				sortedTracks,
 				reco::PFBlockElement::TRACK,
 				reco::PFBlock::LINKTEST_ALL );
-      // std::cout << "The ECAL is linked to " << sortedTracks.size() << std::endl;
+      if (debug_ ) std::cout << "The closest ECAL cluster is linked to " << sortedTracks.size() << " tracks " << std::endl;
 
       // Loop over all tracks
       for(IE ie = sortedTracks.begin(); ie != sortedTracks.end(); ++ie ) {
 	unsigned jTrack = ie->second;
-	// std::cout << "Track " << jTrack << std::endl;
+	//std::cout << "Track " << jTrack << std::endl;
 	// Track must be active
 	if ( !active[jTrack] ) continue;
 	//std::cout << "Active " << std::endl;
@@ -1026,7 +1037,7 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 				  reco::PFBlockElement::ECAL,
 				  reco::PFBlock::LINKTEST_ALL );
 	if ( sortedECAL.begin()->second != index ) continue;
-	//std::cout << "With closest ECAL identical " << std::endl;
+	if (debug_ ) std::cout << "  track " << jTrack << " with closest ECAL identical " << std::endl;
 
 	
 	// Check if this track is also linked to an HCAL 
@@ -1036,7 +1047,7 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 				  reco::PFBlockElement::HCAL,
 				  reco::PFBlock::LINKTEST_ALL );
 	if ( sortedHCAL.empty() ) continue;
-	//std::cout << "With an HCAL cluster " << sortedHCAL.begin()->first << std::endl;
+	if (debug_ ) std::cout << "  and with an HCAL cluster " << sortedHCAL.begin()->second << std::endl;
 	ntt++;
 	
 	// In that case establish a link with the first track 
@@ -1246,6 +1257,7 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 				sortedTracks,
 				reco::PFBlockElement::TRACK,
 				reco::PFBlock::LINKTEST_ALL );
+      if (debug_) cout << "the closest ECAL cluster has " << sortedTracks.size() << " associated tracks, now processing them. " << std::endl;
     
       for(IE ie = sortedTracks.begin(); ie != sortedTracks.end(); ++ie ) {
 	unsigned jTrack = ie->second;
@@ -1271,6 +1283,9 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 
 	// Check if this track is a muon
 	bool thatIsAMuon = PFMuonAlgo::isMuon(elements[jTrack]);
+        if (debug_) { 
+            cout << " found track " << jTrack << (thatIsAMuon ? " (muon) " : " (non-muon)") << std::endl;
+        }
 
 
 	// Check if this track is not a fake
@@ -1290,6 +1305,9 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 	    if ( debug_ )  
 	      std::cout << elements[jTrack] << std::endl
 			<< "is probably a fake (2) --> lock the track" 
+                        << "(trackMomentum = " << trackMomentum << ", clusterEnergy = " << clusterRef->energy() <<
+                                ", deficit = " << deficit << " > " << nSigmaTRACK_ << " x " << resol <<
+                                " assuming neutralHadronEnergyResolution " << neutralHadronEnergyResolution(trackMomentum+trackRef->p(), clusterRef->positionREP().Eta()) << ") " 
 			<< std::endl; 
 	  }
 	}
@@ -2310,7 +2328,7 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 	Caloresolution = std::sqrt(Caloresolution*Caloresolution + muonHCALError + muonECALError);
       }
     }
-    /*    
+          
     if(debug_){
       cout<<"\tBefore Cleaning "<<endl;
       cout<<"\tCompare Calo Energy to total charged momentum "<<endl;
@@ -2319,10 +2337,10 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
       cout<<"\t\tsum hcal = "<<totalHcal<<endl;
       cout<<"\t\t => Calo Energy = "<<caloEnergy<<" +- "<<Caloresolution<<endl;
       cout<<"\t\t => Calo Energy- total charged momentum = "
-	  <<caloEnergy-totalChargedMomentum<<" +- "<<TotalError<<endl;
+	  <<caloEnergy-totalChargedMomentum<<" +- "<<sqrt(sumpError2 + Caloresolution*Caloresolution)<<endl;
       cout<<endl;
     }
-    */
+      
 
     // Second consider bad tracks (if still needed after muon removal)
     unsigned corrTrack = 10000000;
@@ -2605,7 +2623,7 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
           cout<<"\t\tno track -> hadron "<<endl;
         else 
           cout<<"\t\t"<<sortedTracks.size()
-              <<"tracks -> check if the excess is photonic or hadronic"<<endl;
+              <<" tracks -> check if the excess is photonic or hadronic"<<endl;
       }
         
 
@@ -3172,6 +3190,9 @@ unsigned PFAlgo::reconstructTrack( const reco::PFBlockElement& elt, bool allowLo
   double py = track.py();
   double pz = track.pz();
   double energy = sqrt(track.p()*track.p() + 0.13957*0.13957);
+
+  if (debug_) cout << "Reconstructing PF candidate from track of pT = " << track.pt() << " eta = " << track.eta() << " phi = " << track.phi() << " px = " << px << " py = " << py << " pz = " << pz << " energy = " << energy << endl; 
+ 
 
   // Create a PF Candidate
   ::math::XYZTLorentzVector momentum(px,py,pz,energy);
