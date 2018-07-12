@@ -850,7 +850,8 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 
   vector<unsigned> hfEmIs;
   vector<unsigned> hfHadIs;
-  
+
+  vector<bool> deadArea(elements.size(), false);
 
   for(unsigned iEle=0; iEle<elements.size(); iEle++) {
     PFBlockElement::Type type = elements[iEle].type();
@@ -872,6 +873,12 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
       continue;
     case PFBlockElement::HCAL:
       if ( active[iEle] ) { 
+        if (elements[iEle].clusterRef()->flags() == 0xDEAD) {
+	  if(debug_) cout<<"HCAL DEAD AREA: remember and skip."<<endl;
+          active[iEle] = false;
+          deadArea[iEle] = true;
+          continue;
+        }
 	hcalIs.push_back( iEle );
 	if(debug_) cout<<"HCAL, stored index, continue"<<endl;
       }
@@ -951,10 +958,44 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
                               reco::PFBlockElement::HCAL,
                               reco::PFBlock::LINKTEST_ALL );
 
+    if (debug_ ) {
+        std::cout << "\tTrack " << iTrack << " is linked to " << ecalElems.size() << " ecal and " << hcalElems.size() << " hcal elements" << std::endl;
+        for (const auto & pair : ecalElems) {
+            std::cout << "ecal: dist " << pair.first << "\t elem " << pair.second << std::endl;
+            
+        }
+        for (const auto & pair : hcalElems) {
+            std::cout << "hcal: dist " << pair.first << "\t elem " << pair.second << (deadArea[pair.second] ? "  DEAD AREA MARKER" : "") <<  std::endl;
+        }
+    }
+    // there's 3 possible options possible here, in principle:
+    //    1) flag everything that may be associated to a dead hcal marker
+    //    2) flag everything whose closest hcal link is a dead hcal marker
+    //    3) flag only things that are linked only to dead hcal marker
+    // in our first test we go for (2)
+    //--- option (1) --
+    //bool hasDeadHcal = false;
+    //for (auto it = hcalElems.begin(), ed = hcalElems.end(); it != ed; /*NOTE NO ++it HERE */ ) {
+    //    if (deadArea[it->second]) { hasDeadHcal = true; it = hcalElems.erase(it); } // std::multimap::erase returns iterator to next
+    //    else ++it;
+    //}
+    //--- option (2) --
+    bool hasDeadHcal = false;
+    if (!hcalElems.empty() && deadArea[hcalElems.front().second]) {
+        hasDeadHcal = true;
+        hcalElems.clear();
+    }
+    //--- option (3) --
+    //bool hasDeadHcal = true;
+    //for (auto it = hcalElems.begin(), ed = hcalElems.end(); it != ed; /*NOTE NO ++it HERE */ ) {
+    //    if (deadArea[it->second]) { it = hcalElems.erase(it); } // std::multimap::erase returns iterator to next
+    //    else { hasDeadHcal = false; }
+    //}
+
     // When a track has no HCAL cluster linked, but another track is linked to the same
     // ECAL cluster and an HCAL cluster, link the track to the HCAL cluster for 
     // later analysis
-    if ( hcalElems.empty() && !ecalElems.empty() ) {
+    if ( hcalElems.empty() && !ecalElems.empty() && !hasDeadHcal) {
       // debug_ = true;
       unsigned ntt = 1;
       unsigned index = ecalElems.begin()->second;
@@ -1078,7 +1119,7 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
     if( hcalElems.empty() ) {
       
       if ( debug_ ) 
-	std::cout << "Now deals with tracks linked to no HCAL clusters" << std::endl; 
+	std::cout << "Now deals with tracks linked to no HCAL clusters. Was HCal active? " << (!hasDeadHcal) << std::endl; 
       // vector<unsigned> elementIndices;
       // elementIndices.push_back(iTrack); 
 
@@ -1097,6 +1138,7 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
       //Michalis: I wonder if we should convert this to dpt/pt?
       bool rejectFake = false;
       if ( !thisIsAMuon  && elements[iTrack].trackRef()->ptError() > ptError_ ) { 
+        // GP: FIXME this selection should be adapted depending on hasDeadHcal
 
 	double deficit = trackMomentum; 
 	double resol = neutralHadronEnergyResolution(trackMomentum,
@@ -1138,6 +1180,7 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
       if ( rejectTracks_Step45_ && ecalElems.empty() && 
 	   trackMomentum > 30. && Dpt > 0.5 && 
 	   ( PFTrackAlgoTools::step45(trackRef->algo())) ) {  
+        // GP: FIXME this selection should be adapted depending on hasDeadHcal
 
 	double dptRel = Dpt/trackRef->pt()*100;
 	bool isPrimaryOrSecondary = isFromSecInt(elements[iTrack], "all");
@@ -1216,6 +1259,9 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 	// Check if the ECAL cluster closest to this track is 
 	// indeed the current ECAL cluster. Only tracks not 
 	// linked to an HCAL cluster are considered here
+        // (GP: this is because if there's a jTrack linked 
+        // to the same Ecal cluster and that also has an Hcal link
+        // we would have also linked iTrack to that Hcal above)
 	std::multimap<double, unsigned> sortedECAL;
 	block.associatedElements( jTrack,  linkData,
 				  sortedECAL,
@@ -1231,6 +1277,8 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 	bool rejectFake = false;
 	reco::TrackRef trackRef = elements[jTrack].trackRef();
 	if ( !thatIsAMuon && trackRef->ptError() > ptError_) { 
+          // GP: FIXME this selection should be adapted depending on hasDeadHcal
+          //     note that we don't know if jTrack is linked to a dead Hcal or not
 	  double deficit = trackMomentum + trackRef->p() - clusterRef->energy();
 	  double resol = nSigmaTRACK_*neutralHadronEnergyResolution(trackMomentum+trackRef->p(),
 								    clusterRef->positionREP().Eta());
