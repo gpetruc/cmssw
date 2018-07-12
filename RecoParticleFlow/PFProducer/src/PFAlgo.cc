@@ -15,6 +15,7 @@
 #include "DataFormats/ParticleFlowReco/interface/PFBlock.h"
 #include "DataFormats/ParticleFlowReco/interface/PFBlockElementTrack.h"
 #include "DataFormats/ParticleFlowReco/interface/PFBlockElementCluster.h"
+#include "DataFormats/ParticleFlowReco/interface/PFBlockElementSuperCluster.h"
 #include "DataFormats/ParticleFlowReco/interface/PFRecTrack.h"
 #include "DataFormats/ParticleFlowReco/interface/PFCluster.h"
 #include "DataFormats/ParticleFlowReco/interface/PFLayer.h"
@@ -650,10 +651,23 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 	sameBlock = true;
       if(sameBlock) {
 
+        // GP: find the PF block element for the supercluster, and check if HCal was active
+        //     FIXME once done, we should do something useful with this info
+        bool hasDeadHcal = false;
+        for (const auto & pair : theElements) { 
+            if (elements[pair.second].type() == PFBlockElement::SC) {
+                const reco::PFBlockElementSuperCluster & pfsce = static_cast<const reco::PFBlockElementSuperCluster &>(elements[pair.second]);
+                if (debug_) cout << "for egamma candidate " << ieg << " found SC as PF Block element " << pair.second << endl;
+                if (!pfsce.hcalStatus()) hasDeadHcal = true;
+            }
+        }
+
+
 	if(egmLocalDebug)
 	  cout << " I am in looping on EGamma Candidates: pt " << (*pfEgmRef).pt() 
 	       << " eta,phi " << (*pfEgmRef).eta() << ", " << (*pfEgmRef).phi() 
-	       << " charge " << (*pfEgmRef).charge() << endl;
+	       << " charge " << (*pfEgmRef).charge() 
+	       << ". Hcal was " << (hasDeadHcal ? "dead" : "active") << " there." << endl;
 
 	if((*pfEgmRef).gsfTrackRef().isNonnull()) {
 
@@ -667,13 +681,23 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 		     << " eta, phi " << gedEleRef->eta() << ", " << gedEleRef->phi() 
 		     << " charge " << gedEleRef->charge() 
 		     << " isPrimary " << isPrimaryElectron
-                     << " isoDr03 " << (gedEleRef->dr03TkSumPt() + gedEleRef->dr03EcalRecHitSumEt() + gedEleRef->dr03HcalTowerSumEt()) 
-                     << " mva_isolated " << gedEleRef->mva_Isolated() 
-                     << " mva_e_pi " << gedEleRef->mva_e_pi() 
-                     << endl;
+		     << " isoDr03 " << (gedEleRef->dr03TkSumPt() + gedEleRef->dr03EcalRecHitSumEt() + gedEleRef->dr03HcalTowerSumEt()) 
+		     << " mva_isolated " << gedEleRef->mva_Isolated() 
+		     << " mva_e_pi " << gedEleRef->mva_e_pi() 
+		     << endl;
 	    }
 
-	   
+            // GP: FIXME: should put a better selection somewhere, but as a test let's just reject things that are not isolated
+            if (isGoodElectron && hasDeadHcal) {
+                float iso = (gedEleRef->dr03TkSumPt() + gedEleRef->dr03EcalRecHitSumEt());
+                if (iso > 10 + 0.3 * gedEleRef->pt()) {
+                    if(egmLocalDebug){ 
+                        cout << " rejecting electron of pt " << gedEleRef->pt() << " in bad Hcal region: isolation = " << iso << " > 10 + 0.3 * pt" << endl;
+                    }
+                    isGoodElectron = false;
+                }
+            }
+
 	  }
 	}
 	if((*pfEgmRef).superClusterRef().isNonnull()) {
@@ -681,11 +705,24 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 	  reco::PhotonRef gedPhoRef = (*valueMapGedPhotons_)[pfEgmRef];   
 	  if(gedPhoRef.isNonnull()) {
 	    isGoodPhoton =  pfegamma_->passPhotonSelection(*gedPhoRef);
+
 	    if(egmLocalDebug) {
 	      if(isGoodPhoton) 
 		cout << "** Good Photon, pt " << gedPhoRef->pt()
 		     << " eta, phi " << gedPhoRef->eta() << ", " << gedPhoRef->phi() << endl;
 	    }
+
+	    // GP: FIXME: should put a better selection somewhere, but as a test let's just reject things that are not isolated
+	    if (isGoodPhoton && hasDeadHcal) {
+	        float iso = (gedPhoRef->trkSumPtSolidConeDR03() + gedPhoRef->ecalRecHitSumEtConeDR03());
+	        if (iso > 10 + 0.3 * gedPhoRef->pt()) {
+	            if(egmLocalDebug){ 
+	                cout << " rejecting photon of pt " << gedPhoRef->pt() << " in bad Hcal region: isolation = " << iso << " > 10 + 0.3 * pt" << endl;
+	            }
+	            isGoodPhoton = false;
+	        }
+	    }
+
 	  }
 	}
       } // end same block
@@ -877,12 +914,12 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
       continue;
     case PFBlockElement::HCAL:
       if ( active[iEle] ) { 
-        if (elements[iEle].clusterRef()->flags() == 0xDEAD) {
+	if (elements[iEle].clusterRef()->flags() == 0xDEAD) {
 	  if(debug_) cout<<"HCAL DEAD AREA: remember and skip."<<endl;
-          active[iEle] = false;
-          deadArea[iEle] = true;
-          continue;
-        }
+	  active[iEle] = false;
+	  deadArea[iEle] = true;
+	  continue;
+	}
 	hcalIs.push_back( iEle );
 	if(debug_) cout<<"HCAL, stored index, continue"<<endl;
       }
@@ -1002,6 +1039,25 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
     //    if (deadArea[it->second]) { it = hcalElems.erase(it); } // std::multimap::erase returns iterator to next
     //    else { hasDeadHcal = false; }
     //}
+
+    // for tracks with bad Hcal, check the quality
+    bool goodTrackDeadHcal = false;
+    if (hasDeadHcal) {
+       goodTrackDeadHcal = ( trackRef->ptError() < 0.2 * trackRef->pt() && 
+                             trackRef->normalizedChi2() < 5 && 
+                             trackRef->hitPattern().trackerLayersWithMeasurement() > 3 &&
+                             trackRef->validFraction() > 0.5 && 
+                             std::abs(trackRef->dxy(primaryVertex_.position())) < 0.5 );
+       if (debug_) cout << " track pt " << trackRef->pt() << " +- " << trackRef->ptError() 
+          << " layers valid " << trackRef->hitPattern().trackerLayersWithMeasurement() 
+                << ", lost " << trackRef->hitPattern().trackerLayersWithoutMeasurement(HitPattern::TRACK_HITS) 
+                << ", lost outer " << trackRef->hitPattern().trackerLayersWithoutMeasurement(HitPattern::MISSING_OUTER_HITS)
+                << ", lost inner " << trackRef->hitPattern().trackerLayersWithoutMeasurement(HitPattern::MISSING_INNER_HITS)
+                << "(valid fraction " << trackRef->validFraction() << ")"
+          << " chi2/ndf " << trackRef->normalizedChi2() 
+          << " |dxy| " << std::abs(trackRef->dxy(primaryVertex_.position())) << " +- " << trackRef->dxyError() 
+          << (goodTrackDeadHcal ? " passes " : " fails ") << "quality cuts" << std::endl;
+    }
 
     // When a track has no HCAL cluster linked, but another track is linked to the same
     // ECAL cluster and an HCAL cluster, link the track to the HCAL cluster for 
@@ -1167,11 +1223,20 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 
 	bool isPrimary = isFromSecInt(elements[iTrack], "primary");
 
-	if ( deficit > nSigmaTRACK_*resol && !isPrimary) { 
+	if ( deficit > nSigmaTRACK_*resol && !isPrimary && !goodTrackDeadHcal) { 
 	  rejectFake = true;
 	  active[iTrack] = false;
 	  if ( debug_ )  
 	    std::cout << elements[iTrack] << std::endl
+		       << " deficit " << deficit << " > " << nSigmaTRACK_ << " x " << resol 
+		       << " track pt " << trackRef->pt() << " +- " << trackRef->ptError() 
+		       << " layers valid " << trackRef->hitPattern().trackerLayersWithMeasurement() 
+		             << ", lost " << trackRef->hitPattern().trackerLayersWithoutMeasurement(HitPattern::TRACK_HITS) 
+		             << ", lost outer " << trackRef->hitPattern().trackerLayersWithoutMeasurement(HitPattern::MISSING_OUTER_HITS)
+		             << ", lost inner " << trackRef->hitPattern().trackerLayersWithoutMeasurement(HitPattern::MISSING_INNER_HITS)
+		             << "(valid fraction " << trackRef->validFraction() 
+		       << " chi2/ndf " << trackRef->normalizedChi2() 
+		       << " |dxy| " << std::abs(trackRef->dxy(primaryVertex_.position())) << " +- " << trackRef->dxyError() 
 		      << "is probably a fake (1) --> lock the track" 
 		      << std::endl;
 	}
@@ -1190,8 +1255,9 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 
       if ( rejectTracks_Step45_ && ecalElems.empty() && 
 	   trackMomentum > 30. && Dpt > 0.5 && 
-	   ( PFTrackAlgoTools::step45(trackRef->algo())) ) {  
-        // GP: FIXME this selection should be adapted depending on hasDeadHcal
+	   ( PFTrackAlgoTools::step45(trackRef->algo()) 
+	    && !goodTrackDeadHcal) ) {  
+	 // GP: FIXME this selection should be adapted further depending on hasDeadHcal
 
 	double dptRel = Dpt/trackRef->pt()*100;
 	bool isPrimaryOrSecondary = isFromSecInt(elements[iTrack], "all");
@@ -1298,7 +1364,7 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 	  double resol = nSigmaTRACK_*neutralHadronEnergyResolution(trackMomentum+trackRef->p(),
 								    clusterRef->positionREP().Eta());
 	  resol *= (trackMomentum+trackRef->p());
-	  if ( deficit > nSigmaTRACK_*resol ) { 
+	  if ( deficit > nSigmaTRACK_*resol  && !goodTrackDeadHcal) { 
  	    rejectFake = true;
 	    kTrack.push_back(jTrack);
 	    active[jTrack] = false;

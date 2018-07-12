@@ -22,7 +22,7 @@ from RecoParticleFlow.PFClusterProducer.particleFlowClusterPS_cfi import *
 
 particleFlowBadHcalPseudoCluster = cms.EDProducer("PFBadHcalPseudoClusterProducer",
     enable = cms.bool(True),
-    debug = cms.untracked.bool(True),
+    debug = cms.untracked.bool(False),
     thresholdHB = cms.int32(-1),
     thresholdHE = cms.int32(4),
 )
