@@ -96,6 +96,7 @@ importToBlock( const edm::Event& e,
 	(scpT > _pTbyPass || HoverE < _maxHoverE) ) {	
       scbe = new reco::PFBlockElementSuperCluster(scref);      
       scbe->setFromPFSuperCluster(_superClustersArePF);
+      scbe->setHcalStatus(_hadTower->hasActiveHcal(*sc));
       SCs_end = elems.insert(SCs_end,ElementType(scbe));
       ++SCs_end; // point to element *after* the new one
     }    
@@ -115,6 +116,7 @@ importToBlock( const edm::Event& e,
 	(scpT > _pTbyPass || HoverE < _maxHoverE)) {	
       scbe = new reco::PFBlockElementSuperCluster(scref);  
       scbe->setFromPFSuperCluster(_superClustersArePF);
+      scbe->setHcalStatus(_hadTower->hasActiveHcal(*sc));
       SCs_end = elems.insert(SCs_end,ElementType(scbe));
       ++SCs_end; // point to element *after* the new one
     }    

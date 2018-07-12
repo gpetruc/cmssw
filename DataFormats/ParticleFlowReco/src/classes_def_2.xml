@@ -296,7 +296,8 @@
   <class name="edm::Wrapper<edm::ValueMap<reco::PreIdRef> >"/>
   <class name="edm::Ref<std::vector<reco::PreId>,reco::PreId,edm::refhelper::FindUsingAdvance<std::vector<reco::PreId>,reco::PreId> >" />
 
-  <class name="reco::PFBlockElementSuperCluster" ClassVersion="14">
+  <class name="reco::PFBlockElementSuperCluster" ClassVersion="15">
+   <version ClassVersion="15" checksum="3041210242"/>
    <version ClassVersion="14" checksum="285242772"/>
    <version ClassVersion="13" checksum="3749373244"/>
    <version ClassVersion="12" checksum="1656578540"/>

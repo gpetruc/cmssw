@@ -27,6 +27,7 @@ namespace reco {
       ecalIso_(0.),
       hcalIso_(0.),
       HoE_(0.),
+      goodHcal_(true),
       fromGsfElectron_(false),
       fromPhoton_(false),
       fromPFSuperCluster_(false){}
@@ -54,6 +55,9 @@ namespace reco {
     /// set H/E
     void setHoE(float val) {HoE_=val;}
 
+    /// set status of Hcal
+    void setHcalStatus(bool goodHcal) {goodHcal_ = goodHcal;}
+
     /// set provenance
     void setFromGsfElectron(bool val) {fromGsfElectron_=val;}
 
@@ -77,6 +81,9 @@ namespace reco {
     /// \return Hoe
     float hoverE() const {return HoE_;}
 
+    /// \return whether the Hcal is good
+    bool hcalStatus() const {return goodHcal_;}
+
     /// \return provenance
     bool fromGsfElectron() const {return fromGsfElectron_;}
 
@@ -96,6 +103,7 @@ namespace reco {
     float ecalIso_;
     float hcalIso_;
     float HoE_;
+    bool  goodHcal_;
 
     bool fromGsfElectron_;
     bool fromPhoton_;
