@@ -216,6 +216,8 @@ PFProducer::PFProducer(const edm::ParameterSet& iConfig) {
    inputTagPFEGammaCandidates_ = consumes<edm::View<reco::PFCandidate> >((iConfig.getParameter<edm::InputTag>("PFEGammaCandidates")));
    inputTagValueMapGedElectrons_ = consumes<edm::ValueMap<reco::GsfElectronRef>>(iConfig.getParameter<edm::InputTag>("GedElectronValueMap")); 
    inputTagValueMapGedPhotons_ = consumes<edm::ValueMap<reco::PhotonRef> >(iConfig.getParameter<edm::InputTag>("GedPhotonValueMap")); 
+   inputTagEcalRecHitsEB_ = consumes<EcalRecHitCollection>(iConfig.getParameter<edm::InputTag>("barrelEcalHits"));
+   inputTagEcalRecHitsEE_ = consumes<EcalRecHitCollection>(iConfig.getParameter<edm::InputTag>("endcapEcalHits"));
    ele_iso_pt = iConfig.getParameter<double>("electron_iso_pt");
    ele_iso_mva_barrel  = iConfig.getParameter<double>("electron_iso_mva_barrel");
    ele_iso_mva_endcap = iConfig.getParameter<double>("electron_iso_mva_endcap");
@@ -554,6 +556,13 @@ PFProducer::produce(Event& iEvent,
 
   }
 
+  edm::Handle<EcalRecHitCollection> ecalRecHitsEB, ecalRecHitsEE;
+  iEvent.getByToken(inputTagEcalRecHitsEE_, ecalRecHitsEE);
+  iEvent.getByToken(inputTagEcalRecHitsEB_, ecalRecHitsEB);
+  edm::ESHandle<CaloTopology> caloTopology;
+  iSetup.get<CaloTopologyRecord>().get(caloTopology);
+  pfAlgo_->setEcalObjects(*ecalRecHitsEB, *ecalRecHitsEE, *caloTopology);
+  
 
   LogDebug("PFProducer")<<"particle flow is starting"<<endl;
 

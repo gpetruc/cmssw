@@ -33,6 +33,9 @@
 #include "RecoParticleFlow/PFProducer/interface/PFCandConnector.h"
 #include "RecoParticleFlow/PFProducer/interface/PFMuonAlgo.h"
 #include "RecoParticleFlow/PFProducer/interface/PFEGammaFilters.h"
+#include "Geometry/CaloTopology/interface/CaloTopology.h"
+#include "DataFormats/EcalRecHit/interface/EcalRecHitCollections.h"
+#include "RecoEcal/EgammaCoreTools/interface/EcalClusterTools.h"
 #include "DataFormats/Common/interface/ValueMap.h"
 
 /// \brief Particle Flow Algorithm
@@ -138,7 +141,10 @@ class PFAlgo {
  			    const edm::ValueMap<reco::PhotonRef> & valueMapGedPhotons); 
   
   
-
+  void setEcalObjects(const EcalRecHitCollection & recHitsEB, 
+                      const EcalRecHitCollection & recHitsEE,
+                      const CaloTopology & caloTopology); 
+ 
   // void setPFPhotonRegWeights(
   //		     const GBRForest *LCorrForest,
   //		     const GBRForest *GCorrForest,
@@ -306,6 +312,7 @@ class PFAlgo {
 
   bool isFromSecInt(const reco::PFBlockElement& eTrack,  std::string order) const;
 
+  bool pfClusterEGId(const reco::PFBlockElement & eClust, const reco::PFBlockElement * eTrack = nullptr) const ;
 
   // Post HF Cleaning
   void postCleaning();
@@ -366,6 +373,10 @@ class PFAlgo {
   const edm::ValueMap<reco::GsfElectronRef> * valueMapGedElectrons_;
   const edm::ValueMap<reco::PhotonRef> * valueMapGedPhotons_;  
 
+  // extra for PFCluster ID cuts
+  const EcalRecHitCollection *recHitsEB_;
+  const EcalRecHitCollection *recHitsEE_;
+  const CaloTopology *caloTopology_;
 
   // Option to let PF decide the muon momentum
   bool usePFMuonMomAssign_;

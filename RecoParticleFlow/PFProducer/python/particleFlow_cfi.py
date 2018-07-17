@@ -86,7 +86,10 @@ particleFlowTmp = cms.EDProducer("PFProducer",
     GedElectronValueMap = cms.InputTag("gedGsfElectronsTmp"),
     GedPhotonValueMap = cms.InputTag("gedPhotonsTmp","valMapPFEgammaCandToPhoton"),
 
-
+    # information for PFCluster ecal ID
+    barrelEcalHits = cms.InputTag("ecalRecHit","EcalRecHitsEB"),
+    endcapEcalHits = cms.InputTag("ecalRecHit","EcalRecHitsEE"),
+ 
                                  
     # apply the crack corrections                             
     pf_electronID_crackCorrection = cms.bool(False),

@@ -8,6 +8,7 @@
 #include "FWCore/Framework/interface/Frameworkfwd.h"
 #include "FWCore/Framework/interface/stream/EDProducer.h"
 #include "FWCore/Framework/interface/Event.h"
+#include "FWCore/Framework/interface/ESHandle.h"
 
 // useful?
 #include "FWCore/Framework/interface/MakerMacros.h"
@@ -25,6 +26,10 @@
 #include "DataFormats/EgammaCandidates/interface/GsfElectronFwd.h"
 #include "DataFormats/ParticleFlowReco/interface/PFBlockFwd.h"
 #include "DataFormats/ParticleFlowCandidate/interface/PFCandidateFwd.h"
+#include "DataFormats/EcalRecHit/interface/EcalRecHitCollections.h"
+#include "Geometry/CaloTopology/interface/CaloTopology.h"
+#include "Geometry/Records/interface/CaloTopologyRecord.h"
+
 
 class PFAlgo;
 class PFEnergyCalibrationHF;
@@ -66,6 +71,8 @@ class PFProducer : public edm::stream::EDProducer<> {
 
   bool use_EGammaFilters_;
 
+  // for PFCluster ID
+  edm::EDGetTokenT<EcalRecHitCollection> inputTagEcalRecHitsEB_, inputTagEcalRecHitsEE_;
 
   //Use of HO clusters and links in PF Reconstruction
   bool useHO_;

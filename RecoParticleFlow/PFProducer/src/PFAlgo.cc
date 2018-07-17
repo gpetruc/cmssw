@@ -275,7 +275,13 @@ void  PFAlgo::setEGammaCollections(const edm::View<reco::PFCandidate> & pfEgamma
   }
 }
 
-
+void PFAlgo::setEcalObjects(const EcalRecHitCollection & recHitsEB, 
+                      const EcalRecHitCollection & recHitsEE,
+                      const CaloTopology & caloTopology) {
+    recHitsEB_ = & recHitsEB;
+    recHitsEE_ = & recHitsEE;
+    caloTopology_ = & caloTopology;
+}
 
 /*
 void PFAlgo::setPFPhotonRegWeights(
@@ -1010,7 +1016,10 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
         std::cout << "\tTrack " << iTrack << " is linked to " << ecalElems.size() << " ecal and " << hcalElems.size() << " hcal elements" << std::endl;
         for (const auto & pair : ecalElems) {
             std::cout << "ecal: dist " << pair.first << "\t elem " << pair.second << std::endl;
-            
+            if (trackRef->pt() > 5) {
+                bool passedID = pfClusterEGId(elements[pair.second], &elements[iTrack]);
+                std::cout << "   --> pass ID " << passedID << std::endl;
+            } 
         }
         for (const auto & pair : hcalElems) {
             std::cout << "hcal: dist " << pair.first << "\t elem " << pair.second << (deadArea[pair.second] ? "  DEAD AREA MARKER" : "") <<  std::endl;
@@ -1071,7 +1080,7 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 				sortedTracks,
 				reco::PFBlockElement::TRACK,
 				reco::PFBlock::LINKTEST_ALL );
-      if (debug_ ) std::cout << "The closest ECAL cluster is linked to " << sortedTracks.size() << " tracks " << std::endl;
+      if (debug_ ) std::cout << "The closest ECAL cluster is linked to " << sortedTracks.size() << " tracks, with distance = " << ecalElems.begin()->first << std::endl;
 
       // Loop over all tracks
       for(IE ie = sortedTracks.begin(); ie != sortedTracks.end(); ++ie ) {
@@ -1323,7 +1332,7 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 				sortedTracks,
 				reco::PFBlockElement::TRACK,
 				reco::PFBlock::LINKTEST_ALL );
-      if (debug_) cout << "the closest ECAL cluster has " << sortedTracks.size() << " associated tracks, now processing them. " << std::endl;
+      if (debug_) cout << "the closest ECAL cluster, id " << thisEcal << ", has " << sortedTracks.size() << " associated tracks, now processing them. " << std::endl;
     
       for(IE ie = sortedTracks.begin(); ie != sortedTracks.end(); ++ie ) {
 	unsigned jTrack = ie->second;
@@ -1350,7 +1359,7 @@ void PFAlgo::processBlock( const reco::PFBlockRef& blockref,
 	// Check if this track is a muon
 	bool thatIsAMuon = PFMuonAlgo::isMuon(elements[jTrack]);
         if (debug_) { 
-            cout << " found track " << jTrack << (thatIsAMuon ? " (muon) " : " (non-muon)") << std::endl;
+            cout << " found track " << jTrack << (thatIsAMuon ? " (muon) " : " (non-muon)") << ", with distance = " << sortedECAL.begin()->first << std::endl;
         }
 
 
@@ -3612,6 +3621,24 @@ PFAlgo::isFromSecInt(const reco::PFBlockElement& eTrack, string order) const {
   return isFromDecay;
 
 
+}
+
+bool 
+PFAlgo::pfClusterEGId(const reco::PFBlockElement & eClust, const reco::PFBlockElement * eTrack) const {
+    noZS::EcalClusterTools tools;
+    const reco::PFCluster & cluster = *eClust.clusterRef();
+    bool isBarrel = DetId(cluster.recHitFractions().front().recHitRef()->detId()).subdetId() == int(EcalBarrel);
+    const EcalRecHitCollection *hits = isBarrel ? recHitsEB_ : recHitsEE_;
+    float e55 = tools.e5x5( cluster, hits, caloTopology_ );
+    float e25 = tools.e2x5Max( cluster, hits, caloTopology_ );
+    float e33 = tools.e3x3( cluster, hits, caloTopology_ );
+    std::vector<float> locCov = tools.localCovariances(cluster, hits, caloTopology_);
+    if (debug_) std::cout << "PF Ecal " << (isBarrel?"Barrel":"Endcap") << " element has energy " << cluster.energy() << 
+                             ", e5x5 = " << e55 << 
+                             ", e25/e55 = " << (e55?e25/e55:0) <<
+                             ", e33/e55 = " << (e55?e33/e55:0) <<
+                             ", sigmaIetaIeta = " << sqrt(locCov[0]) << std::endl;
+    return true;
 }
 
 
