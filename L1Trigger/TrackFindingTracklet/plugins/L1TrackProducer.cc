@@ -153,6 +153,8 @@ private:
   /// Containers of parameters passed by python configuration file
   edm::ParameterSet config;
 
+  bool readMoreMcTruth_;
+
   int failscenario_;
   StubKiller* my_stubkiller;
 
@@ -198,10 +200,11 @@ private:
 // CONSTRUCTOR
 L1TrackProducer::L1TrackProducer(edm::ParameterSet const& iConfig) :
   config(iConfig),
-  MCTruthClusterInputTag(config.getParameter<edm::InputTag>("MCTruthClusterInputTag")),
-  MCTruthStubInputTag(config.getParameter<edm::InputTag>("MCTruthStubInputTag")),
-  TrackingParticleInputTag(iConfig.getParameter<edm::InputTag>("TrackingParticleInputTag")),
-  TrackingVertexInputTag(iConfig.getParameter<edm::InputTag>("TrackingVertexInputTag")),
+  readMoreMcTruth_(iConfig.getParameter<bool>("readMoreMcTruth")),
+  MCTruthClusterInputTag(readMoreMcTruth_ ? config.getParameter<edm::InputTag>("MCTruthClusterInputTag") : edm::InputTag()),
+  MCTruthStubInputTag(readMoreMcTruth_ ? config.getParameter<edm::InputTag>("MCTruthStubInputTag") : edm::InputTag()),
+  TrackingParticleInputTag(readMoreMcTruth_ ? iConfig.getParameter<edm::InputTag>("TrackingParticleInputTag") : edm::InputTag()),
+  TrackingVertexInputTag(readMoreMcTruth_ ? iConfig.getParameter<edm::InputTag>("TrackingVertexInputTag") : edm::InputTag()),
   simTrackSrc_(config.getParameter<edm::InputTag>("SimTrackSource")),
   simVertexSrc_(config.getParameter<edm::InputTag>("SimVertexSource")),
   ttStubSrc_(config.getParameter<edm::InputTag>("TTStubSource")),
@@ -210,13 +213,14 @@ L1TrackProducer::L1TrackProducer(edm::ParameterSet const& iConfig) :
   simTrackToken_(consumes< edm::SimTrackContainer >(simTrackSrc_)),
   simVertexToken_(consumes< edm::SimVertexContainer >(simVertexSrc_)),
   ttStubToken_(consumes< edmNew::DetSetVector< TTStub< Ref_Phase2TrackerDigi_ > > >(ttStubSrc_)),
-  bsToken_(consumes< reco::BeamSpot >(bsSrc_)),
-  ttClusterMCTruthToken_(consumes< TTClusterAssociationMap< Ref_Phase2TrackerDigi_ > >(MCTruthClusterInputTag)),
-  ttStubMCTruthToken_(consumes< TTStubAssociationMap< Ref_Phase2TrackerDigi_ > >(MCTruthStubInputTag)),
-  TrackingParticleToken_(consumes< std::vector< TrackingParticle > >(TrackingParticleInputTag)),
-  TrackingVertexToken_(consumes< std::vector< TrackingVertex > >(TrackingVertexInputTag))//,
-
+  bsToken_(consumes< reco::BeamSpot >(bsSrc_))
 {
+  if (readMoreMcTruth_) {
+      ttClusterMCTruthToken_ = consumes< TTClusterAssociationMap< Ref_Phase2TrackerDigi_ > >(MCTruthClusterInputTag);
+      ttStubMCTruthToken_ = consumes< TTStubAssociationMap< Ref_Phase2TrackerDigi_ > >(MCTruthStubInputTag);
+      TrackingParticleToken_ = consumes< std::vector< TrackingParticle > >(TrackingParticleInputTag);
+      TrackingVertexToken_ = consumes< std::vector< TrackingVertex > >(TrackingVertexInputTag);
+  }
 
   produces< std::vector< TTTrack< Ref_Phase2TrackerDigi_ > > >( "Level1TTTracks" ).setBranchAlias("Level1TTTracks");
 
@@ -348,8 +352,8 @@ void L1TrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   // tracking particles
   edm::Handle< std::vector< TrackingParticle > > TrackingParticleHandle;
   edm::Handle< std::vector< TrackingVertex > > TrackingVertexHandle;
-  iEvent.getByToken(TrackingParticleToken_, TrackingParticleHandle);
-  iEvent.getByToken(TrackingVertexToken_, TrackingVertexHandle);
+  if (readMoreMcTruth_) iEvent.getByToken(TrackingParticleToken_, TrackingParticleHandle);
+  if (readMoreMcTruth_) iEvent.getByToken(TrackingVertexToken_, TrackingVertexHandle);
 
 
   const TrackerTopology* const tTopo = tTopoHandle.product();
@@ -364,8 +368,10 @@ void L1TrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   // MC truth association maps
   edm::Handle< TTClusterAssociationMap< Ref_Phase2TrackerDigi_ > > MCTruthTTClusterHandle;
-  iEvent.getByToken(ttClusterMCTruthToken_, MCTruthTTClusterHandle);
   edm::Handle< TTStubAssociationMap< Ref_Phase2TrackerDigi_ > > MCTruthTTStubHandle;
+
+  if (readMoreMcTruth_) {
+  iEvent.getByToken(ttClusterMCTruthToken_, MCTruthTTClusterHandle);
   iEvent.getByToken(ttStubMCTruthToken_, MCTruthTTStubHandle);
 
 
@@ -418,7 +424,7 @@ void L1TrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     }//end has simtracks
   }//end loop over TPs
 
-
+  } // end if (readMoreMcTruth_) 
 
   ////////////////////////////////
   /// COLLECT STUB INFORMATION ///
@@ -454,10 +460,11 @@ void L1TrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
       MeasurementPoint coords = tempStubPtr->getClusterRef(0)->findAverageLocalCoordinatesCentered();
       LocalPoint clustlp = topol->localPosition(coords);
       GlobalPoint posStub  =  theGeomDet->surface().toGlobal(clustlp);
-      
-      edm::Ptr< TrackingParticle > my_tp = MCTruthTTStubHandle->findTrackingParticlePtr(tempStubPtr);
 
       int eventID=-1;
+     
+      if (readMoreMcTruth_) { 
+      edm::Ptr< TrackingParticle > my_tp = MCTruthTTStubHandle->findTrackingParticlePtr(tempStubPtr);
       
       if (my_tp.isNull()) {
 	if (doMyDebug) cout << "TP is null pointer" << endl;
@@ -473,6 +480,8 @@ void L1TrackProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	  }//end sim loop 
 	}
       }
+
+      } // end if (readMoreMcTruth_)
 
       int layer=-999999;
       int ladder=-999999;
