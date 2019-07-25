@@ -44,8 +44,8 @@ pfClustersFromHGC3DClusters = cms.EDProducer("PFClusterProducerFromHGC3DClusters
     etMin = cms.double(1.0),
     resol = cms.PSet(
         etaBins = cms.vdouble( 1.900,  2.200,  2.500,  2.800,  2.950),
-        offset  = cms.vdouble( 2.889,  3.215,  3.238,  2.979,  3.333),
-        scale   = cms.vdouble( 0.128,  0.111,  0.108,  0.110,  0.123),
+        offset  = cms.vdouble( 1.964,  2.504,  2.578,  2.592,  2.684),
+        scale   = cms.vdouble( 0.135,  0.114,  0.105,  0.099,  0.127),
         kind    = cms.string('calo')
     ),
 )
