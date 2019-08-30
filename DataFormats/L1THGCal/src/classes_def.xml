@@ -46,6 +46,8 @@
 
   <class name="l1t::HGCalClusterT<l1t::HGCalCluster>" />
 
+  <class name="std::map<l1t::HGCalMulticluster::EnergyInterpretation,double> "/>
+
   <class name="l1t::HGCalMulticluster" ClassVersion="19">
    <version ClassVersion="19" checksum="3914904215"/>
    <version ClassVersion="18" checksum="1001614855"/>
