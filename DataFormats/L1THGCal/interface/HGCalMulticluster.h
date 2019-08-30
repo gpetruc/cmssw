@@ -31,9 +31,38 @@ namespace l1t {
       hOverEValid_ = true;
     }
 
+    enum EnergyInterpretation { EM = 0 };
+
+    void saveEnergyInterpretation(const HGCalMulticluster::EnergyInterpretation eInt, double energy);
+
+    double iEnergy(const HGCalMulticluster::EnergyInterpretation eInt) const {
+      return energy() * interpretationFraction(eInt);
+    }
+
+    double iPt(const HGCalMulticluster::EnergyInterpretation eInt) const { return pt() * interpretationFraction(eInt); }
+
+    math::XYZTLorentzVector iP4(const HGCalMulticluster::EnergyInterpretation eInt) const {
+      return p4() * interpretationFraction(eInt);
+    }
+
+    math::PtEtaPhiMLorentzVector iPolarP4(const HGCalMulticluster::EnergyInterpretation eInt) const {
+      return math::PtEtaPhiMLorentzVector(pt() * interpretationFraction(eInt), eta(), phi(), 0.);
+    }
+
+    std::vector<EnergyInterpretation> energyInterpretations() const {
+      std::vector<EnergyInterpretation> keys;
+      for (auto &kvp : energyInterpretationFractions_) {
+        keys.emplace_back(kvp.first);
+      }
+      return keys;
+    }
+
   private:
+    double interpretationFraction(const HGCalMulticluster::EnergyInterpretation eInt) const;
+
     float hOverE_;
     bool hOverEValid_;
+    std::map<EnergyInterpretation, double> energyInterpretationFractions_;
   };
 
   typedef BXVector<HGCalMulticluster> HGCalMulticlusterBxCollection;

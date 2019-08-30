@@ -22,9 +22,7 @@
 #include "DataFormats/ForwardDetId/interface/ForwardSubdetector.h"
 #include "Geometry/HGCalGeometry/interface/HGCalGeometry.h"
 #include "Geometry/HcalTowerAlgo/interface/HcalGeometry.h"
-
-class HGCalTriggerGeometryBase;
-class DetId;
+#include "L1Trigger/L1THGCal/interface/HGCalTriggerGeometryBase.h"
 
 namespace edm {
   class Event;
@@ -81,6 +79,7 @@ public:
 
   DetId simToReco(const DetId&, const HGCalTopology&) const;
   DetId simToReco(const DetId&, const HcalTopology&) const;
+  unsigned triggerLayer(const unsigned id) const { return geom_->triggerLayer(id); }
 
 private:
   const HGCalTriggerGeometryBase* geom_;

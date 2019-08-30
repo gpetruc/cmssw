@@ -44,12 +44,15 @@ public:
 
   bool validTriggerCell(const unsigned) const final;
   bool disconnectedModule(const unsigned) const final;
+  unsigned lastTriggerLayer() const final { return last_trigger_layer_; }
   unsigned triggerLayer(const unsigned) const final;
 
 private:
   // HSc trigger cell grouping
   unsigned hSc_triggercell_size_ = 2;
   unsigned hSc_module_size_ = 12;  // in TC units (144 TC / panel = 36 e-links)
+  unsigned hSc_links_per_module_ = 1;
+  unsigned hSc_wafers_per_module_ = 3;
 
   edm::FileInPath l1tModulesMapping_;
   edm::FileInPath l1tLinksMapping_;
@@ -63,10 +66,11 @@ private:
   std::unordered_set<unsigned> disconnected_modules_;
   std::unordered_set<unsigned> disconnected_layers_;
   std::vector<unsigned> trigger_layers_;
+  unsigned last_trigger_layer_ = 0;
 
   // layer offsets
-  unsigned heOffset_;
-  unsigned totalLayers_;
+  unsigned heOffset_ = 0;
+  unsigned totalLayers_ = 0;
 
   void fillMaps();
   bool validCellId(unsigned det, unsigned cell_id) const;
@@ -85,8 +89,14 @@ HGCalTriggerGeometryV9Imp2::HGCalTriggerGeometryV9Imp2(const edm::ParameterSet& 
     : HGCalTriggerGeometryBase(conf),
       hSc_triggercell_size_(conf.getParameter<unsigned>("ScintillatorTriggerCellSize")),
       hSc_module_size_(conf.getParameter<unsigned>("ScintillatorModuleSize")),
+      hSc_links_per_module_(conf.getParameter<unsigned>("ScintillatorLinksPerModule")),
       l1tModulesMapping_(conf.getParameter<edm::FileInPath>("L1TModulesMapping")),
       l1tLinksMapping_(conf.getParameter<edm::FileInPath>("L1TLinksMapping")) {
+  unsigned ntc_per_wafer = 48;
+  hSc_wafers_per_module_ = std::round(hSc_module_size_ * hSc_module_size_ / float(ntc_per_wafer));
+  if (ntc_per_wafer * hSc_wafers_per_module_ < hSc_module_size_ * hSc_module_size_) {
+    hSc_wafers_per_module_++;
+  }
   std::vector<unsigned> tmp_vector = conf.getParameter<std::vector<unsigned>>("DisconnectedModules");
   std::move(tmp_vector.begin(), tmp_vector.end(), std::inserter(disconnected_modules_, disconnected_modules_.end()));
   tmp_vector = conf.getParameter<std::vector<unsigned>>("DisconnectedLayers");
@@ -123,6 +133,7 @@ void HGCalTriggerGeometryV9Imp2::initialize(const edm::ESHandle<HGCalGeometry>& 
       trigger_layers_[layer] = 0;
     }
   }
+  last_trigger_layer_ = trigger_layer - 1;
   fillMaps();
 }
 
@@ -374,9 +385,7 @@ HGCalTriggerGeometryBase::geom_ordered_set HGCalTriggerGeometryV9Imp2::getOrdere
 
 HGCalTriggerGeometryBase::geom_set HGCalTriggerGeometryV9Imp2::getNeighborsFromTriggerCell(
     const unsigned trigger_cell_id) const {
-  HGCalDetId trigger_cell_det_id(trigger_cell_id);
-  geom_set neighbor_detids;
-  return neighbor_detids;
+  throw cms::Exception("FeatureNotImplemented") << "Neighbor search is not implemented in HGCalTriggerGeometryV9Imp2";
 }
 
 unsigned HGCalTriggerGeometryV9Imp2::getLinksInModule(const unsigned module_id) const {
@@ -384,14 +393,14 @@ unsigned HGCalTriggerGeometryV9Imp2::getLinksInModule(const unsigned module_id) 
   unsigned links = 0;
   // Scintillator
   if (module_det_id.det() == DetId::HGCalHSc) {
-    links = 1;
+    links = hSc_links_per_module_;
   }
   // Silicon
   else {
     HGCalDetId module_det_id_si(module_id);
     unsigned module = module_det_id_si.wafer();
     unsigned layer = layerWithOffset(module_id);
-    const unsigned sector0_mask = 0x1F;
+    const unsigned sector0_mask = 0x7F;
     module = (module & sector0_mask);
     links = links_per_module_.at(packLayerModuleId(layer, module));
   }
@@ -400,11 +409,10 @@ unsigned HGCalTriggerGeometryV9Imp2::getLinksInModule(const unsigned module_id) 
 
 unsigned HGCalTriggerGeometryV9Imp2::getModuleSize(const unsigned module_id) const {
   DetId module_det_id(module_id);
-  const unsigned scintillatorDummySize = 3;
   unsigned nWafers = 1;
   // Scintillator
   if (module_det_id.det() == DetId::HGCalHSc) {
-    nWafers = scintillatorDummySize;
+    nWafers = hSc_wafers_per_module_;
   }
   // Silicon
   else {
@@ -489,8 +497,7 @@ void HGCalTriggerGeometryV9Imp2::fillMaps() {
   short links = 0;
   for (; l1tLinksMappingStream >> layer >> module >> links;) {
     if (module_to_wafers_.find(packLayerModuleId(layer, module)) == module_to_wafers_.end()) {
-      throw cms::Exception("BadGeometryFile")
-          << "Error reading L1TLinksMapping: (" << layer << "," << module << ") is not defined in the module file \n";
+      links = 0;
     }
     links_per_module_.emplace(packLayerModuleId(layer, module), links);
   }

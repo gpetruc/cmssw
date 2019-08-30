@@ -13,7 +13,8 @@ class HGCalShowerShape {
 public:
   typedef math::XYZTLorentzVector LorentzVector;
 
-  HGCalShowerShape() {}
+  HGCalShowerShape() : threshold_(0.) {}
+  HGCalShowerShape(const edm::ParameterSet& conf);
 
   ~HGCalShowerShape() {}
 
@@ -27,9 +28,15 @@ public:
   }  //in number of layers
   // Maximum number of consecutive layers in the cluster
   int coreShowerLength(const l1t::HGCalMulticluster& c3d, const HGCalTriggerGeometryBase& triggerGeometry) const;
+  float percentileLayer(const l1t::HGCalMulticluster& c3d,
+                        const HGCalTriggerGeometryBase& triggerGeometry,
+                        float quantile = 0.5) const;
+
+  float percentileTriggerCells(const l1t::HGCalMulticluster& c3d, float quantile = 0.5) const;
 
   float eMax(const l1t::HGCalMulticluster& c3d) const;
 
+  float meanZ(const l1t::HGCalMulticluster& c3d) const;
   float sigmaZZ(const l1t::HGCalMulticluster& c3d) const;
 
   float sigmaEtaEtaTot(const l1t::HGCalMulticluster& c3d) const;
@@ -74,8 +81,13 @@ private:
   float sigmaPhiPhi(const std::vector<pair<float, float>>& energy_phi_tc, const float phi_cluster) const {
     return sigmaXX<DeltaPhi<float>>(energy_phi_tc, phi_cluster);
   }
+  template <typename T>
+  bool pass(const T& obj) const {
+    return obj.mipPt() > threshold_;
+  }
 
   HGCalTriggerTools triggerTools_;
+  double threshold_ = 0.;
 };
 
 #endif
