@@ -90,6 +90,7 @@ public:
     fpgad0_.set(id0,nbitsd0,false,__LINE__,__FILE__); 
     fpgaz0_.set(iz0,nbitsz0,false,__LINE__,__FILE__);
     fpgat_.set(it,nbitst,false,__LINE__,__FILE__);       
+    fpgatrack_ = NULL;
 
     if (innerStub_) assert(innerStub_->layer()<6||innerStub_->disk()<5);
     if (middleStub_) assert(middleStub_->layer()<6||middleStub_->disk()<5);
@@ -502,7 +503,7 @@ public:
 
 
   ~Tracklet() {
-
+    delete fpgatrack_;
   }
 
 
@@ -1496,6 +1497,7 @@ public:
     iz0fit_.set(iz0fit,nbitsz0,false,__LINE__,__FILE__);
     ichisqfit_.set(ichisqfit,8,true,__LINE__,__FILE__);
 
+    delete fpgatrack_;
     fpgatrack_=new Track(makeTrack(l1stubs));
 
   }
@@ -1540,6 +1542,7 @@ public:
     iz0fit_.set(iz0fit,nbitsz0,false,__LINE__,__FILE__);
     ichisqfit_.set(ichisqfit,8,true,__LINE__,__FILE__);
 
+    delete fpgatrack_;
     fpgatrack_=new Track(makeTrack(l1stubs));
 
   }
