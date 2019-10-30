@@ -177,6 +177,10 @@ class HybridFit{
       } else {
        if (printDebugKF) cout << "FitTrack:KF rejected track"<<endl;
       }
+
+      for (const TMTT::Stub* s : TMTTstubs) {
+          delete s;
+      }
     }
 
   private:
