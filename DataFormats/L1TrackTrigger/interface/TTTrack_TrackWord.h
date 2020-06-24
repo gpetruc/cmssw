@@ -64,43 +64,43 @@ public:
   // getters for unpacked and converted values.
   // These functions return real numbers converted from the digitized quantities using the LSB defined for each.
 
-  float get_iRinv();
-  float get_iphi();
-  float get_itanl();
-  float get_iz0();
-  float get_id0();
-  float get_ichi2XY();
-  float get_ichi2Z();
-  float get_iBendChi2();
+  float get_iRinv() const ;
+  float get_iphi() const ;
+  float get_itanl() const ;
+  float get_iz0() const ;
+  float get_id0() const ;
+  float get_ichi2XY() const ;
+  float get_ichi2Z() const ;
+  float get_iBendChi2() const ;
 
   // separate functions for unpacking 96-bit track word
 
-  float unpack_iRinv();
-  float unpack_iphi();
-  float unpack_itanl();
-  float unpack_iz0();
-  float unpack_id0();
-  float unpack_ichi2XY();
-  float unpack_ichi2Z();
-  float unpack_iBendChi2();
-  unsigned int unpack_ispare();
-  unsigned int unpack_hitPattern();
+  float unpack_iRinv() const ;
+  float unpack_iphi() const ;
+  float unpack_itanl() const ;
+  float unpack_iz0() const ;
+  float unpack_id0() const ;
+  float unpack_ichi2XY() const ;
+  float unpack_ichi2Z() const ;
+  float unpack_iBendChi2() const ;
+  unsigned int unpack_ispare() const ;
+  unsigned int unpack_hitPattern() const ;
 
   // getters for packed bits.
   // These functions return, literally, the packed bits in integer format for each quantity.
   // Signed quantities have the sign enconded in the left-most bit.
 
-  unsigned int get_hitPattern();
-  unsigned int get_ispare();  // will need a converter(s) when spare bits are defined
+  unsigned int get_hitPattern() const ;
+  unsigned int get_ispare() const ;  // will need a converter(s) when spare bits are defined
 
-  unsigned int get_RinvBits();
-  unsigned int get_phiBits();
-  unsigned int get_tanlBits();
-  unsigned int get_z0Bits();
-  unsigned int get_d0Bits();
-  unsigned int get_chi2XYBits();
-  unsigned int get_chi2ZBits();
-  unsigned int get_BendChi2Bits();
+  unsigned int get_RinvBits() const ;
+  unsigned int get_phiBits() const ;
+  unsigned int get_tanlBits() const ;
+  unsigned int get_z0Bits() const ;
+  unsigned int get_d0Bits() const ;
+  unsigned int get_chi2XYBits() const ;
+  unsigned int get_chi2ZBits() const ;
+  unsigned int get_BendChi2Bits() const ;
 
   // copy constructor
 
@@ -150,7 +150,7 @@ private:
 
   unsigned int digitize_Signed(float var, unsigned int maxBit, unsigned int minBit, float lsb);
 
-  float unpack_Signed(unsigned int bits, unsigned int nBits, float lsb);
+  float unpack_Signed(unsigned int bits, unsigned int nBits, float lsb) const ;
 
   // individual data members (not packed into 96 bits)
   unsigned int iRinv;

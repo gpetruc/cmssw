@@ -200,137 +200,141 @@ void TTTrack_TrackWord::setTrackWord(const GlobalVector& Momentum,
 }
 // unpack
 
-float TTTrack_TrackWord::unpack_itanl() {
+float TTTrack_TrackWord::unpack_itanl() const {
   unsigned int bits = (TrackWord1 & maskTanL) >> (nWordBits - (NTanlBits + 1));  //16
   float unpTanl = unpack_Signed(bits, NTanlBits, valLSBTanl);
   return unpTanl;
 }
 
-float TTTrack_TrackWord::get_itanl() {
+float TTTrack_TrackWord::get_itanl() const {
   float unpTanl = unpack_Signed(itanl, NTanlBits, valLSBTanl);
   return unpTanl;
 }
 
-unsigned int TTTrack_TrackWord::get_tanlBits() {
+unsigned int TTTrack_TrackWord::get_tanlBits() const {
   //unsigned int bits =  (TrackWord1 & 0xFFFF0000) >> 16;
   return itanl;
 }
 
-float TTTrack_TrackWord::unpack_iz0() {
+float TTTrack_TrackWord::unpack_iz0() const {
   unsigned int bits = (TrackWord1 & maskZ0) >> (nWordBits - (NTanlBits + NZ0Bits + 2));  //4
   float unpZ0 = unpack_Signed(bits, NZ0Bits, valLSBZ0);
   return unpZ0;
 }
 
-float TTTrack_TrackWord::get_iz0() {
+float TTTrack_TrackWord::get_iz0() const {
   float unpZ0 = unpack_Signed(iz0, NZ0Bits, valLSBZ0);
   return unpZ0;
 }
 
-unsigned int TTTrack_TrackWord::get_z0Bits() {
+unsigned int TTTrack_TrackWord::get_z0Bits() const {
   //unsigned int bits =   (TrackWord1 & 0x0000FFF0) >> 4;
   return iz0;
 }
 
-float TTTrack_TrackWord::unpack_ichi2XY() {
+float TTTrack_TrackWord::unpack_ichi2XY() const {
   unsigned int bits = (TrackWord1 & maskChi2XY);
   float unpChi2 = chi2Bins[bits];
   return unpChi2;
 }
 
-float TTTrack_TrackWord::get_ichi2XY() {
+float TTTrack_TrackWord::get_ichi2XY() const {
   float unpChi2 = chi2Bins[ichi2XY];
   return unpChi2;
 }
 
-unsigned int TTTrack_TrackWord::get_chi2XYBits() {
+unsigned int TTTrack_TrackWord::get_chi2XYBits() const {
   //unsigned int bits = (TrackWord1 & 0x0000000F);
   return ichi2XY;
 }
 
-float TTTrack_TrackWord::unpack_iphi() {
+float TTTrack_TrackWord::unpack_iphi() const {
   unsigned int bits = (TrackWord2 & maskPhi) >> (nWordBits - (NPhiBits + 1));  //20
   float unpPhi = unpack_Signed(bits, NPhiBits, valLSBPhi);
   return unpPhi;
 }
 
-float TTTrack_TrackWord::get_iphi() {
+float TTTrack_TrackWord::get_iphi() const {
   float unpPhi = unpack_Signed(iphi, NPhiBits, valLSBPhi);
   return unpPhi;
 }
 
-unsigned int TTTrack_TrackWord::get_phiBits() {
+unsigned int TTTrack_TrackWord::get_phiBits() const {
   //unsigned int bits =   (TrackWord2 & 0xFFF00000) >> 20;
   return iphi;
 }
 
-float TTTrack_TrackWord::unpack_id0() {
+float TTTrack_TrackWord::unpack_id0() const {
   unsigned int bits = (TrackWord2 & maskD0) >> (nWordBits - (NPhiBits + ND0Bits + 2));  //7
   float unpD0 = unpack_Signed(bits, ND0Bits, valLSBD0);
   return unpD0;
 }
 
-float TTTrack_TrackWord::get_id0() {
+float TTTrack_TrackWord::get_id0() const {
   float unpD0 = unpack_Signed(id0, ND0Bits, valLSBD0);
   return unpD0;
 }
 
-unsigned int TTTrack_TrackWord::get_d0Bits() {
+unsigned int TTTrack_TrackWord::get_d0Bits() const {
   //  unsigned int bits =   (TrackWord2 & 0x000FFF80) >> 7;
   return id0;
 }
 
-unsigned int TTTrack_TrackWord::unpack_hitPattern() {
+unsigned int TTTrack_TrackWord::unpack_hitPattern() const {
   unsigned int bits = (TrackWord2 & maskHitPat);
   return bits;
 }
 
-unsigned int TTTrack_TrackWord::get_hitPattern() { return iHitPattern; }
+unsigned int TTTrack_TrackWord::get_hitPattern() const { return iHitPattern; }
 
-float TTTrack_TrackWord::unpack_iRinv() {
+float TTTrack_TrackWord::unpack_iRinv() const {
   unsigned int bits = (TrackWord3 & maskRinv) >> (nWordBits - (NCurvBits + 1));  //17
   float unpCurv = unpack_Signed(bits, NCurvBits, valLSBCurv);
   return unpCurv;
 }
 
-float TTTrack_TrackWord::get_iRinv() {
+float TTTrack_TrackWord::get_iRinv() const {
   float unpCurv = unpack_Signed(iRinv, NCurvBits, valLSBCurv);
   return unpCurv;
 }
 
-float TTTrack_TrackWord::unpack_iBendChi2() {
+unsigned int TTTrack_TrackWord::get_RinvBits() const {
+  return iRinv;
+}
+
+float TTTrack_TrackWord::unpack_iBendChi2() const {
   unsigned int bits = (TrackWord3 & maskBendChi2) >> (nWordBits - (NCurvBits + NBChi2Bits + 1));  //14
   float unpBChi2 = Bchi2Bins[bits];
   return unpBChi2;
 }
 
-float TTTrack_TrackWord::get_iBendChi2() {
+float TTTrack_TrackWord::get_iBendChi2() const {
   float unpBChi2 = Bchi2Bins[iBendChi2];
   return unpBChi2;
 }
 
-unsigned int TTTrack_TrackWord::get_BendChi2Bits() {
+unsigned int TTTrack_TrackWord::get_BendChi2Bits() const {
   unsigned int bits = (TrackWord3 & maskBendChi2) >> (nWordBits - (NCurvBits + NBChi2Bits + 1));  //14
   return bits;
 }
 
-float TTTrack_TrackWord::unpack_ichi2Z() {
+float TTTrack_TrackWord::unpack_ichi2Z() const {
   unsigned int bits = (TrackWord3 & maskChi2Z) >> (nWordBits - (NCurvBits + NBChi2Bits + NChi2Bits + 1));  //10
   float unpChi2Z = chi2ZBins[bits];
   return unpChi2Z;
 }
 
-float TTTrack_TrackWord::get_ichi2Z() {
+float TTTrack_TrackWord::get_ichi2Z() const {
   float unpChi2Z = chi2ZBins[ichi2Z];
   return unpChi2Z;
 }
 
-unsigned int TTTrack_TrackWord::unpack_ispare() {
+unsigned int TTTrack_TrackWord::unpack_ispare() const {
   unsigned int bits = (TrackWord3 & maskSpare);
   return bits;
 }
 
-unsigned int TTTrack_TrackWord::get_ispare() { return ispare; }
+unsigned int TTTrack_TrackWord::get_ispare() const { return ispare; }
 
 unsigned int TTTrack_TrackWord::digitize_Signed(float var, unsigned int maxBit, unsigned int minBit, float lsb) {
   unsigned int nBits = (maxBit - minBit + 1);
@@ -344,7 +348,7 @@ unsigned int TTTrack_TrackWord::digitize_Signed(float var, unsigned int maxBit, 
   return seg;
 }
 
-float TTTrack_TrackWord::unpack_Signed(unsigned int bits, unsigned int nBits, float lsb) {
+float TTTrack_TrackWord::unpack_Signed(unsigned int bits, unsigned int nBits, float lsb) const {
   int isign = 1;
   unsigned int maxVal = (1 << nBits) - 1;
   if (bits & (1 << nBits)) {  //check sign
