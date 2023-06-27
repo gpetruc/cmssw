@@ -18,7 +18,11 @@
 
 #include "L1Trigger/DemonstratorTools/interface/BoardDataWriter.h"
 #include "L1Trigger/DemonstratorTools/interface/utilities.h"
+#include "FWCore/ParameterSet/interface/ConfigurationDescriptions.h"
+#include "FWCore/ParameterSet/interface/ParameterSetDescription.h"
+#include "FWCore/ParameterSet/interface/allowedValues.h"
 
+// l1tLayer2EG
 #include <iostream>
 #include <vector>
 
@@ -28,6 +32,8 @@ class L1TCtL2EgProducer : public edm::global::EDProducer<> {
 public:
   explicit L1TCtL2EgProducer(const edm::ParameterSet &);
   ~L1TCtL2EgProducer() override;
+
+  static void fillDescriptions(edm::ConfigurationDescriptions &descriptions);
 
 private:
   ap_uint<64> encodeLayer1(const EGIsoObjEmu &egiso) const;
@@ -425,6 +431,57 @@ l1t::TkElectron L1TCtL2EgProducer::convertFromEmu(const l1ct::EGIsoEleObjEmu &eg
   tkele.setEgBinaryWord(gteg.pack());
   tkele.setIdScore(egele.idScore);
   return tkele;
+}
+
+void L1TCtL2EgProducer::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
+  edm::ParameterSetDescription desc;
+  // inputs
+  edm::ParameterSetDescription producersAndChannels;
+  producersAndChannels.add<edm::InputTag>("pfProducer");   // no universally good defaults
+  producersAndChannels.add<std::vector<int>>("channels");  // no universally good defaults
+  desc.addVPSet("tkElectrons", producersAndChannels);
+  desc.addVPSet("tkEms", producersAndChannels);
+  desc.addVPSet("tkEgs", producersAndChannels);
+  desc.add<edm::InputTag>("l1PFObjects", edm::InputTag("l1tLayer2Deregionizer", "Puppi"));
+  desc.add<std::string>("egStaInstanceLabel", "L1CtEgEE");
+  desc.add<std::string>("tkEmInstanceLabel", "L1CtTkEm");
+  desc.add<std::string>("tkEleInstanceLabel", "L1CtTkElectron");
+  // sorting and encoding
+  desc.add<edm::ParameterSetDescription>("sorter", l1ct::L2EgSorterEmulator::getParameterSetDescription());
+  desc.add<edm::ParameterSetDescription>("encoder", l1ct::L2EgEncoderEmulator::getParameterSetDescription());
+  // puppi iso
+  edm::ParameterSetDescription puppiIsoPSet;
+  puppiIsoPSet.ifValue(edm::ParameterDescription<std::string>("pfIsoType", "PUPPI", true),
+                       edm::allowedValues<std::string>("PUPPI", "PF"));
+  puppiIsoPSet.add<double>("pfPtMin", 1.0);
+  puppiIsoPSet.add<double>("dZ", 0.6);
+  puppiIsoPSet.add<double>("dRMin");  // no universally good default for this
+  puppiIsoPSet.add<double>("dRMax");  // ditto
+  puppiIsoPSet.add<bool>("pfCandReuse", true);
+  desc.add<edm::ParameterSetDescription>("puppiIsoParametersTkEm", puppiIsoPSet);
+  desc.add<edm::ParameterSetDescription>("puppiIsoParametersTkEle", puppiIsoPSet);
+  // pattern writing
+  desc.add<bool>("writeInPattern", false);
+  desc.add<bool>("writeOutPattern", false);
+  edm::ParameterSetDescription channelWriterPSet;
+  channelWriterPSet.add<unsigned int>("TMUX", 6);
+  channelWriterPSet.add<unsigned int>("nWords");  // no universally good default for this
+  channelWriterPSet.ifValue(edm::ParameterDescription<std::string>("interface", "eglayer1", true),
+                            edm::allowedValues<std::string>("eglayer1", "eglayer2"));
+  channelWriterPSet.add<unsigned int>("id");
+  channelWriterPSet.add<std::vector<unsigned int>>("channels");
+  edm::ParameterSetDescription mainWriterPSet;
+  mainWriterPSet.add<unsigned int>("nFramesPerBX", 9);
+  mainWriterPSet.add<std::string>("format", "EMPv2");
+  mainWriterPSet.add<std::string>("outputFilename");
+  mainWriterPSet.add<std::string>("outputFileExtension", "txt.gz");
+  mainWriterPSet.add<unsigned int>("TMUX", 6);
+  mainWriterPSet.add<unsigned int>("maxLinesPerFile", 1024);
+  mainWriterPSet.addVPSet("channels", channelWriterPSet);
+  desc.add<edm::ParameterSetDescription>("inPatternFile", mainWriterPSet);
+  desc.add<edm::ParameterSetDescription>("outPatternFile", mainWriterPSet);
+  // done
+  descriptions.add("l1tLayer2EG", desc);
 }
 
 #include "FWCore/Framework/interface/MakerMacros.h"

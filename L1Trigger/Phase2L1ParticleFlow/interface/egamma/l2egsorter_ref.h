@@ -11,7 +11,8 @@
 
 namespace edm {
   class ParameterSet;
-}
+  class ParameterSetDescription;
+}  // namespace edm
 
 namespace l1ct {
 
@@ -21,6 +22,7 @@ namespace l1ct {
         : nBOARDS(nBoards), nEGPerBoard(nEGPerBoard), nEGOut(nEGOut), debug_(debug) {}
 
     L2EgSorterEmulator(const edm::ParameterSet &iConfig);
+    static edm::ParameterSetDescription getParameterSetDescription();
 
     virtual ~L2EgSorterEmulator() {}
 

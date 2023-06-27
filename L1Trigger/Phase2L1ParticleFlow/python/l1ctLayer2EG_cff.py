@@ -144,7 +144,7 @@ l1tLayer2EG = cms.EDProducer(
     #     channels=cms.VPSet(
     #         cms.PSet(
     #             TMUX=cms.uint32(6),
-    #             nWords=cms.uint32(36),  # 36 = 12*3/2words ele + 12*3/2words phhotons
+    #             nWords=cms.uint32(36),  # 36 = 12*3/2words ele + 12*3/2words photons
     #             interface=cms.string("eglayer2"),
     #             id=cms.uint32(0),
     #             channels=cms.vuint32(0, 1, 2, 3, 4, 5)
