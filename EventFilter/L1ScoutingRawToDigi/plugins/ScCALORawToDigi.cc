@@ -248,7 +248,7 @@ void ScCaloRawToDigi::unpackOrbit(
     ETmissASYMET    = ((bl->sum[2] >> demux::shiftsESums::ETmissASYMET)    & demux::masksESums::ETmissASYMET);
     //ETmissMinBiasHF = ((bl->sum[2] >> demux::shiftsESums::ETmissMinBiasHF) & demux::masksESums::ETmissMinBiasHF);
     
-    sum = l1t::EtSum(*dummyLVec_, l1t::EtSum::EtSumType::kMissingEt, ETmissEt, ETmissPhi);
+    sum = l1t::EtSum(*dummyLVec_, l1t::EtSum::EtSumType::kMissingEt, ETmissEt, 0, ETmissPhi);
     etSums->push_back(bx, sum);
     sum = l1t::EtSum(*dummyLVec_, l1t::EtSum::EtSumType::kAsymEt, ETmissASYMET);
     etSums->push_back(bx, sum);
@@ -260,7 +260,7 @@ void ScCaloRawToDigi::unpackOrbit(
     HTmissASYMHT    = ((bl->sum[3] >> demux::shiftsESums::HTmissASYMHT)    & demux::masksESums::HTmissASYMHT);
     //HTmissMinBiasHF = ((bl->sum[3] >> demux::shiftsESums::HTmissMinBiasHF) & demux::masksESums::HTmissMinBiasHF);
 
-    sum = l1t::EtSum(*dummyLVec_, l1t::EtSum::EtSumType::kMissingHt, HTmissEt, HTmissPhi);
+    sum = l1t::EtSum(*dummyLVec_, l1t::EtSum::EtSumType::kMissingHt, HTmissEt, 0, HTmissPhi);
     etSums->push_back(bx, sum);
     sum = l1t::EtSum(*dummyLVec_, l1t::EtSum::EtSumType::kAsymHt, HTmissASYMHT);
     etSums->push_back(bx, sum);
@@ -271,7 +271,7 @@ void ScCaloRawToDigi::unpackOrbit(
     ETHFmissASYMETHF = ((bl->sum[4] >> demux::shiftsESums::ETHFmissASYMETHF) & demux::masksESums::ETHFmissASYMETHF);
     //ETHFmissCENT     = ((bl.sum[4] >> demux::shiftsESums::ETHFmissCENT)     & demux::masksESums::ETHFmissCENT);
     
-    sum = l1t::EtSum(*dummyLVec_, l1t::EtSum::EtSumType::kMissingEtHF, ETHFmissEt, ETHFmissPhi);
+    sum = l1t::EtSum(*dummyLVec_, l1t::EtSum::EtSumType::kMissingEtHF, ETHFmissEt, 0, ETHFmissPhi);
     etSums->push_back(bx, sum);
     sum =  l1t::EtSum(*dummyLVec_, l1t::EtSum::EtSumType::kAsymEtHF, ETHFmissASYMETHF);
     etSums->push_back(bx, sum);
@@ -283,7 +283,7 @@ void ScCaloRawToDigi::unpackOrbit(
     HTHFmissASYMHTHF = ((bl->sum[5] >> demux::shiftsESums::HTHFmissASYMHTHF) & demux::masksESums::HTHFmissASYMHTHF);
     //HTHFmissCENT     = ((bl->sum[5] >> demux::shiftsESums::HTHFmissCENT)     & demux::masksESums::HTHFmissCENT);
 
-    sum = l1t::EtSum(*dummyLVec_, l1t::EtSum::EtSumType::kMissingHtHF, HTHFmissEt, HTHFmissPhi);
+    sum = l1t::EtSum(*dummyLVec_, l1t::EtSum::EtSumType::kMissingHtHF, HTHFmissEt, 0, HTHFmissPhi);
     etSums->push_back(bx, sum);
     sum =  l1t::EtSum(*dummyLVec_, l1t::EtSum::EtSumType::kAsymHtHF, HTHFmissASYMHTHF);
     etSums->push_back(bx, sum);
