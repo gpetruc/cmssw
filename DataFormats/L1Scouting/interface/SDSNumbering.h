@@ -17,7 +17,7 @@ class SDSNumbering {
       MAXSDSID = 32,
       GmtSDSID = 1,
       CaloSDSID = 2,
-      GtSDSID = 4
+      GtSDSID = 4,
       BmtfMinSDSID = 10,
       BmtfMaxSDSID = 21
     };
