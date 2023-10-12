@@ -32,6 +32,8 @@
   <class name="edm::RefProd<l1t::PFCandidateCollection>" />
   <class name="l1t::RegionalOutput<l1t::PFCandidateCollection>" />
   <class name="edm::Wrapper<l1t::RegionalOutput<l1t::PFCandidateCollection>>" />
+  <class name="BXVector<l1t::PFCandidate>" />
+  <class name="edm::Wrapper<BXVector<l1t::PFCandidate>>" />
 
   <class name="l1t::PFJet"  ClassVersion="4">
         <version ClassVersion="4" checksum="1424452548"/>

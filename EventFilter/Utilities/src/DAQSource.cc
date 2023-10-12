@@ -8,6 +8,7 @@
 #include "EventFilter/Utilities/interface/DAQSourceModels.h"
 #include "EventFilter/Utilities/interface/DAQSourceModelsFRD.h"
 #include "EventFilter/Utilities/interface/DAQSourceModelsScoutingRun3.h"
+#include "EventFilter/Utilities/interface/DAQSourceModelsScoutingPhase2.h"
 
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/InputSourceDescription.h"
@@ -83,6 +84,8 @@ DAQSource::DAQSource(edm::ParameterSet const& pset, edm::InputSourceDescription 
     dataMode_.reset(new DataModeFRDStriped(this));
   } else if (dataModeConfig_ == "ScoutingRun3") {
     dataMode_.reset(new DataModeScoutingRun3(this));
+  } else if (dataModeConfig_ == "ScoutingPhase2") {
+    dataMode_.reset(new DataModeScoutingPhase2(this));
   } else
     throw cms::Exception("DAQSource::DAQSource") << "Unknown data mode " << dataModeConfig_;
 

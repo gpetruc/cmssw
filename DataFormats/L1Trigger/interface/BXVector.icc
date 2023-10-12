@@ -51,6 +51,14 @@ void BXVector<T>::addBX() {
   bxLast_ = bxLast_ + 1;
 }
 
+ // add one BX to end of BXVector
+template <class T>
+template <typename VI>
+void BXVector<T>::addBX(VI objectsBegin, VI objectsEnd) {
+  addBX();
+  data_.insert(data_.end(), objectsBegin, objectsEnd);
+}
+
 // delete a BX
 template <class T>
 void BXVector<T>::deleteBX(int bx) {

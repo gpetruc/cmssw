@@ -8,3 +8,4 @@
 #include "DataFormats/L1TParticleFlow/interface/PFTau.h"
 #include "DataFormats/L1TParticleFlow/interface/HPSPFTau.h"
 #include "DataFormats/L1TParticleFlow/interface/HPSPFTauFwd.h"
+#include "DataFormats/L1Trigger/interface/BXVector.h"

@@ -49,6 +49,10 @@ public:
   // add one BX to end of BXVector
   void addBX();
 
+  // add one BX to end of BXVector
+  template<typename VI>
+  void addBX(VI objectsBegin, VI objectsEnd);
+
   // delete given bunch crossing
   void deleteBX(int bx);
 
