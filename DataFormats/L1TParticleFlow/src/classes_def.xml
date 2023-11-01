@@ -34,6 +34,16 @@
   <class name="edm::Wrapper<l1t::RegionalOutput<l1t::PFCandidateCollection>>" />
   <class name="BXVector<l1t::PFCandidate>" />
   <class name="edm::Wrapper<BXVector<l1t::PFCandidate>>" />
+  <class name="SparseBXVector<l1t::PFCandidate>" />
+  <class name="edm::Wrapper<SparseBXVector<l1t::PFCandidate>>" />
+  <class name="l1ct::structs::Puppi" />
+  <class name="std::vector<l1ct::structs::Puppi>" />
+  <class name="BXVector<l1ct::structs::Puppi>" />
+  <class name="edm::Wrapper<BXVector<l1ct::structs::Puppi>>" />
+  <class name="SparseBXVector<l1ct::structs::Puppi>" />
+  <class name="edm::Wrapper<SparseBXVector<l1ct::structs::Puppi>>" />
+  <class name="l1ct::structs::PuppiSOA" />
+  <class name="edm::Wrapper<l1ct::structs::PuppiSOA>" />
 
   <class name="l1t::PFJet"  ClassVersion="4">
         <version ClassVersion="4" checksum="1424452548"/>

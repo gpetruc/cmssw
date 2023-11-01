@@ -83,6 +83,10 @@ public:
   // insert element with given location
   void insert(int bx, unsigned i, T object);
 
+  // add elements to the last BX
+  template<typename VI>
+  void append(VI objectsBegin, VI objectsEnd);
+
   // clear entire BXVector
   void clear();
 

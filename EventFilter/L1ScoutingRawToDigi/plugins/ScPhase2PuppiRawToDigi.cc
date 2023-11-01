@@ -10,55 +10,108 @@
 #include "DataFormats/L1Scouting/interface/SRawDataCollection.h"
 #include "DataFormats/L1Scouting/interface/SDSNumbering.h"
 #include "DataFormats/L1Trigger/interface/BXVector.h"
+#include "DataFormats/L1Trigger/interface/SparseBXVector.h"
 #include "DataFormats/L1TParticleFlow/interface/PFCandidate.h"
 #include "DataFormats/L1TParticleFlow/interface/puppi.h"
-
+#include "DataFormats/L1TParticleFlow/interface/struct_types.h"
+#include "phase2Utils.h"
 
 class ScPhase2PuppiRawToDigi : public edm::stream::EDProducer<> {
 public:
-  explicit ScPhase2PuppiRawToDigi(const edm::ParameterSet&);
+  explicit ScPhase2PuppiRawToDigi(const edm::ParameterSet &);
   ~ScPhase2PuppiRawToDigi() override;
-  static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
+  static void fillDescriptions(edm::ConfigurationDescriptions &descriptions);
 
 private:
   //void beginStream(edm::StreamID) override;
-  void produce(edm::Event&, const edm::EventSetup&) override;
+  void produce(edm::Event &, const edm::EventSetup &) override;
   //void endStream() override;
-  std::unique_ptr<BXVector<l1t::PFCandidate>> unpackSimple(const SRDCollection & feds) ;
+
+  template <typename BXVS>  // BXVector or SparseBXVector of l1t::PFCandidate
+  std::unique_ptr<BXVS> unpackSimple(const SRDCollection &feds);
+
+  template <typename BXVS>  // BXVector or SparseBXVector of l1ct::structs::Puppie
+  std::unique_ptr<BXVS> unpackStruct(const SRDCollection &feds);
+
+  std::unique_ptr<l1ct::structs::PuppiSOA> unpackSOA(const SRDCollection &feds);
+
+  template <typename T>
+  void appendToBXV(BXVector<T> &to, const std::vector<T> &from, int bx) {
+    if (bx == to.getLastBX())
+      to.append(from.begin(), from.end());
+    else
+      to.addBX(from.begin(), from.end());
+  }
+
+  template <typename T>
+  void appendToBXV(SparseBXVector<T> &to, const std::vector<T> &from, int bx) {
+    to.addBX(bx, from.begin(), from.end());
+  }
 
   edm::EDGetTokenT<SRDCollection> rawToken_;
   std::vector<unsigned int> fedIDs_;
-  bool doSimple_;
+  bool doSimple_, doStruct_, doSOA_;
+  bool noWrite_, sparseBXVector_;
 };
 
-ScPhase2PuppiRawToDigi::ScPhase2PuppiRawToDigi(const edm::ParameterSet& iConfig) :
-  rawToken_(consumes<SRDCollection>(iConfig.getParameter<edm::InputTag>("src"))),
-  fedIDs_(iConfig.getParameter<std::vector<unsigned int>>("fedIDs")),
-  doSimple_(iConfig.getParameter<bool>("runSimpleUnpacker"))
-{
-  if (doSimple_)
-    produces<BXVector<l1t::PFCandidate>>();
+ScPhase2PuppiRawToDigi::ScPhase2PuppiRawToDigi(const edm::ParameterSet &iConfig)
+    : rawToken_(consumes<SRDCollection>(iConfig.getParameter<edm::InputTag>("src"))),
+      fedIDs_(iConfig.getParameter<std::vector<unsigned int>>("fedIDs")),
+      doSimple_(iConfig.getParameter<bool>("runSimpleUnpacker")),
+      doStruct_(iConfig.getParameter<bool>("runStructUnpacker")),
+      doSOA_(iConfig.getParameter<bool>("runSOAUnpacker")),
+      noWrite_(iConfig.getParameter<bool>("noWrite")),
+      sparseBXVector_(iConfig.getParameter<bool>("sparseBXVector")) {
+  if (doSimple_) {
+    if (sparseBXVector_)
+      produces<SparseBXVector<l1t::PFCandidate>>();
+    else
+      produces<BXVector<l1t::PFCandidate>>();
+  }
+  if (doStruct_) {
+    if (sparseBXVector_)
+      produces<SparseBXVector<l1ct::structs::Puppi>>();
+    else
+      produces<BXVector<l1ct::structs::Puppi>>();
+  }
+  if (doSOA_) {
+    produces<l1ct::structs::PuppiSOA>();
+  }
 }
 
-ScPhase2PuppiRawToDigi::~ScPhase2PuppiRawToDigi() {};
+ScPhase2PuppiRawToDigi::~ScPhase2PuppiRawToDigi(){};
 
-void ScPhase2PuppiRawToDigi::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
+void ScPhase2PuppiRawToDigi::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
   edm::Handle<SRDCollection> scoutingRawDataCollection;
   iEvent.getByToken(rawToken_, scoutingRawDataCollection);
 
   if (doSimple_) {
-    iEvent.put(unpackSimple(*scoutingRawDataCollection));
+    if (sparseBXVector_)
+      iEvent.put(unpackSimple<SparseBXVector<l1t::PFCandidate>>(*scoutingRawDataCollection));
+    else
+      iEvent.put(unpackSimple<BXVector<l1t::PFCandidate>>(*scoutingRawDataCollection));
+  }
+  if (doStruct_) {
+    if (sparseBXVector_)
+      iEvent.put(unpackStruct<SparseBXVector<l1ct::structs::Puppi>>(*scoutingRawDataCollection));
+    else
+      iEvent.put(unpackStruct<BXVector<l1ct::structs::Puppi>>(*scoutingRawDataCollection));
+  }
+  if (doSOA_) {
+    iEvent.put(unpackSOA(*scoutingRawDataCollection));
   }
 }
 
-std::unique_ptr<BXVector<l1t::PFCandidate>> ScPhase2PuppiRawToDigi::unpackSimple(const SRDCollection & feds) {
-  std::vector<std::pair<const uint64_t *,const uint64_t *>> buffers;
-  for (auto & fedId : fedIDs_) {
-    const FEDRawData& src = feds.FEDData(fedId);
-    buffers.emplace_back(reinterpret_cast<const uint64_t *>(src.data()), reinterpret_cast<const uint64_t *>(src.data() + src.size()));
+template <typename BXVS>
+std::unique_ptr<BXVS> ScPhase2PuppiRawToDigi::unpackSimple(const SRDCollection &feds) {
+  std::vector<std::pair<const uint64_t *, const uint64_t *>> buffers;
+  for (auto &fedId : fedIDs_) {
+    const FEDRawData &src = feds.FEDData(fedId);
+    buffers.emplace_back(reinterpret_cast<const uint64_t *>(src.data()),
+                         reinterpret_cast<const uint64_t *>(src.data() + src.size()));
   }
 
-  auto ret = std::make_unique<BXVector<l1t::PFCandidate>>();
+  auto ret = std::make_unique<BXVS>();
   std::vector<l1t::PFCandidate> candBuffer;
   for (int ibuff = 0, nbuffs = buffers.size(), lbuff = nbuffs - 1; buffers[ibuff].first != buffers[ibuff].second;
        ibuff = (ibuff == lbuff ? 0 : ibuff + 1)) {
@@ -68,46 +121,159 @@ std::unique_ptr<BXVector<l1t::PFCandidate>> ScPhase2PuppiRawToDigi::unpackSimple
     }
     if (!*pa.first)
       continue;
+    unsigned int bx = ((*pa.first) >> 12) & 0xFFF;
     unsigned int nwords = (*pa.first) & 0xFFF;
     pa.first++;
+    float pt, eta, phi, mass, z0, dxy, puppiw;
+    uint16_t hwPt, hwPuppiW;
+    int16_t pdgId, hwEta, hwPhi, hwZ0;
+    int8_t hwDxy;
+    uint8_t pid, hwQuality;
+    l1t::PFCandidate::ParticleType type;
+    int charge;
     for (unsigned int i = 0; i < nwords; ++i, pa.first++) {
-      auto l1puppi = l1ct::PuppiObj::unpack(ap_uint<64>(*pa.first));
-            l1t::PFCandidate::ParticleType type;
-      float mass = 0.13f;
-      if (l1puppi.hwId.charged()) {
-        if (l1puppi.hwId.isMuon()) {
-          type = l1t::PFCandidate::Muon;
-          mass = 0.105;
-        } else if (l1puppi.hwId.isElectron()) {
-          type = l1t::PFCandidate::Electron;
-          mass = 0.005;
-        } else
-          type = l1t::PFCandidate::ChargedHadron;
+      uint64_t data = *pa.first;
+      phase2Utils::readshared(data, pt, eta, phi);
+      phase2Utils::readshared(data, hwPt, hwEta, hwPhi);
+      pid = (data >> 37) & 0x7;
+      phase2Utils::assignpdgid(pid, pdgId);
+      phase2Utils::assignCMSSWPFCandidateId(pid, type);
+      phase2Utils::assignmass(pid, mass);
+      phase2Utils::assigncharge(pid, charge);
+      reco::Particle::PolarLorentzVector p4(pt, eta, phi, mass);
+      if (pid > 1) {
+        phase2Utils::readcharged(data, z0, dxy, hwQuality);
+        phase2Utils::readcharged(data, hwZ0, hwDxy, hwQuality);
+        puppiw = 1.0;
       } else {
-        type = l1puppi.hwId.isPhoton() ? l1t::PFCandidate::Photon : l1t::PFCandidate::NeutralHadron;
-        mass = l1puppi.hwId.isPhoton() ? 0.0 : 0.5;
+        phase2Utils::readneutral(data, puppiw, hwQuality);
+        phase2Utils::readneutral(data, hwPuppiW, hwQuality);
+        dxy = 0;
+        z0 = 0;
       }
-      reco::Particle::PolarLorentzVector p4(l1puppi.floatPt(), l1puppi.floatEta(), l1puppi.floatPhi(), mass);
-      candBuffer.emplace_back(type, l1puppi.intCharge(), p4, l1puppi.floatPuppiW(), l1puppi.intPt(), l1puppi.intEta(), l1puppi.intPhi());
-      if (l1puppi.hwId.charged()) {
-        candBuffer.back().setZ0(l1puppi.floatZ0());
-        candBuffer.back().setDxy(l1puppi.floatDxy());
-        candBuffer.back().setHwZ0(l1puppi.hwZ0());
-        candBuffer.back().setHwDxy(l1puppi.hwDxy());
-        candBuffer.back().setHwTkQuality(l1puppi.hwTkQuality());
+      candBuffer.emplace_back(type, charge, p4, puppiw, hwPt, hwEta, hwPhi);
+      if (pid > 1) {
+        candBuffer.back().setZ0(z0);
+        candBuffer.back().setDxy(dxy);
+        candBuffer.back().setHwZ0(hwZ0);
+        candBuffer.back().setHwDxy(hwDxy);
+        candBuffer.back().setHwTkQuality(hwQuality);
       } else {
-        candBuffer.back().setHwPuppiWeight(l1puppi.hwPuppiW());
-        candBuffer.back().setHwEmID(l1puppi.hwEmID());
+        candBuffer.back().setHwPuppiWeight(hwPuppiW);
+        candBuffer.back().setHwEmID(hwQuality);
       }
-      candBuffer.back().setEncodedPuppi64(l1puppi.pack().to_uint64());
+      candBuffer.back().setEncodedPuppi64(data);
     }
-    ret->addBX(candBuffer.begin(), candBuffer.end());
+    if (!noWrite_) {
+      appendToBXV(*ret, candBuffer, bx);
+    }
     candBuffer.clear();
   }
   return ret;
 }
 
-void ScPhase2PuppiRawToDigi::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
+template <typename BXVS>
+std::unique_ptr<BXVS> ScPhase2PuppiRawToDigi::unpackStruct(const SRDCollection &feds) {
+  std::vector<std::pair<const uint64_t *, const uint64_t *>> buffers;
+  for (auto &fedId : fedIDs_) {
+    const FEDRawData &src = feds.FEDData(fedId);
+    buffers.emplace_back(reinterpret_cast<const uint64_t *>(src.data()),
+                         reinterpret_cast<const uint64_t *>(src.data() + src.size()));
+  }
+
+  auto ret = std::make_unique<BXVS>();
+  std::vector<l1ct::structs::Puppi> candBuffer;
+  for (int ibuff = 0, nbuffs = buffers.size(), lbuff = nbuffs - 1; buffers[ibuff].first != buffers[ibuff].second;
+       ibuff = (ibuff == lbuff ? 0 : ibuff + 1)) {
+    auto &pa = buffers[ibuff];
+    while (pa.first != pa.second && *pa.first == 0) {
+      pa.first++;
+    }
+    if (!*pa.first)
+      continue;
+    unsigned int bx = ((*pa.first) >> 12) & 0xFFF;
+    unsigned int nwords = (*pa.first) & 0xFFF;
+    pa.first++;
+    candBuffer.resize(nwords);
+    for (unsigned int i = 0; i < nwords; ++i, pa.first++) {
+      uint64_t data = *pa.first;
+      phase2Utils::readshared(data, candBuffer[i].pt, candBuffer[i].eta, candBuffer[i].phi);
+      uint8_t pid = (data >> 37) & 0x7;
+      phase2Utils::assignpdgid(pid, candBuffer[i].pdgId);
+      if (pid > 1) {
+        phase2Utils::readcharged(data, candBuffer[i].z0, candBuffer[i].dxy, candBuffer[i].quality);
+        candBuffer[i].puppiw = 1.0;
+      } else {
+        phase2Utils::readneutral(data, candBuffer[i].puppiw, candBuffer[i].quality);
+        candBuffer[i].dxy = 0;
+        candBuffer[i].z0 = 0;
+      }
+    }
+    if (!noWrite_) {
+      appendToBXV(*ret, candBuffer, bx);
+    }
+    candBuffer.clear();
+  }
+  return ret;
+}
+
+std::unique_ptr<l1ct::structs::PuppiSOA> ScPhase2PuppiRawToDigi::unpackSOA(const SRDCollection &feds) {
+  std::vector<std::pair<const uint64_t *, const uint64_t *>> buffers;
+  unsigned int sizeguess = 0;
+  for (auto &fedId : fedIDs_) {
+    const FEDRawData &src = feds.FEDData(fedId);
+    buffers.emplace_back(reinterpret_cast<const uint64_t *>(src.data()),
+                         reinterpret_cast<const uint64_t *>(src.data() + src.size()));
+    sizeguess += src.size();
+  }
+  l1ct::structs::PuppiSOA ret;
+  ret.bx.reserve(3564);
+  ret.offsets.reserve(3564 + 1);
+  for (std::vector<float> *v : {&ret.pt, &ret.eta, &ret.phi, &ret.z0, &ret.dxy, &ret.puppiw}) {
+    v->resize(sizeguess);
+  }
+  ret.pdgId.resize(sizeguess);
+  ret.quality.resize(sizeguess);
+  unsigned int i0 = 0;
+  for (int ibuff = 0, nbuffs = buffers.size(), lbuff = nbuffs - 1; buffers[ibuff].first != buffers[ibuff].second;
+       ibuff = (ibuff == lbuff ? 0 : ibuff + 1)) {
+    auto &pa = buffers[ibuff];
+    while (pa.first != pa.second && *pa.first == 0) {
+      pa.first++;
+    }
+    if (!*pa.first)
+      continue;
+    unsigned int bx = ((*pa.first) >> 12) & 0xFFF;
+    unsigned int nwords = (*pa.first) & 0xFFF;
+    pa.first++;
+    ret.bx.push_back(bx);
+    ret.offsets.push_back(i0);
+    for (unsigned int i = 0; i < nwords; ++i, ++pa.first, ++i0) {
+      uint64_t data = *pa.first;
+      phase2Utils::readshared(data, ret.pt[i0], ret.eta[i0], ret.phi[i0]);
+      uint8_t pid = (data >> 37) & 0x7;
+      phase2Utils::assignpdgid(pid, ret.pdgId[i0]);
+      if (pid > 1) {
+        phase2Utils::readcharged(data, ret.z0[i0], ret.dxy[i0], ret.quality[i0]);
+        ret.puppiw[i0] = 1.0f;
+      } else {
+        phase2Utils::readneutral(data, ret.puppiw[i0], ret.quality[i0]);
+        ret.dxy[i0] = 0.0f;
+        ret.z0[i0] = 0.0f;
+      }
+    }
+  }
+  ret.offsets.push_back(i0);
+  for (std::vector<float> *v : {&ret.pt, &ret.eta, &ret.phi, &ret.z0, &ret.dxy, &ret.puppiw}) {
+    v->resize(i0);
+  }
+  ret.pdgId.resize(i0);
+  ret.quality.resize(i0);
+  auto retptr = std::make_unique<l1ct::structs::PuppiSOA>(std::move(ret));
+  return retptr;
+}
+
+void ScPhase2PuppiRawToDigi::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
   edm::ParameterSetDescription desc;
   desc.setUnknown();
   descriptions.addDefault(desc);

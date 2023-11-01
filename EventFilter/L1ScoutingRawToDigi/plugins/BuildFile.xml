@@ -8,5 +8,6 @@
   <use name="DataFormats/L1Trigger"/>
   <use name="DataFormats/L1TMuon"/>
   <use name="DataFormats/L1TParticleFlow"/>
+  <use name="rootvecops"/>
   <flags EDM_PLUGIN="1"/>
 </library>
