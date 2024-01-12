@@ -114,12 +114,8 @@ namespace l1ct {
       void writeNewEvent() {
         iwrite_ = 1 - iwrite_;
         items_[iwrite_].clear();
-        //std::cout << "Starting to write on " << iwrite_ << " (size " << items_[iwrite_].size() << ", other size " << items_[1-iwrite_].size() << ", reading " << iread_ << ")" << std::endl;
       }
-      void readNewEvent() {
-        iread_ = 1 - iread_;
-        //std::cout << "Starting to read on " << iread_ << " (size " << items_[iread_].size() << ", other size " << items_[1-iread_].size() << ", writing " << iwrite_ << ")" << std::endl;
-      }
+      void readNewEvent() { iread_ = 1 - iread_; }
       T pop();
       unsigned int writeSize() const { return items_[iwrite_].size(); }
       unsigned int readSize() const { return items_[iread_].size(); }

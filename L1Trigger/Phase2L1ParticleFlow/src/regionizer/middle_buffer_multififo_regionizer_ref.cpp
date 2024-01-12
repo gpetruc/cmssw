@@ -297,7 +297,6 @@ bool l1ct::MiddleBufferMultififoRegionizerEmulator::step(bool newEvent,
   for (unsigned int ieta = 0; ieta < neta; ++ieta) {
     for (unsigned int iphi = 0; iphi < nphi; ++iphi) {
       unsigned int iin = ieta * nphi + iphi;
-      //if (ieta == 0 && iphi == 0 && pre_out_tk[iin].hwPt != 0) std::cout << "iclock " << iclock_ << ",  pre_out_tk[" << iin << "] = " << pre_out_tk[iin].pack().to_string(16) << std::endl;
       for (int i = 0, n = nbuffers_ == nregions_pre_ ? 1 : 2; i < n; ++i) {
         unsigned int iout = (n * ieta + i) * nphi + iphi;
         if (ntk_)
