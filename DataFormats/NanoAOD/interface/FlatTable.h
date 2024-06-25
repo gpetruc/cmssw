@@ -170,7 +170,7 @@ namespace nanoaod {
           : name(aname), doc(docString), type(atype), firstIndex(anIndex) {}
     };
 
-  private:
+  protected:
     template <typename T>
     auto beginData(unsigned int column) const {
       return bigVector<T>().cbegin() + columns_[column].firstIndex;

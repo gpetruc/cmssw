@@ -36,5 +36,10 @@
   <class name="std::vector<l1ScoutingRun3::BxSums>"/>
   <class name="l1ScoutingRun3::BxSumsOrbitCollection"/>
   <class name="edm::Wrapper<l1ScoutingRun3::BxSumsOrbitCollection>"/>
-  
+
+  <class name="l1ScoutingRun3::OrbitFlatTable" ClassVersion="3">
+    <version ClassVersion="3" checksum="2511790685"/>
+  </class>
+  <class name="edm::Wrapper<l1ScoutingRun3::OrbitFlatTable>"/>
+   
 </lcgdict>
