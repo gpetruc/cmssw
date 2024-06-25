@@ -39,8 +39,6 @@ private:
   edm::EDGetTokenT<OrbitCollection<T>> src_;
 
   std::string name_, doc_;
-
-  bool singleton_;
 };
 // -----------------------------------------------------------------------------
 
@@ -50,8 +48,7 @@ template <typename T>
 ConverterToOrbitFlatTable<T>::ConverterToOrbitFlatTable(const edm::ParameterSet& iConfig)
     : src_(consumes<OrbitCollection<T>>(iConfig.getParameter<edm::InputTag>("src"))),
       name_(iConfig.getParameter<std::string>("name")),
-      doc_(iConfig.getParameter<std::string>("doc")),
-      singleton_(false)  // nothing yet on this front
+      doc_(iConfig.getParameter<std::string>("doc"))
 {
   produces<OrbitFlatTable>();
 }
@@ -62,7 +59,7 @@ template <typename T>
 void ConverterToOrbitFlatTable<T>::produce(edm::StreamID, edm::Event& iEvent, edm::EventSetup const&) const {
   edm::Handle<OrbitCollection<T>> src;
   iEvent.getByToken(src_, src);
-  auto out = std::make_unique<OrbitFlatTable>(src->bxOffsets(), name_, singleton_);
+  auto out = std::make_unique<OrbitFlatTable>(src->bxOffsets(), name_);
   out->setDoc(doc_);
   std::vector<float> pt(out->size()), eta(out->size()), phi(out->size());
   if constexpr (std::is_same<T, l1ScoutingRun3::Muon>()) {

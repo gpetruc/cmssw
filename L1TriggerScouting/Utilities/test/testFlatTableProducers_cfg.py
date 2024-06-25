@@ -59,11 +59,17 @@ process.scTauTable = cms.EDProducer("ConvertScoutingTausToOrbitFlatTable",
   name = cms.string("Tau"),
   doc = cms.string("Taus from Calo Demux"),
 )
+process.scSumTable = cms.EDProducer("ConvertScoutingSumsToOrbitFlatTable",
+  src = cms.InputTag("l1ScCaloUnpacker", "EtSum"),
+  name = cms.string("Sums"),
+  doc = cms.string("Sums from Calo Demux"),
+)
 process.p = cms.Path(
   process.scMuonTable +
   process.scJetTable +
   process.scEgammaTable +
-  process.scTauTable
+  process.scTauTable +
+  process.scSumTable
 )
 process.out = cms.OutputModule("OrbitNanoAODOutputModule",
     fileName = cms.untracked.string(options.outFile),

@@ -120,23 +120,23 @@ bool OrbitTableOutputBranches::hasBx(uint32_t bx) {
 }
 
 void OrbitTableOutputBranches::fillBx(uint32_t bx) {
-  bool empty = (m_counter == 0);
-  for (auto &pair : m_uint8Branches)
-    fillColumn<uint8_t>(pair, bx, empty);
-  for (auto &pair : m_int16Branches)
-    fillColumn<int16_t>(pair, bx, empty);
-  for (auto &pair : m_uint16Branches)
-    fillColumn<uint16_t>(pair, bx, empty);
-  for (auto &pair : m_int32Branches)
-    fillColumn<int32_t>(pair, bx, empty);
-  for (auto &pair : m_uint32Branches)
-    fillColumn<uint32_t>(pair, bx, empty);
-  for (auto &pair : m_floatBranches)
-    fillColumn<float>(pair, bx, empty);
-  for (auto &pair : m_doubleBranches)
-    fillColumn<double>(pair, bx, empty);
+  if (m_counter != 0) {
+    bool empty = false;
+    for (auto &pair : m_uint8Branches)
+      fillColumn<uint8_t>(pair, bx, empty);
+    for (auto &pair : m_int16Branches)
+      fillColumn<int16_t>(pair, bx, empty);
+    for (auto &pair : m_uint16Branches)
+      fillColumn<uint16_t>(pair, bx, empty);
+    for (auto &pair : m_int32Branches)
+      fillColumn<int32_t>(pair, bx, empty);
+    for (auto &pair : m_uint32Branches)
+      fillColumn<uint32_t>(pair, bx, empty);
+    for (auto &pair : m_floatBranches)
+      fillColumn<float>(pair, bx, empty);
+    for (auto &pair : m_doubleBranches)
+      fillColumn<double>(pair, bx, empty);
+  }
 }
 
-void OrbitTableOutputBranches::endFill() {
-  m_table = nullptr;
-}
+void OrbitTableOutputBranches::endFill() { m_table = nullptr; }
