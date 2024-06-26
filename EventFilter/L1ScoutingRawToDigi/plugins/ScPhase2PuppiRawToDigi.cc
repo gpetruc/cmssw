@@ -34,6 +34,7 @@ private:
   std::unique_ptr<BXVS> unpackStruct(const SRDCollection &feds);
 
   std::unique_ptr<l1ct::structs::PuppiSOA> unpackSOA(const SRDCollection &feds);
+  std::unique_ptr<l1ct::structs::PuppiASOA> vunpackSOA(const SRDCollection &feds);
 
   template <typename T>
   void appendToBXV(BXVector<T> &to, const std::vector<T> &from, int bx) {
@@ -50,7 +51,7 @@ private:
 
   edm::EDGetTokenT<SRDCollection> rawToken_;
   std::vector<unsigned int> fedIDs_;
-  bool doSimple_, doStruct_, doSOA_;
+  bool doSimple_, doStruct_, doSOA_, dovSOA_;
   bool noWrite_, sparseBXVector_;
 };
 
@@ -60,6 +61,7 @@ ScPhase2PuppiRawToDigi::ScPhase2PuppiRawToDigi(const edm::ParameterSet &iConfig)
       doSimple_(iConfig.getParameter<bool>("runSimpleUnpacker")),
       doStruct_(iConfig.getParameter<bool>("runStructUnpacker")),
       doSOA_(iConfig.getParameter<bool>("runSOAUnpacker")),
+      dovSOA_(doSOA_ ? iConfig.getParameter<bool>("vectorizeSOAUnpacker") : false),
       noWrite_(iConfig.getParameter<bool>("noWrite")),
       sparseBXVector_(iConfig.getParameter<bool>("sparseBXVector")) {
   if (doSimple_) {
@@ -75,7 +77,10 @@ ScPhase2PuppiRawToDigi::ScPhase2PuppiRawToDigi(const edm::ParameterSet &iConfig)
       produces<BXVector<l1ct::structs::Puppi>>();
   }
   if (doSOA_) {
-    produces<l1ct::structs::PuppiSOA>();
+    if (dovSOA_) 
+      produces<l1ct::structs::PuppiASOA>();
+    else
+      produces<l1ct::structs::PuppiSOA>();
   }
 }
 
@@ -98,7 +103,10 @@ void ScPhase2PuppiRawToDigi::produce(edm::Event &iEvent, const edm::EventSetup &
       iEvent.put(unpackStruct<BXVector<l1ct::structs::Puppi>>(*scoutingRawDataCollection));
   }
   if (doSOA_) {
-    iEvent.put(unpackSOA(*scoutingRawDataCollection));
+    if (dovSOA_) 
+      iEvent.put(vunpackSOA(*scoutingRawDataCollection));
+    else
+      iEvent.put(unpackSOA(*scoutingRawDataCollection));
   }
 }
 
@@ -273,6 +281,46 @@ std::unique_ptr<l1ct::structs::PuppiSOA> ScPhase2PuppiRawToDigi::unpackSOA(const
   return retptr;
 }
 
+std::unique_ptr<l1ct::structs::PuppiASOA> ScPhase2PuppiRawToDigi::vunpackSOA(const SRDCollection &feds) {
+  std::vector<std::pair<const uint64_t *, const uint64_t *>> buffers;
+  unsigned int sizeguess = 0;
+  for (auto &fedId : fedIDs_) {
+    const FEDRawData &src = feds.FEDData(fedId);
+    buffers.emplace_back(reinterpret_cast<const uint64_t *>(src.data()),
+                         reinterpret_cast<const uint64_t *>(src.data() + src.size()));
+    sizeguess += src.size();
+  }
+  l1ct::structs::PuppiASOA ret;
+  ret.bx.reserve(3564);
+  ret.offsets.reserve(3564 + 1);
+  std::vector<uint64_t> packed(sizeguess);
+  unsigned int i0 = 0;
+  for (int ibuff = 0, nbuffs = buffers.size(), lbuff = nbuffs - 1; buffers[ibuff].first != buffers[ibuff].second;
+       ibuff = (ibuff == lbuff ? 0 : ibuff + 1)) {
+    auto &pa = buffers[ibuff];
+    while (pa.first != pa.second && *pa.first == 0) {
+      pa.first++;
+    }
+    if (!*pa.first)
+      continue;
+    unsigned int bx = ((*pa.first) >> 12) & 0xFFF;
+    unsigned int nwords = (*pa.first) & 0xFFF;
+    pa.first++;
+    ret.bx.push_back(bx);
+    ret.offsets.push_back(i0);
+    packed.insert(packed.end(), pa.first, pa.first + nwords);
+    pa.first += nwords;
+  }
+  ret.offsets.push_back(i0);
+  for (l1ct::structs::PuppiASOA::avector<float> *v : {&ret.pt, &ret.eta, &ret.phi, &ret.z0, &ret.dxy, &ret.puppiw}) {
+    v->resize(i0);
+  }
+  ret.pdgId.resize(i0);
+  ret.quality.resize(i0);
+  phase2Utils::readpuppi(i0, packed.data(), ret.pt.data(),  ret.eta.data(), ret.phi.data(), ret.pdgId.data(), ret.quality.data(), ret.z0.data(), ret.dxy.data(), ret.puppiw.data());
+  auto retptr = std::make_unique<l1ct::structs::PuppiASOA>(std::move(ret));
+  return retptr;
+}
 void ScPhase2PuppiRawToDigi::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
   edm::ParameterSetDescription desc;
   desc.setUnknown();

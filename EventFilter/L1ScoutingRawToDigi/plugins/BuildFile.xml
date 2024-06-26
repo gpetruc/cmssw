@@ -10,4 +10,5 @@
   <use name="DataFormats/L1TParticleFlow"/>
   <use name="rootvecops"/>
   <flags EDM_PLUGIN="1"/>
+  <flags CXXFLAGS="-mavx2"/>
 </library>

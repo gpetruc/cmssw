@@ -4,6 +4,7 @@
 #include <vector>
 #include <utility>
 #include <cstdint>
+#include <boost/align/aligned_allocator.hpp>
 
 namespace l1ct {
     namespace structs {
@@ -38,6 +39,36 @@ namespace l1ct {
             }
         };
         inline void swap(PuppiSOA & a, PuppiSOA & b) {
+            a.swap(b);
+        }
+        struct PuppiASOA {
+          template <class T>
+          using avector = std::vector<T, boost::alignment::aligned_allocator<T, 64>>;
+          avector<uint16_t> bx;
+          avector<uint32_t> offsets;
+          avector<float> pt, eta, phi, z0, dxy, puppiw;
+          avector<int16_t> pdgId;
+          avector<uint8_t> quality;
+          PuppiASOA() : bx(), offsets(), pt(), eta(), phi(), z0(), dxy(), puppiw(), pdgId(), quality() {}
+          PuppiASOA(const PuppiASOA& other) = default;
+          PuppiASOA(PuppiASOA&& other) = default;
+          PuppiASOA& operator=(const PuppiASOA& other) = default;
+          PuppiASOA& operator=(PuppiASOA&& other) = default;
+          void swap(PuppiASOA& other) {
+            using std::swap;
+            swap(bx, other.bx);
+            swap(offsets, other.offsets);
+            swap(pt, other.pt);
+            swap(eta, other.eta);
+            swap(phi, other.phi);
+            swap(z0, other.z0);
+            swap(dxy, other.dxy);
+            swap(puppiw, other.puppiw);
+            swap(pdgId, other.pdgId);
+            swap(quality, other.quality);
+            }
+        };
+        inline void swap(PuppiASOA & a, PuppiASOA & b) {
             a.swap(b);
         }
     }

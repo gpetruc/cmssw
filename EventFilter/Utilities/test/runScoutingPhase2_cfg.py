@@ -59,7 +59,7 @@ options.register ('puppiMode',
                   "puppi mode to run (simple, sparse, struct, sparseStruct, soa)")
 
 options.parseArguments()
-if options.puppiMode not in ("simple", "sparse", "struct", "sparseStruct", "soa", "all"):
+if options.puppiMode not in ("simple", "sparse", "struct", "sparseStruct", "soa", "all", "fast"):
     raise RuntimeError("Unsupported puppiMode %r" %options.puppiMode)
 
 cmsswbase = os.path.expandvars("$CMSSW_BASE/")
@@ -119,7 +119,7 @@ process.source = cms.Source("DAQSource",
     maxBufferedFiles = cms.untracked.uint32(2),
     fileListMode = cms.untracked.bool(True),
     fileNames = cms.untracked.vstring(
-        buDir + "/" + "run%06d_ls%04d_index%06d.raw" % (options.runNumber, options.lumiNumber, 0)
+        buDir + "/" + "run%06d_ls%04d_index%06d_ts00.raw" % (options.runNumber, options.lumiNumber, 0)
     )
 )
 os.system("touch " + buDir + "/" + "fu.lock")
@@ -131,6 +131,7 @@ process.scPhase2PuppiRawToDigi = cms.EDProducer('ScPhase2PuppiRawToDigi',
   runSimpleUnpacker = cms.bool(True),
   runStructUnpacker = cms.bool(False),
   runSOAUnpacker = cms.bool(False),
+  vectorizeSOAUnpacker = cms.bool(False),
   noWrite = cms.bool(False),
   sparseBXVector = cms.bool(False),
 )
@@ -148,7 +149,11 @@ process.scPhase2PuppiRawToDigiSOA = process.scPhase2PuppiRawToDigi.clone(
     runSimpleUnpacker = False,
     runSOAUnpacker = True
 )
-
+process.scPhase2PuppiRawToDigiVSOA = process.scPhase2PuppiRawToDigi.clone(
+    runSimpleUnpacker = False,
+    runSOAUnpacker = True,
+    vectorizeSOAUnpacker = True
+)
 process.w3piSimple = cms.EDProducer("ScPhase2PuppiW3PiDemo",
     src = cms.InputTag("scPhase2PuppiRawToDigiSparse"),
     runSimple = cms.bool(True),
@@ -205,7 +210,16 @@ process.p_all = cms.Path(
   process.scPhase2PuppiRawToDigiStruct+
   process.scPhase2PuppiRawToDigiSparseStruct+
   process.scPhase2PuppiRawToDigiSOA+
+  process.scPhase2PuppiRawToDigiVSOA+
   process.w3piSimple+
+  process.w3piStruct+
+  process.w3piSOA
+)
+process.p_fast = cms.Path(
+  process.scPhase2PuppiRawToDigiStruct+
+  process.scPhase2PuppiRawToDigiSparseStruct+
+  process.scPhase2PuppiRawToDigiSOA+
+  process.scPhase2PuppiRawToDigiVSOA+
   process.w3piStruct+
   process.w3piSOA
 )

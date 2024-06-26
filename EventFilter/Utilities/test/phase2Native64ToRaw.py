@@ -65,9 +65,9 @@ try:
           outfile.write(data)
         orbits += 1
         bytes += orbitSize + orbitHeaderSize
-        print("Wrote orbit %d of size %u (payload) + %u (header) = %u" % (orbits-1, orbitSize, orbitHeaderSize, orbitSize +  orbitHeaderSize))
+        #print("Wrote orbit %d (%u) of size %u (payload) + %u (header) = %u" % (orbits-1, oldorbit, orbitSize, orbitHeaderSize, orbitSize +  orbitHeaderSize))
       else:
-        firstlumi = orbit//options.orbitsPerLumi
+        firstlumi = 1 + orbit//options.orbitsPerLumi
       orbitbuffer = []
       oldorbit = orbit
     events += 1
@@ -77,13 +77,13 @@ try:
 except EOFError:
   if orbitbuffer != []:
     orbitSize = sum(len(x) for x in orbitbuffer)
-    lumi = oldorbit//options.orbitsPerLumi
+    lumi = 1 + oldorbit//options.orbitsPerLumi
     writeFRDEventHeader_V6(outfile, run, lumi, oldorbit, orbitSize)
     for data in orbitbuffer:
       outfile.write(data)
     orbits += 1
     bytes += orbitSize + orbitHeaderSize
-    print("Wrote orbit %d of size %u (payload) + %u (header) = %u" % (orbits-1, orbitSize, orbitHeaderSize, orbitSize +  orbitHeaderSize))
+    #print("Wrote orbit %d (%u) of size %u (payload) + %u (header) = %u" % (orbits-1, oldorbit, orbitSize, orbitHeaderSize, orbitSize +  orbitHeaderSize))
 outfile.seek(0)
 writeFRDFileHeader_v2(outfile, run, firstlumi, orbits, bytes)
 print("Wrote %u orbits, %u events, %u bytes" % (orbits, events, bytes))

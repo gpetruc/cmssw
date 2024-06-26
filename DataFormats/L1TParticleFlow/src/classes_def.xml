@@ -44,6 +44,13 @@
   <class name="edm::Wrapper<SparseBXVector<l1ct::structs::Puppi>>" />
   <class name="l1ct::structs::PuppiSOA" />
   <class name="edm::Wrapper<l1ct::structs::PuppiSOA>" />
+  <class name="std::vector<float,boost::alignment::aligned_allocator<float,64>>" />
+  <class name="std::vector<short,boost::alignment::aligned_allocator<short,64>>" />
+  <class name="std::vector<unsigned char,boost::alignment::aligned_allocator<unsigned char,64>>" />
+  <class name="std::vector<unsigned int,boost::alignment::aligned_allocator<unsigned int,64>>" />
+  <class name="std::vector<unsigned short,boost::alignment::aligned_allocator<unsigned short,64>>" />
+  <class name="l1ct::structs::PuppiASOA" />
+  <class name="edm::Wrapper<l1ct::structs::PuppiASOA>" />
 
   <class name="l1t::PFJet"  ClassVersion="4">
         <version ClassVersion="4" checksum="1424452548"/>
