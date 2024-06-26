@@ -67,9 +67,9 @@ private:
   template <typename T>
   void fillColumn(NamedBranchPtr &pair, uint32_t bx, bool empty) {
     pair.branch->SetAddress(
-            empty
-            ? static_cast<T *>(nullptr)
-            : const_cast<T *>(&m_table->columnData<T>(pair.columIndex, bx).front()));  // SetAddress should take a const * !
+        empty ? static_cast<T *>(nullptr)
+              : const_cast<T *>(
+                    &m_table->columnData<T>(pair.columIndex, bx).front()));  // SetAddress should take a const * !
   }
 };
 

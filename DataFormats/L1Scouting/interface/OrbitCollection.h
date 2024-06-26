@@ -118,7 +118,7 @@ public:
   const T& operator[](std::size_t i) const { return data_[i]; }
 
   //used by OrbitFlatTable
-  const std::vector<unsigned> & bxOffsets() const { return bxOffsets_; };
+  const std::vector<unsigned>& bxOffsets() const { return bxOffsets_; };
 
   // used by ROOT storage
   CMS_CLASS_VERSION(3)

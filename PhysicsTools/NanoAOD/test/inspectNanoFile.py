@@ -87,9 +87,12 @@ class BranchGroup:
 
 
 def inspectRootFile(infile):
-    if not os.path.isfile(infile): raise RuntimeError
-    filesize = os.path.getsize(infile)/1024.0
     tfile = ROOT.TFile.Open(infile)
+    if os.path.isfile(infile):
+        ## local file
+        filesize = os.path.getsize(infile)/1024.0
+    else:
+        filesize = tfile.GetSize()/1024.0
     trees = {}
     for treeName in "Events", "Runs", "LuminosityBlocks":
         toplevelDoc={}

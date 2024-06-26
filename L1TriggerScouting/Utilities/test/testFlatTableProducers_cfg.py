@@ -41,27 +41,27 @@ process.source = cms.Source("PoolSource",
 
 process.scMuonTable = cms.EDProducer("ConvertScoutingMuonsToOrbitFlatTable",
   src = cms.InputTag("l1ScGmtUnpacker", "Muon"),
-  name = cms.string("Muon"),
+  name = cms.string("L1Mu"),
   doc = cms.string("Muons from GMT"),
 )
 process.scJetTable = cms.EDProducer("ConvertScoutingJetsToOrbitFlatTable",
   src = cms.InputTag("l1ScCaloUnpacker", "Jet"),
-  name = cms.string("Jet"),
+  name = cms.string("L1Jet"),
   doc = cms.string("Jets from Calo Demux"),
 )
 process.scEgammaTable = cms.EDProducer("ConvertScoutingEGammasToOrbitFlatTable",
   src = cms.InputTag("l1ScCaloUnpacker", "EGamma"),
-  name = cms.string("EGamma"),
+  name = cms.string("L1EG"),
   doc = cms.string("EGammas from Calo Demux"),
 )
 process.scTauTable = cms.EDProducer("ConvertScoutingTausToOrbitFlatTable",
   src = cms.InputTag("l1ScCaloUnpacker", "Tau"),
-  name = cms.string("Tau"),
+  name = cms.string("L1Tau"),
   doc = cms.string("Taus from Calo Demux"),
 )
 process.scSumTable = cms.EDProducer("ConvertScoutingSumsToOrbitFlatTable",
   src = cms.InputTag("l1ScCaloUnpacker", "EtSum"),
-  name = cms.string("Sums"),
+  name = cms.string("L1EtSum"),
   doc = cms.string("Sums from Calo Demux"),
 )
 process.p = cms.Path(

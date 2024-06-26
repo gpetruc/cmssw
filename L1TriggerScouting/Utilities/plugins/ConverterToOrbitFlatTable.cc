@@ -33,7 +33,8 @@ public:
 
   void produce(edm::StreamID, edm::Event&, edm::EventSetup const&) const override;
 
-  static void fillDescriptions(edm::ConfigurationDescriptions& descriptions) ;
+  static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
+
 private:
   // the tokens to access the data
   edm::EDGetTokenT<OrbitCollection<T>> src_;
@@ -48,8 +49,7 @@ template <typename T>
 ConverterToOrbitFlatTable<T>::ConverterToOrbitFlatTable(const edm::ParameterSet& iConfig)
     : src_(consumes<OrbitCollection<T>>(iConfig.getParameter<edm::InputTag>("src"))),
       name_(iConfig.getParameter<std::string>("name")),
-      doc_(iConfig.getParameter<std::string>("doc"))
-{
+      doc_(iConfig.getParameter<std::string>("doc")) {
   produces<OrbitFlatTable>();
 }
 // -----------------------------------------------------------------------------
@@ -70,7 +70,7 @@ void ConverterToOrbitFlatTable<T>::produce(edm::StreamID, edm::Event& iEvent, ed
       pt[i] = ugmt::fPt(muon.hwPt());
       eta[i] = ugmt::fEta(muon.hwEta());
       phi[i] = ugmt::fPhi(muon.hwPhi());
-      charge[i] = muon.hwChargeValid() ? muon.hwCharge() : 0;
+      charge[i] = muon.hwCharge();
       quality[i] = muon.hwQual();
       dxy[i] = muon.hwDXY();
       index[i] = muon.tfMuonIndex();
@@ -79,10 +79,13 @@ void ConverterToOrbitFlatTable<T>::produce(edm::StreamID, edm::Event& iEvent, ed
       phiAtVtx[i] = ugmt::fPhiAtVtx(muon.hwPhiAtVtx());
       ++i;
     }
-    out->template addColumn<int>("charge", charge, "charge (0 = not valid)");
-    out->template addColumn<int>("quality", quality, "quality");
-    out->template addColumn<int>("trackIndex", index, "muon track index");
-    out->template addColumn<int>("dxy", dxy, "dxy (trigger units)");
+    out->template addColumn<int>("hwCharge", charge, "charge (0 = not valid)");
+    out->template addColumn<int>("hwQual", quality, "quality");
+    out->template addColumn<int>("hwDXY", dxy, "hwDXY");
+    out->template addColumn<int>("tfMuonIndex",
+                                 index,
+                                 "Index of muon at the uGMT input. 3 indices per link/sector/wedge. EMTF+ are 0-17, "
+                                 "OMTF+ are 18-35, BMTF are 36-71, OMTF- are 72-89, EMTF- are 90-107");
     out->template addColumn<float>("ptUnconstrained", ptUnconstrained, "Unconstrained p_{T} (GeV)");
     out->template addColumn<float>("etaAtVtx", etaAtVtx, "eta extrapolated at beam line (natural units)");
     out->template addColumn<float>("phiAtVtx", phiAtVtx, "phi extrapolated at beam line (natural units)");
@@ -96,7 +99,7 @@ void ConverterToOrbitFlatTable<T>::produce(edm::StreamID, edm::Event& iEvent, ed
       isolation[i] = calo.hwIso();
       ++i;
     }
-    out->template addColumn<int>("isolation", isolation, "isolation (trigger units)");
+    out->template addColumn<int>("hwIso", isolation, "isolation (trigger units)");
   }
   out->template addColumn<float>("pt", pt, "pt (GeV)");
   out->template addColumn<float>("eta", eta, "eta (natural units)");
