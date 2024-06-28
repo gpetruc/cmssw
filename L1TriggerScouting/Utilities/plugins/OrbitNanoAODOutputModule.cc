@@ -100,15 +100,18 @@ private:
     void branch(TTree& tree) {
       tree.Branch("run", &m_run, "run/i");
       tree.Branch("luminosityBlock", &m_luminosityBlock, "luminosityBlock/i");
+      tree.Branch("nOrbits", &m_orbits, "nOrbits/i");
     }
-    void fill(const edm::LuminosityBlockID& id) {
+    void fill(const edm::LuminosityBlockID& id, unsigned int nOrbits) {
       m_run = id.run();
       m_luminosityBlock = id.value();
+      m_orbits = nOrbits;
     }
 
   private:
     UInt_t m_run;
     UInt_t m_luminosityBlock;
+    UInt_t m_orbits;
   } m_commonLumiBranches;
 
   class CommonRunBranches {
@@ -121,6 +124,7 @@ private:
   } m_commonRunBranches;
 
   std::vector<OrbitTableOutputBranches> m_tables;
+  unsigned int m_nOrbits;
 
   std::vector<std::pair<std::string, edm::EDGetToken>> m_nanoMetadata;
 };
@@ -146,7 +150,8 @@ OrbitNanoAODOutputModule::OrbitNanoAODOutputModule(edm::ParameterSet const& pset
       m_writeProvenance(pset.getUntrackedParameter<bool>("saveProvenance", true)),
       m_fakeName(pset.getUntrackedParameter<bool>("fakeNameForCrab", false)),
       m_autoFlush(pset.getUntrackedParameter<int>("autoFlush", -10000000)),
-      m_processHistoryRegistry() {}
+      m_processHistoryRegistry(),
+      m_nOrbits(0) {}
 
 OrbitNanoAODOutputModule::~OrbitNanoAODOutputModule() {}
 
@@ -154,6 +159,7 @@ void OrbitNanoAODOutputModule::write(edm::EventForOutput const& iEvent) {
   //Get data from 'e' and write it to the file
   edm::Service<edm::JobReport> jr;
   jr->eventWrittenToFile(m_jrToken, iEvent.id().run(), iEvent.id().event());
+  m_nOrbits++;
 
   if (m_autoFlush) {
     int64_t events = m_tree->GetEntriesFast();
@@ -225,11 +231,13 @@ void OrbitNanoAODOutputModule::writeLuminosityBlock(edm::LuminosityBlockForOutpu
   edm::Service<edm::JobReport> jr;
   jr->reportLumiSection(m_jrToken, iLumi.id().run(), iLumi.id().value());
 
-  m_commonLumiBranches.fill(iLumi.id());
+  m_commonLumiBranches.fill(iLumi.id(), m_nOrbits);
 
   tbb::this_task_arena::isolate([&] { m_lumiTree->Fill(); });
 
   m_processHistoryRegistry.registerProcessHistory(iLumi.processHistory());
+
+  m_nOrbits = 0;
 }
 
 void OrbitNanoAODOutputModule::writeRun(edm::RunForOutput const& iRun) {

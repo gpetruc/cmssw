@@ -32,6 +32,9 @@ public:
 
   void produce(edm::StreamID, edm::Event&, edm::EventSetup const&) const override;
 
+  std::unique_ptr<OrbitFlatTable> produceSingleObject(OrbitCollection<l1ScoutingRun3::BxSums> const& src) const;
+  std::unique_ptr<OrbitFlatTable> produceManyObjects(OrbitCollection<l1ScoutingRun3::BxSums> const& src) const;
+
   static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
 
 private:
@@ -39,6 +42,7 @@ private:
   edm::EDGetTokenT<OrbitCollection<l1ScoutingRun3::BxSums>> src_;
 
   std::string name_, doc_;
+  bool singleObject_;
   bool writeHF_;
   bool writeMinBias_;
   bool writeCentrality_;
@@ -52,6 +56,7 @@ ConvertScoutingSumsToOrbitFlatTable::ConvertScoutingSumsToOrbitFlatTable(const e
     : src_(consumes<OrbitCollection<l1ScoutingRun3::BxSums>>(iConfig.getParameter<edm::InputTag>("src"))),
       name_(iConfig.getParameter<std::string>("name")),
       doc_(iConfig.getParameter<std::string>("doc")),
+      singleObject_(iConfig.getParameter<bool>("singleObject")),
       writeHF_(iConfig.getParameter<bool>("writeHF")),
       writeMinBias_(iConfig.getParameter<bool>("writeMinBias")),
       writeCentrality_(iConfig.getParameter<bool>("writeCentrality")),
@@ -64,7 +69,13 @@ ConvertScoutingSumsToOrbitFlatTable::ConvertScoutingSumsToOrbitFlatTable(const e
 void ConvertScoutingSumsToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm::EventSetup const&) const {
   edm::Handle<OrbitCollection<l1ScoutingRun3::BxSums>> src;
   iEvent.getByToken(src_, src);
-  auto out = std::make_unique<OrbitFlatTable>(src->bxOffsets(), name_, /*singleton=*/true);
+  auto out = singleObject_ ? produceSingleObject(*src) : produceManyObjects(*src);
+  iEvent.put(std::move(out));
+}
+
+std::unique_ptr<OrbitFlatTable> ConvertScoutingSumsToOrbitFlatTable::produceSingleObject(
+    OrbitCollection<l1ScoutingRun3::BxSums> const& src) const {
+  auto out = std::make_unique<OrbitFlatTable>(src.bxOffsets(), name_, /*singleton=*/true);
   out->setDoc(doc_);
 
   std::vector<float> totalEt(out->size());
@@ -90,7 +101,7 @@ void ConvertScoutingSumsToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEv
   std::vector<int> towerCount(out->size());
 
   unsigned int i = 0;
-  for (const l1ScoutingRun3::BxSums& sums : *src) {
+  for (const l1ScoutingRun3::BxSums& sums : src) {
     totalEt[i] = demux::fEt(sums.hwTotalEt());
     totalEtEm[i] = demux::fEt(sums.hwTotalEtEm());
     missEt[i] = demux::fEt(sums.hwMissEt());
@@ -147,7 +158,86 @@ void ConvertScoutingSumsToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEv
   }
   out->template addColumn<int>("towerCount", towerCount, "towerCount from Calo");
 
-  iEvent.put(std::move(out));
+  return out;
+}
+
+std::unique_ptr<OrbitFlatTable> ConvertScoutingSumsToOrbitFlatTable::produceManyObjects(
+    OrbitCollection<l1ScoutingRun3::BxSums> const& src) const {
+  unsigned int nitems = 6;  // totalEt, totalEtEm, missEt, totalHt, missHt, towerCount
+  if (writeHF_)
+    nitems += 2;
+  if (writeAsym_)
+    nitems += (writeHF_ ? 4 : 2);
+  if (writeMinBias_)
+    nitems += 4;
+  if (writeCentrality_)
+    nitems += 1;
+  std::vector<unsigned> offsets(src.bxOffsets());
+  for (auto& v : offsets)
+    v *= nitems;
+  auto out = std::make_unique<OrbitFlatTable>(offsets, name_, /*singleton=*/false);
+  std::vector<float> pt(out->size()), phi(out->size(), 0);
+  std::vector<int> sumType(out->size());
+  unsigned int i = 0, n = out->size();
+  for (const l1ScoutingRun3::BxSums& sums : src) {
+    assert(i + nitems <= n && i % nitems == 0);
+    pt[i] = demux::fEt(sums.hwTotalEt());
+    sumType[i++] = l1t::EtSum::kTotalEt;
+    pt[i] = demux::fEt(sums.hwTotalEtEm());
+    sumType[i++] = l1t::EtSum::kTotalEtEm;
+    pt[i] = demux::fEt(sums.hwMissEt());
+    phi[i] = demux::fPhi(sums.hwMissEtPhi());
+    sumType[i++] = l1t::EtSum::kMissingEt;
+    pt[i] = demux::fEt(sums.hwTotalHt());
+    sumType[i++] = l1t::EtSum::kTotalHt;
+    pt[i] = demux::fEt(sums.hwMissHt());
+    phi[i] = demux::fPhi(sums.hwMissHtPhi());
+    sumType[i++] = l1t::EtSum::kMissingHt;
+    if (writeHF_) {
+      pt[i] = demux::fEt(sums.hwMissEtHF());
+      phi[i] = demux::fPhi(sums.hwMissEtHFPhi());
+      sumType[i++] = l1t::EtSum::kMissingEtHF;
+      pt[i] = demux::fEt(sums.hwMissHtHF());
+      phi[i] = demux::fPhi(sums.hwMissHtHFPhi());
+      sumType[i++] = l1t::EtSum::kMissingHtHF;
+    }
+    if (writeAsym_) {
+      pt[i] = demux::fEt(sums.hwAsymEt());
+      sumType[i++] = l1t::EtSum::kAsymEt;
+      pt[i] = demux::fEt(sums.hwAsymHt());
+      sumType[i++] = l1t::EtSum::kAsymHt;
+      if (writeHF_) {
+        pt[i] = demux::fEt(sums.hwAsymEtHF());
+        sumType[i++] = l1t::EtSum::kAsymEtHF;
+        pt[i] = demux::fEt(sums.hwAsymHtHF());
+        sumType[i++] = l1t::EtSum::kAsymHtHF;
+      }
+    }
+    if (writeMinBias_) {
+      pt[i] = sums.minBiasHFP0();
+      sumType[i++] = l1t::EtSum::kMinBiasHFP0;
+      pt[i] = sums.minBiasHFM0();
+      sumType[i++] = l1t::EtSum::kMinBiasHFM0;
+      pt[i] = sums.minBiasHFP1();
+      sumType[i++] = l1t::EtSum::kMinBiasHFP1;
+      pt[i] = sums.minBiasHFM1();
+      sumType[i++] = l1t::EtSum::kMinBiasHFM1;
+    }
+    pt[i] = sums.towerCount();
+    sumType[i++] = l1t::EtSum::kTowerCount;
+    if (writeCentrality_) {
+      pt[i] = sums.centrality();
+      sumType[i++] = l1t::EtSum::kCentrality;
+    }
+  }
+  out->addColumn<float>("pt", pt, "pt (GeV)");
+  out->addColumn<float>("phi", phi, "phi (rad)");
+  out->addColumn<int>("etSumType",
+                      sumType,
+                      "the type of the ET Sum "
+                      "(https://github.com/cms-sw/cmssw/blob/master/DataFormats/L1Trigger/interface/EtSum.h#L27-L56)");
+  out->setDoc(doc_);
+  return out;
 }
 
 void ConvertScoutingSumsToOrbitFlatTable::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
@@ -156,6 +246,7 @@ void ConvertScoutingSumsToOrbitFlatTable::fillDescriptions(edm::ConfigurationDes
   desc.add<edm::InputTag>("src");
   desc.add<std::string>("name");
   desc.add<std::string>("doc");
+  desc.add<bool>("singleObject", true);
   desc.add<bool>("writeHF", true);
   desc.add<bool>("writeMinBias", true);
   desc.add<bool>("writeCentrality", true);

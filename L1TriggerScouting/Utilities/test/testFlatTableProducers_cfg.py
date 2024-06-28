@@ -63,6 +63,11 @@ process.scSumTable = cms.EDProducer("ConvertScoutingSumsToOrbitFlatTable",
   src = cms.InputTag("l1ScCaloUnpacker", "EtSum"),
   name = cms.string("L1EtSum"),
   doc = cms.string("Sums from Calo Demux"),
+  singleObject = cms.bool(False),
+  writeHF = cms.bool(True),
+  writeMinBias = cms.bool(False),
+  writeCentrality = cms.bool(False),
+  writeAsym = cms.bool(False),
 )
 process.p = cms.Path(
   process.scMuonTable +
