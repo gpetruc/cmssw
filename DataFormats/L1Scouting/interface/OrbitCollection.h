@@ -11,6 +11,8 @@
 template <class T>
 class OrbitCollection {
 public:
+  static constexpr int NBX = 3564;
+
   typedef typename std::vector<T>::iterator iterator;
   typedef typename std::vector<T>::const_iterator const_iterator;
   typedef T value_type;
@@ -132,7 +134,7 @@ private:
 
   // there are 3564 BX in one orbtit [1,3564], one extra
   // count added to keep first entry of the vector
-  static constexpr int orbitBufferSize_ = 3565;
+  static constexpr int orbitBufferSize_ = NBX+1;
 };
 
 #endif  // DataFormats_L1Scouting_OrbitCollection_h
