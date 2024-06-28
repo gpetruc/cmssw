@@ -127,6 +127,9 @@ private:
   unsigned int m_nOrbits;
 
   std::vector<std::pair<std::string, edm::EDGetToken>> m_nanoMetadata;
+
+  edm::EDGetTokenT<std::vector<unsigned>> m_bxMaskToken;
+  std::vector<unsigned> allBXs_;
 };
 
 //
@@ -151,7 +154,17 @@ OrbitNanoAODOutputModule::OrbitNanoAODOutputModule(edm::ParameterSet const& pset
       m_fakeName(pset.getUntrackedParameter<bool>("fakeNameForCrab", false)),
       m_autoFlush(pset.getUntrackedParameter<int>("autoFlush", -10000000)),
       m_processHistoryRegistry(),
-      m_nOrbits(0) {}
+      m_nOrbits(0) {
+  edm::InputTag bxMask = pset.getParameter<edm::InputTag>("selectedBx");
+  if (!bxMask.label().empty()) {
+    m_bxMaskToken = consumes<std::vector<unsigned>>(bxMask);
+  } else {
+    allBXs_.resize(l1ScoutingRun3::OrbitFlatTable::NBX);
+    for (unsigned int i = 0; i < l1ScoutingRun3::OrbitFlatTable::NBX; ++i) {
+      allBXs_[i] = i + 1;
+    }
+  }
+}
 
 OrbitNanoAODOutputModule::~OrbitNanoAODOutputModule() {}
 
@@ -201,8 +214,14 @@ void OrbitNanoAODOutputModule::write(edm::EventForOutput const& iEvent) {
       t.beginFill(iEvent, *m_tree, extensions);
   }
 
+  const std::vector<unsigned>* selbx = &allBXs_;
+  if (!m_bxMaskToken.isUninitialized()) {
+    edm::Handle<std::vector<unsigned>> handle;
+    iEvent.getByToken(m_bxMaskToken, handle);
+    selbx = &*handle;
+  }
   tbb::this_task_arena::isolate([&] {
-    for (unsigned int bx = 1; bx <= l1ScoutingRun3::OrbitFlatTable::NBX; ++bx) {
+    for (unsigned bx : *selbx) {
       bool empty = true;
       for (auto& t : m_tables) {
         if (t.hasBx(bx)) {
@@ -367,6 +386,7 @@ void OrbitNanoAODOutputModule::fillDescriptions(edm::ConfigurationDescriptions& 
   branchSet.setAllowAnything();
   desc.add<edm::ParameterSetDescription>("branches", branchSet);
 
+  desc.add<edm::InputTag>("selectedBx", edm::InputTag())->setComment("selectedBx (1-3564)");
   descriptions.addDefault(desc);
 }
 
