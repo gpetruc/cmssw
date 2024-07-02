@@ -38,6 +38,7 @@
 #include "DataFormats/Provenance/interface/ProcessHistoryRegistry.h"
 #include "DataFormats/NanoAOD/interface/FlatTable.h"
 #include "L1TriggerScouting/Utilities/plugins/OrbitTableOutputBranches.h"
+#include "L1TriggerScouting/Utilities/plugins/SelectedBxTableOutputBranches.h"
 
 #include <iostream>
 
@@ -63,6 +64,7 @@ private:
   int m_compressionLevel;
   int m_eventsSinceFlush{0};
   std::string m_compressionAlgorithm;
+  bool m_skipEmptyBXs;
   bool m_writeProvenance;
   bool m_fakeName;  //crab workaround, remove after crab is fixed
   int m_autoFlush;
@@ -124,6 +126,7 @@ private:
   } m_commonRunBranches;
 
   std::vector<OrbitTableOutputBranches> m_tables;
+  std::vector<SelectedBxTableOutputBranches> m_selbxs;
   unsigned int m_nOrbits;
 
   std::vector<std::pair<std::string, edm::EDGetToken>> m_nanoMetadata;
@@ -150,6 +153,7 @@ OrbitNanoAODOutputModule::OrbitNanoAODOutputModule(edm::ParameterSet const& pset
       m_logicalFileName(pset.getUntrackedParameter<std::string>("logicalFileName")),
       m_compressionLevel(pset.getUntrackedParameter<int>("compressionLevel")),
       m_compressionAlgorithm(pset.getUntrackedParameter<std::string>("compressionAlgorithm")),
+      m_skipEmptyBXs(pset.getParameter<bool>("skipEmptyBXs")),
       m_writeProvenance(pset.getUntrackedParameter<bool>("saveProvenance", true)),
       m_fakeName(pset.getUntrackedParameter<bool>("fakeNameForCrab", false)),
       m_autoFlush(pset.getUntrackedParameter<int>("autoFlush", -10000000)),
@@ -210,8 +214,12 @@ void OrbitNanoAODOutputModule::write(edm::EventForOutput const& iEvent) {
   m_commonBranches.fill(iEvent.eventAuxiliary());
   // fill all tables, starting from main tables and then doing extension tables
   for (unsigned int extensions = 0; extensions <= 1; ++extensions) {
-    for (auto& t : m_tables)
+    for (auto& t : m_tables) {
       t.beginFill(iEvent, *m_tree, extensions);
+    }
+  }
+  for (auto& t : m_selbxs) {
+    t.beginFill(iEvent, *m_tree);
   }
 
   const std::vector<unsigned>* selbx = &allBXs_;
@@ -222,27 +230,35 @@ void OrbitNanoAODOutputModule::write(edm::EventForOutput const& iEvent) {
   }
   tbb::this_task_arena::isolate([&] {
     for (unsigned bx : *selbx) {
-      bool empty = true;
-      for (auto& t : m_tables) {
-        if (t.hasBx(bx)) {
-          empty = false;
-          break;
-        }
-      }
-      if (!empty) {
-        m_commonBranches.setBx(bx);
+      if (m_skipEmptyBXs) {
+        bool empty = true;
         for (auto& t : m_tables) {
-          t.fillBx(bx);
+          if (t.hasBx(bx)) {
+            empty = false;
+            // but continue the loop, since it's needed
+            // to read the size of the elements
+          }
         }
-        m_tree->Fill();
+        if (empty)
+          continue;
       }
+      m_commonBranches.setBx(bx);
+      for (auto& t : m_tables) {
+        t.fillBx(bx, m_skipEmptyBXs);
+      }
+      for (auto& t : m_selbxs) {
+        t.fillBx(bx);
+      }
+      m_tree->Fill();
     }  // bx loop
   });
 
   for (auto& t : m_tables) {
     t.endFill();
   }
-
+  for (auto& t : m_selbxs) {
+    t.endFill();
+  }
   m_processHistoryRegistry.registerProcessHistory(iEvent.processHistory());
 }
 
@@ -305,6 +321,8 @@ void OrbitNanoAODOutputModule::openFile(edm::FileBlock const&) {
   for (const auto& keep : keeps[edm::InEvent]) {
     if (keep.first->className() == "l1ScoutingRun3::OrbitFlatTable")
       m_tables.emplace_back(keep.first, keep.second);
+    else if (keep.first->className() == "std::vector<unsigned int>")
+      m_selbxs.emplace_back(keep.first, keep.second);
     else
       throw cms::Exception("Configuration", "OrbitNanoAODOutputModule cannot handle class " + keep.first->className());
   }
@@ -363,6 +381,7 @@ void OrbitNanoAODOutputModule::fillDescriptions(edm::ConfigurationDescriptions& 
   desc.addUntracked<int>("compressionLevel", 9)->setComment("ROOT compression level of output file.");
   desc.addUntracked<std::string>("compressionAlgorithm", "ZLIB")
       ->setComment("Algorithm used to compress data in the ROOT output file, allowed values are ZLIB and LZMA");
+  desc.add<bool>("skipEmptyBXs", false)->setComment("Skip BXs where all input collections are empty");
   desc.addUntracked<bool>("saveProvenance", true)
       ->setComment("Save process provenance information, e.g. for edmProvDump");
   desc.addUntracked<bool>("fakeNameForCrab", false)

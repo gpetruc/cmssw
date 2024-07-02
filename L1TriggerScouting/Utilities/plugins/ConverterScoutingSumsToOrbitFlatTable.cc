@@ -230,8 +230,8 @@ std::unique_ptr<OrbitFlatTable> ConvertScoutingSumsToOrbitFlatTable::produceMany
       sumType[i++] = l1t::EtSum::kCentrality;
     }
   }
-  out->addColumn<float>("pt", pt, "pt (GeV)");
-  out->addColumn<float>("phi", phi, "phi (rad)");
+  out->addColumn<float>("pt", pt, "pt (GeV)", 8);
+  out->addColumn<float>("phi", phi, "phi (rad)", 8);
   out->addColumn<int>("etSumType",
                       sumType,
                       "the type of the ET Sum "

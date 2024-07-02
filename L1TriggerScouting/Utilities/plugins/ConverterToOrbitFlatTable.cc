@@ -102,8 +102,8 @@ void ConverterToOrbitFlatTable<T>::produce(edm::StreamID, edm::Event& iEvent, ed
     out->template addColumn<int>("hwIso", isolation, "isolation (trigger units)");
   }
   out->template addColumn<float>("pt", pt, "pt (GeV)");
-  out->template addColumn<float>("eta", eta, "eta (natural units)");
-  out->template addColumn<float>("phi", phi, "phi (natural units)");
+  out->template addColumn<float>("eta", eta, "eta (natural units)", 8);
+  out->template addColumn<float>("phi", phi, "phi (natural units)", 8);
 
   iEvent.put(std::move(out));
 }

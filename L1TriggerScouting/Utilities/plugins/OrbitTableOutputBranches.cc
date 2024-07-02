@@ -119,7 +119,9 @@ bool OrbitTableOutputBranches::hasBx(uint32_t bx) {
   return (m_counter != 0);
 }
 
-void OrbitTableOutputBranches::fillBx(uint32_t bx) {
+void OrbitTableOutputBranches::fillBx(uint32_t bx, bool skipReadingSize) {
+  if (!skipReadingSize) 
+    m_counter = m_table->size(bx);
   if (m_counter != 0) {
     bool empty = false;
     for (auto &pair : m_uint8Branches)

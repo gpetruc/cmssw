@@ -22,6 +22,12 @@ options.register ('outFile',
                   "Sub lumisection number to process")
 
 
+options.register ('selBx',
+                  "none",
+                  VarParsing.VarParsing.multiplicity.singleton,
+                  VarParsing.VarParsing.varType.string,
+                 "BX Selection to use")
+
 options.parseArguments()
 
 process = cms.Process( "DUMP" )
@@ -39,18 +45,20 @@ process.source = cms.Source("PoolSource",
   fileNames = cms.untracked.vstring(options.inFile)
 )
 
+selbx = options.selBx if options.selBx != "none" else None
+
 process.scMuonTable = cms.EDProducer("ConvertScoutingMuonsToOrbitFlatTable",
-  src = cms.InputTag("l1ScGmtUnpacker", "Muon"),
+  src = cms.InputTag("FinalBxSelectorMuon" if selbx else "l1ScGmtUnpacker", "Muon"),
   name = cms.string("L1Mu"),
   doc = cms.string("Muons from GMT"),
 )
 process.scJetTable = cms.EDProducer("ConvertScoutingJetsToOrbitFlatTable",
-  src = cms.InputTag("l1ScCaloUnpacker", "Jet"),
+  src = cms.InputTag("FinalBxSelectorJet" if selbx else "l1ScCaloUnpacker", "Jet"),
   name = cms.string("L1Jet"),
   doc = cms.string("Jets from Calo Demux"),
 )
 process.scEgammaTable = cms.EDProducer("ConvertScoutingEGammasToOrbitFlatTable",
-  src = cms.InputTag("l1ScCaloUnpacker", "EGamma"),
+  src = cms.InputTag("FinalBxSelectorEGamma" if selbx else "l1ScCaloUnpacker", "EGamma"),
   name = cms.string("L1EG"),
   doc = cms.string("EGammas from Calo Demux"),
 )
@@ -60,7 +68,7 @@ process.scTauTable = cms.EDProducer("ConvertScoutingTausToOrbitFlatTable",
   doc = cms.string("Taus from Calo Demux"),
 )
 process.scSumTable = cms.EDProducer("ConvertScoutingSumsToOrbitFlatTable",
-  src = cms.InputTag("l1ScCaloUnpacker", "EtSum"),
+  src = cms.InputTag("FinalBxSelectorBxSums" if selbx else "l1ScCaloUnpacker", "EtSum"),
   name = cms.string("L1EtSum"),
   doc = cms.string("Sums from Calo Demux"),
   singleObject = cms.bool(False),
@@ -76,13 +84,26 @@ process.p = cms.Path(
   process.scTauTable +
   process.scSumTable
 )
+
 process.out = cms.OutputModule("OrbitNanoAODOutputModule",
     fileName = cms.untracked.string(options.outFile),
+    skipEmptyBXs = cms.bool(True),
     SelectEvents = cms.untracked.PSet(SelectEvents = cms.vstring('p')),
     outputCommands = cms.untracked.vstring("drop *", "keep l1ScoutingRun3OrbitFlatTable_*_*_*"),
-    compressionLevel = cms.untracked.int32(4),
-    compressionAlgorithm = cms.untracked.string("LZ4"),
+    compressionLevel = cms.untracked.int32(5),
+    compressionAlgorithm = cms.untracked.string("ZSTD"),
 )
+
+if selbx:
+  process.p.remove(process.scTauTable)
+  process.out.outputCommands += [ "keep uints_*_SelBx_*" ]
+  if selbx != "any":
+    process.out.selectedBx = cms.InputTag(selbx, "SelBx")
+    process.out.skipEmptyBXs = False
+  else:
+    process.out.selectedBx = cms.InputTag("FinalBxSelector", "SelBx")
+    process.out.skipEmptyBXs = False
+
 process.o = cms.EndPath(
   process.out
 )
