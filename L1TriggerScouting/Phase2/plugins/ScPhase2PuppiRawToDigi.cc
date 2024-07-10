@@ -153,20 +153,20 @@ std::unique_ptr<OrbitCollection<l1Scouting::Puppi>> ScPhase2PuppiRawToDigi::unpa
       ++p;
       assert(bx < OrbitCollection<l1Scouting::Puppi>::NBX);
       std::vector<l1Scouting::Puppi> &structBuffer = structBuffer_[bx + 1];
-      structBuffer.resize(nwords);
+      structBuffer.reserve(nwords);
       for (unsigned int i = 0; i < nwords; ++i, ++p) {
         uint64_t data = *p;
-        phase2Utils::readshared(data, structBuffer[i].pt, structBuffer[i].eta, structBuffer[i].phi);
+        float pt, eta, phi, z0 = 0, dxy = 0, puppiw = 1;
+        int16_t pdgId; uint8_t quality;
+        phase2Utils::readshared(data, pt, eta, phi);
         uint8_t pid = (data >> 37) & 0x7;
-        phase2Utils::assignpdgid(pid, structBuffer[i].pdgId);
+        phase2Utils::assignpdgid(pid, pdgId);
         if (pid > 1) {
-          phase2Utils::readcharged(data, structBuffer[i].z0, structBuffer[i].dxy, structBuffer[i].quality);
-          structBuffer[i].puppiw = 1.0;
+          phase2Utils::readcharged(data, z0, dxy, quality);
         } else {
-          phase2Utils::readneutral(data, structBuffer[i].puppiw, structBuffer[i].quality);
-          structBuffer[i].dxy = 0;
-          structBuffer[i].z0 = 0;
+          phase2Utils::readneutral(data, puppiw, quality);
         }
+        structBuffer.emplace_back(pt, eta, phi, pdgId, z0, dxy, puppiw, quality);
       }
     }
   }

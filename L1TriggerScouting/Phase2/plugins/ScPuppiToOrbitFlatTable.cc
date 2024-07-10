@@ -60,14 +60,14 @@ void ScPuppiToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm::Ev
   std::vector<uint8_t> quality(out->size());
   unsigned int i = 0;
   for (const l1Scouting::Puppi& puppi : *src) {
-    pt[i] = puppi.pt;
-    eta[i] = puppi.eta;
-    phi[i] = puppi.phi;
-    z0[i] = puppi.z0;
-    dxy[i] = puppi.dxy;
-    puppiw[i] = puppi.puppiw;
-    pdgId[i] = puppi.pdgId;
-    quality[i] = puppi.quality;
+    pt[i] = puppi.pt();
+    eta[i] = puppi.eta();
+    phi[i] = puppi.phi();
+    z0[i] = puppi.z0();
+    dxy[i] = puppi.dxy();
+    puppiw[i] = puppi.puppiw();
+    pdgId[i] = puppi.pdgId();
+    quality[i] = puppi.quality();
     ++i;
   }
   out->addColumn<float>("pt", pt, "pt (GeV)");

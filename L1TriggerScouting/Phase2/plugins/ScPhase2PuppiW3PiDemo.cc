@@ -28,8 +28,8 @@ private:
   void beginStream(edm::StreamID) override;
   void produce(edm::Event &, const edm::EventSetup &) override;
   void endStream() override;
-  void runCandidate(const OrbitCollection<l1t::PFCandidate> &src, edm::Event &out);
-  void runStruct(const OrbitCollection<l1Scouting::Puppi> &src, edm::Event &out);
+  template<typename T>
+  void runObj(const OrbitCollection<T> &src, edm::Event &out, unsigned long &nTry, unsigned long &nPass, const std::string & bxLabel);
   void runSOA(const l1Scouting::PuppiSOA &src, edm::Event &out);
 
   bool doCandidate_, doStruct_, doSOA_;
@@ -49,14 +49,11 @@ private:
     float maxiso = 2.0;  //0.4
   } cuts;
 
-  bool isolation(unsigned int pidex, const l1t::PFCandidate *cands, unsigned int size) const;
-  bool isolation(unsigned int pidex, const l1Scouting::Puppi *cands, unsigned int size) const;
-  bool isolation(unsigned int pidex, const l1t::PFCandidate *cands, unsigned int size, unsigned int &cache) const {
-    if (cache == 0)
-      cache = isolation(pidex, cands, size) ? 1 : 2;
-    return (cache == 1);
-  }
-  bool isolation(unsigned int pidex, const l1Scouting::Puppi *cands, unsigned int size, unsigned int &cache) const {
+  template<typename T>
+  bool isolation(unsigned int pidex, const T *cands, unsigned int size) const;
+
+  template<typename T>
+  bool isolation(unsigned int pidex, const T *cands, unsigned int size, unsigned int &cache) const {
     if (cache == 0)
       cache = isolation(pidex, cands, size) ? 1 : 2;
     return (cache == 1);
@@ -74,7 +71,6 @@ private:
   }
   bool isolation(unsigned int pidex, unsigned int npx, const float *eta, const float *phi, const float *pt) const;
   bool deltar(float eta1, float eta2, float phi1, float phi2) const;
-  static float tripletmass(const std::array<unsigned int, 3> &t, const l1Scouting::Puppi *cands);
   static float tripletmass(const std::array<unsigned int, 3> &t, const float *pts, const float *etas, const float *phis);
 
   unsigned long countCandidate_, countStruct_, countSOA_;
@@ -114,12 +110,12 @@ void ScPhase2PuppiW3PiDemo::produce(edm::Event &iEvent, const edm::EventSetup &i
   if (doCandidate_) {
     edm::Handle<OrbitCollection<l1t::PFCandidate>> src;
     iEvent.getByToken(candidateToken_, src);
-    runCandidate(*src, iEvent);
+    runObj(*src, iEvent, countCandidate_, passCandidate_, "selectedBxCandidate");
   }
   if (doStruct_) {
     edm::Handle<OrbitCollection<l1Scouting::Puppi>> src;
     iEvent.getByToken(structToken_, src);
-    runStruct(*src, iEvent);
+    runObj(*src, iEvent, countCandidate_, passCandidate_, "selectedBx");
   }
   if (doSOA_) {
     edm::Handle<l1Scouting::PuppiSOA> src;
@@ -137,16 +133,17 @@ void ScPhase2PuppiW3PiDemo::endStream() {
     std::cout << "SOA analysis: " << countSOA_ << " -> " << passSOA_ << std::endl;
 }
 
-void ScPhase2PuppiW3PiDemo::runCandidate(const OrbitCollection<l1t::PFCandidate> &src, edm::Event &iEvent) {
+template<typename T>
+void ScPhase2PuppiW3PiDemo::runObj(const OrbitCollection<T> &src, edm::Event &iEvent, unsigned long &nTry, unsigned long &nPass, const std::string & bxLabel) {
   auto ret = std::make_unique<std::vector<unsigned>>();
   ROOT::RVec<unsigned int> ix;   // pions
   ROOT::RVec<unsigned int> iso;  //stores whether a particle passes isolation test so we don't calculate reliso twice
   std::array<unsigned int, 3> bestTriplet;  // best triplet
   float bestTripletScore;
-  for (unsigned int bx = 1; bx <= OrbitCollection<l1t::PFCandidate>::NBX; ++bx) {
-    countCandidate_++;
+  for (unsigned int bx = 1; bx <= OrbitCollection<T>::NBX; ++bx) {
+    nTry++;
     auto range = src.bxIterator(bx);
-    const l1t::PFCandidate *cands = &range.front();
+    const T *cands = &range.front();
     auto size = range.size();
     ix.clear();
     int intermediatecut = 0;
@@ -216,100 +213,11 @@ void ScPhase2PuppiW3PiDemo::runCandidate(const OrbitCollection<l1t::PFCandidate>
 
     if (bestTripletScore > 0) {
       ret->emplace_back(bx);
-      passCandidate_++;
+      nPass++;
     }
   }  // loop on BXs
 
-  iEvent.put(std::move(ret), "selectedBxCandidate");
-}
-
-void ScPhase2PuppiW3PiDemo::runStruct(const OrbitCollection<l1Scouting::Puppi> &src, edm::Event &iEvent) {
-  auto ret = std::make_unique<std::vector<unsigned>>();
-  ROOT::RVec<unsigned int> ix;   // pions
-  ROOT::RVec<unsigned int> iso;  //stores whether a particle passes isolation test so we don't calculate reliso twice
-  ROOT::RVec<int> charge;        //stores whether a particle passes isolation test so we don't calculate reliso twice
-  std::array<unsigned int, 3> bestTriplet;  // best triplet
-  float bestTripletScore;
-  for (unsigned int bx = 1; bx <= OrbitCollection<l1Scouting::Puppi>::NBX; ++bx) {
-    countStruct_++;
-    auto range = src.bxIterator(bx);
-    const l1Scouting::Puppi *cands = &range.front();
-    auto size = range.size();
-    ix.clear();
-    charge.clear();
-    int intermediatecut = 0;
-    int highcut = 0;
-    for (unsigned int i = 0; i < size; ++i) {  //make list of all hadrons
-      if ((std::abs(cands[i].pdgId) == 211 or std::abs(cands[i].pdgId) == 11)) {
-        if (cands[i].pt >= cuts.minpt1) {
-          ix.push_back(i);
-          charge.push_back(abs(cands[i].pdgId) == 11 ? (cands[i].pdgId > 0 ? -1 : +1) : (cands[i].pdgId > 0 ? +1 : -1));
-          if (cands[i].pt >= cuts.minpt2)
-            intermediatecut++;
-          if (cands[i].pt >= cuts.minpt3)
-            highcut++;
-        }
-      }
-    }
-    unsigned int npions = ix.size();
-    if (highcut < 1 || intermediatecut < 2 || npions < 3)
-      continue;
-    iso.resize(npions);
-    std::fill(iso.begin(), iso.end(), 0);
-    bestTripletScore = 0;
-
-    for (unsigned int i1 = 0; i1 < npions; ++i1) {
-      if (cands[ix[i1]].pt < cuts.minpt3)
-        continue;  //high pt cut
-      if (isolation(ix[i1], cands, size, iso[i1]) == 0)
-        continue;  //check iso of high pt pion
-      for (unsigned int i2 = 0; i2 < npions; ++i2) {
-        if (i2 == i1 || cands[ix[i2]].pt < cuts.minpt2)
-          continue;
-        if (cands[ix[i2]].pt > cands[ix[i1]].pt || (cands[ix[i2]].pt == cands[ix[i1]].pt and i2 < i1))
-          continue;  //intermediate pt cut
-        if (!deltar(cands[ix[i1]].eta, cands[ix[i2]].eta, cands[ix[i1]].phi, cands[ix[i2]].phi))
-          continue;  //angular sep of top 2 pions
-        for (unsigned int i3 = 0; i3 < npions; ++i3) {
-          if (i3 == i1 or i3 == i2)
-            continue;
-          if (cands[ix[i2]].pt < cuts.minpt1)
-            continue;  //low pt cut
-          if (cands[ix[i3]].pt > cands[ix[i1]].pt || (cands[ix[i3]].pt == cands[ix[i1]].pt and i3 < i1))
-            continue;
-          if (cands[ix[i3]].pt > cands[ix[i2]].pt || (cands[ix[i3]].pt == cands[ix[i2]].pt and i3 < i2))
-            continue;
-          std::array<unsigned int, 3> tr{{ix[i1], ix[i2], ix[i3]}};  //triplet of indeces
-
-          if (std::abs(charge[i1] + charge[i2] + charge[i3]) == 1) {
-            //make Lorentz vectors for each triplet
-            auto mass = tripletmass(tr, cands);
-            if (mass >= cuts.minmass and mass <= cuts.maxmass) {  //MASS test
-              if (deltar(cands[ix[i1]].eta, cands[ix[i3]].eta, cands[ix[i1]].phi, cands[ix[i3]].phi) and
-                  deltar(cands[ix[i2]].eta, cands[ix[i3]].eta, cands[ix[i2]].phi, cands[ix[i3]].phi)) {
-                //ISOLATION test for lower 4 pions
-                bool isop = isolation(ix[i2], cands, size, iso[i2]) && isolation(ix[i3], cands, size, iso[i3]);
-                if (isop == true) {
-                  float ptsum = cands[ix[i1]].pt + cands[ix[i2]].pt + cands[ix[i3]].pt;
-                  if (ptsum > bestTripletScore) {
-                    std::copy_n(tr.begin(), 3, bestTriplet.begin());
-                    bestTripletScore = ptsum;
-                  }
-                }  // iso
-              }    // delta R
-            }      // mass
-          }        //charge
-        }          //low pt cut
-      }            //intermediate pt cut
-    }              //high pt cut
-
-    if (bestTripletScore > 0) {
-      ret->emplace_back(bx);
-      passStruct_++;
-    }
-  }  // loop on BXs
-
-  iEvent.put(std::move(ret), "selectedBx");
+  iEvent.put(std::move(ret), bxLabel);
 }
 
 void ScPhase2PuppiW3PiDemo::runSOA(const l1Scouting::PuppiSOA &src, edm::Event &iEvent) {
@@ -417,7 +325,8 @@ void ScPhase2PuppiW3PiDemo::runSOA(const l1Scouting::PuppiSOA &src, edm::Event &
 }
 
 //TEST functions
-bool ScPhase2PuppiW3PiDemo::isolation(unsigned int pidex, const l1t::PFCandidate *cands, unsigned int size) const {
+template<typename T>
+bool ScPhase2PuppiW3PiDemo::isolation(unsigned int pidex, const T *cands, unsigned int size) const {
   bool passed = false;
   float psum = 0;
   float eta = cands[pidex].eta();
@@ -431,24 +340,6 @@ bool ScPhase2PuppiW3PiDemo::isolation(unsigned int pidex, const l1t::PFCandidate
       psum += cands[j].pt();
   }
   if (psum <= cuts.maxiso * cands[pidex].pt())
-    passed = true;
-  return passed;
-}
-
-bool ScPhase2PuppiW3PiDemo::isolation(unsigned int pidex, const l1Scouting::Puppi *cands, unsigned int size) const {
-  bool passed = false;
-  float psum = 0;
-  float eta = cands[pidex].eta;
-  float phi = cands[pidex].phi;
-  for (unsigned int j = 0u; j < size; ++j) {  //loop over other particles
-    if (pidex == j)
-      continue;
-    float deta = eta - cands[j].eta, dphi = ROOT::VecOps::DeltaPhi<float>(phi, cands[j].phi);
-    float dr2 = deta * deta + dphi * dphi;
-    if (dr2 >= cuts.mindr2 && dr2 <= cuts.maxdr2)
-      psum += cands[j].pt;
-  }
-  if (psum <= cuts.maxiso * cands[pidex].pt)
     passed = true;
   return passed;
 }
@@ -480,14 +371,6 @@ bool ScPhase2PuppiW3PiDemo::deltar(float eta1, float eta2, float phi1, float phi
     return passed;
   }
   return passed;
-}
-
-float ScPhase2PuppiW3PiDemo::tripletmass(const std::array<unsigned int, 3> &t, const l1Scouting::Puppi *cands) {
-  ROOT::Math::PtEtaPhiMVector p1(cands[t[0]].pt, cands[t[0]].eta, cands[t[0]].phi, 0.1396);
-  ROOT::Math::PtEtaPhiMVector p2(cands[t[1]].pt, cands[t[1]].eta, cands[t[1]].phi, 0.1396);
-  ROOT::Math::PtEtaPhiMVector p3(cands[t[2]].pt, cands[t[2]].eta, cands[t[2]].phi, 0.1396);
-  float mass = (p1 + p2 + p3).M();
-  return mass;
 }
 
 float ScPhase2PuppiW3PiDemo::tripletmass(const std::array<unsigned int, 3> &t,
