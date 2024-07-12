@@ -1,10 +1,10 @@
-#ifndef L1TriggerScouting_Phase2_phase2Utils_h
-#define L1TriggerScouting_Phase2_phase2Utils_h
+#ifndef L1TriggerScouting_Phase2_l1puppiUnpack_h
+#define L1TriggerScouting_Phase2_l1puppiUnpack_h
 #include "DataFormats/L1TParticleFlow/interface/PFCandidate.h"
 #include <cstdint>
 #include <cmath>
 
-namespace phase2Utils {
+namespace l1puppiUnpack {
   template <typename U>
   inline void parseHeader(const uint64_t &header, uint16_t &run, uint16_t &bx, uint32_t &orbit, bool &good, U &npuppi) {
     npuppi = header & 0xFFF;
@@ -104,25 +104,7 @@ namespace phase2Utils {
   inline void readquality(const uint64_t data, uint8_t pid, uint8_t &quality) {
     quality = pid > 1 ? (data >> 58) & 0x7 : (data >> 50) & 0x3F;
   }
-  inline void readpuppi(uint16_t nwords,
-                        const uint64_t *words,
-                        float *__restrict__ pt,
-                        float *__restrict__ eta,
-                        float *__restrict__ phi,
-                        short int *__restrict__ pdgid,
-                        uint8_t *__restrict__ quality,
-                        float *__restrict__ z0,
-                        float *__restrict__ dxy,
-                        float *__restrict__ wpuppi) {
-    for (uint16_t i = 0; i < nwords; ++i) {
-      readshared(words[i], pt[i], eta[i], phi[i]);
-      uint8_t pid = (words[i] >> 37) & 0x7;
-      readcharged(words[i], pid, z0[i], dxy[i]);
-      readneutral(words[i], pid, wpuppi[i]);
-      readquality(words[i], pid, quality[i]);
-      vassignpdgid(pid, pdgid[i]);
-    }
-  }
-}  // namespace phase2Utils
+
+}  // namespace l1puppiUnpack
 
 #endif

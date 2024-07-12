@@ -12,7 +12,7 @@
 #include "DataFormats/L1Scouting/interface/OrbitCollection.h"
 #include "DataFormats/L1TParticleFlow/interface/PFCandidate.h"
 #include "DataFormats/L1TParticleFlow/interface/L1ScoutingPuppi.h"
-#include "L1TriggerScouting/Phase2/interface/phase2Utils.h"
+#include "L1TriggerScouting/Phase2/interface/l1puppiUnpack.h"
 
 class ScPhase2PuppiRawToDigi : public edm::stream::EDProducer<> {
 public:
@@ -113,20 +113,20 @@ void ScPhase2PuppiRawToDigi::unpackFromRaw(uint64_t data, std::vector<l1t::PFCan
   uint8_t pid, hwQuality;
   l1t::PFCandidate::ParticleType type;
   int charge;
-  phase2Utils::readshared(data, pt, eta, phi);
-  phase2Utils::readshared(data, hwPt, hwEta, hwPhi);
+  l1puppiUnpack::readshared(data, pt, eta, phi);
+  l1puppiUnpack::readshared(data, hwPt, hwEta, hwPhi);
   pid = (data >> 37) & 0x7;
-  phase2Utils::assignpdgid(pid, pdgId);
-  phase2Utils::assignCMSSWPFCandidateId(pid, type);
-  phase2Utils::assignmass(pid, mass);
-  phase2Utils::assigncharge(pid, charge);
+  l1puppiUnpack::assignpdgid(pid, pdgId);
+  l1puppiUnpack::assignCMSSWPFCandidateId(pid, type);
+  l1puppiUnpack::assignmass(pid, mass);
+  l1puppiUnpack::assigncharge(pid, charge);
   reco::Particle::PolarLorentzVector p4(pt, eta, phi, mass);
   if (pid > 1) {
-    phase2Utils::readcharged(data, z0, dxy, hwQuality);
-    phase2Utils::readcharged(data, hwZ0, hwDxy, hwQuality);
+    l1puppiUnpack::readcharged(data, z0, dxy, hwQuality);
+    l1puppiUnpack::readcharged(data, hwZ0, hwDxy, hwQuality);
   } else {
-    phase2Utils::readneutral(data, puppiw, hwQuality);
-    phase2Utils::readneutral(data, hwPuppiW, hwQuality);
+    l1puppiUnpack::readneutral(data, puppiw, hwQuality);
+    l1puppiUnpack::readneutral(data, hwPuppiW, hwQuality);
   }
   outBuffer.emplace_back(type, charge, p4, puppiw, hwPt, hwEta, hwPhi);
   if (pid > 1) {
@@ -145,12 +145,12 @@ void ScPhase2PuppiRawToDigi::unpackFromRaw(uint64_t data, std::vector<l1t::PFCan
 void ScPhase2PuppiRawToDigi::unpackFromRaw(uint64_t data, std::vector<l1Scouting::Puppi> &outBuffer) {
   float pt, eta, phi, z0 = 0, dxy = 0, puppiw = 1;
   uint8_t quality;
-  phase2Utils::readshared(data, pt, eta, phi);
+  l1puppiUnpack::readshared(data, pt, eta, phi);
   uint8_t pid = (data >> 37) & 0x7;
   if (pid > 1) {
-    phase2Utils::readcharged(data, z0, dxy, quality);
+    l1puppiUnpack::readcharged(data, z0, dxy, quality);
   } else {
-    phase2Utils::readneutral(data, puppiw, quality);
+    l1puppiUnpack::readneutral(data, puppiw, quality);
   }
   outBuffer.emplace_back(pt, eta, phi, pid, z0, dxy, puppiw, quality);
 }
@@ -188,14 +188,14 @@ std::unique_ptr<l1Scouting::PuppiSOA> ScPhase2PuppiRawToDigi::unpackSOA(const SD
     ret.offsets.push_back(i0);
     for (unsigned int i = 0; i < nwords; ++i, ++pa.first, ++i0) {
       uint64_t data = *pa.first;
-      phase2Utils::readshared(data, ret.pt[i0], ret.eta[i0], ret.phi[i0]);
+      l1puppiUnpack::readshared(data, ret.pt[i0], ret.eta[i0], ret.phi[i0]);
       uint8_t pid = (data >> 37) & 0x7;
-      phase2Utils::assignpdgid(pid, ret.pdgId[i0]);
+      l1puppiUnpack::assignpdgid(pid, ret.pdgId[i0]);
       if (pid > 1) {
-        phase2Utils::readcharged(data, ret.z0[i0], ret.dxy[i0], ret.quality[i0]);
+        l1puppiUnpack::readcharged(data, ret.z0[i0], ret.dxy[i0], ret.quality[i0]);
         ret.puppiw[i0] = 1.0f;
       } else {
-        phase2Utils::readneutral(data, ret.puppiw[i0], ret.quality[i0]);
+        l1puppiUnpack::readneutral(data, ret.puppiw[i0], ret.quality[i0]);
         ret.dxy[i0] = 0.0f;
         ret.z0[i0] = 0.0f;
       }

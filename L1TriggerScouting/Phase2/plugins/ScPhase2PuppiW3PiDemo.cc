@@ -11,7 +11,6 @@
 #include "DataFormats/L1TParticleFlow/interface/PFCandidate.h"
 #include "DataFormats/L1TParticleFlow/interface/L1ScoutingPuppi.h"
 #include "L1TriggerScouting/Utilities/interface/BxOffsetsFiller.h"
-#include "L1TriggerScouting/Phase2/interface/phase2Utils.h"
 
 #include <ROOT/RVec.hxx>
 #include <Math/Vector4D.h>
