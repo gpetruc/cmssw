@@ -25,7 +25,7 @@ public:
   /// This parameter is used so that the fill is called first for non-extensions and then for extensions
   void beginFill(const edm::OccurrenceForOutput &iWhatever, TTree &tree, bool extensions);
   bool hasBx(uint32_t bx);
-  void fillBx(uint32_t bx, bool skipReadingSize=false);
+  void fillBx(uint32_t bx, bool skipReadingSize = false);
   void endFill();
 
 private:

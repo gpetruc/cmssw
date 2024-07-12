@@ -120,4 +120,4 @@ private:
   unsigned int currOrbit = 0xFFFFFFFF;
 };
 
-#endif // EventFilter_Utilities_DAQSourceModelsScoutingPhase2_h
+#endif  // EventFilter_Utilities_DAQSourceModelsScoutingPhase2_h

@@ -120,7 +120,7 @@ bool OrbitTableOutputBranches::hasBx(uint32_t bx) {
 }
 
 void OrbitTableOutputBranches::fillBx(uint32_t bx, bool skipReadingSize) {
-  if (!skipReadingSize) 
+  if (!skipReadingSize)
     m_counter = m_table->size(bx);
   if (m_counter != 0) {
     bool empty = false;

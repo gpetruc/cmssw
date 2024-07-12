@@ -134,7 +134,7 @@ private:
 
   // there are 3564 BX in one orbtit [1,3564], one extra
   // count added to keep first entry of the vector
-  static constexpr int orbitBufferSize_ = NBX+1;
+  static constexpr int orbitBufferSize_ = NBX + 1;
 };
 
 #endif  // DataFormats_L1Scouting_OrbitCollection_h

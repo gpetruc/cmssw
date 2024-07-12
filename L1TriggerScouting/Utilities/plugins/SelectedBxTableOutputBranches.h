@@ -13,12 +13,11 @@
 class SelectedBxTableOutputBranches {
 public:
   SelectedBxTableOutputBranches(const edm::BranchDescription *desc, const edm::EDGetToken &token)
-      : m_token(token), m_name("SelBx_"+desc->moduleLabel()), m_branch(nullptr) {
+      : m_token(token), m_name("SelBx_" + desc->moduleLabel()), m_branch(nullptr) {
     if (desc->className() != "std::vector<unsigned int>")
-      throw cms::Exception("Configuration",
-                           "SelectedBxTableOutputBranches can only write out vector<unsigned int>");
+      throw cms::Exception("Configuration", "SelectedBxTableOutputBranches can only write out vector<unsigned int>");
     if (desc->productInstanceName() != "SelBx") {
-        m_name += "_"+desc->productInstanceName();
+      m_name += "_" + desc->productInstanceName();
     }
   }
 
@@ -34,7 +33,6 @@ private:
   TBranch *m_branch;
 
   edm::Handle<std::vector<unsigned int>> m_handle;
-
 };
 
 #endif
