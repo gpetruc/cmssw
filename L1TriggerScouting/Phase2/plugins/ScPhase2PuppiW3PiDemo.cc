@@ -28,8 +28,12 @@ private:
   void beginStream(edm::StreamID) override;
   void produce(edm::Event &, const edm::EventSetup &) override;
   void endStream() override;
-  template<typename T>
-  void runObj(const OrbitCollection<T> &src, edm::Event &out, unsigned long &nTry, unsigned long &nPass, const std::string & bxLabel);
+  template <typename T>
+  void runObj(const OrbitCollection<T> &src,
+              edm::Event &out,
+              unsigned long &nTry,
+              unsigned long &nPass,
+              const std::string &bxLabel);
   void runSOA(const l1Scouting::PuppiSOA &src, edm::Event &out);
 
   bool doCandidate_, doStruct_, doSOA_;
@@ -49,10 +53,10 @@ private:
     float maxiso = 2.0;  //0.4
   } cuts;
 
-  template<typename T>
+  template <typename T>
   bool isolation(unsigned int pidex, const T *cands, unsigned int size) const;
 
-  template<typename T>
+  template <typename T>
   bool isolation(unsigned int pidex, const T *cands, unsigned int size, unsigned int &cache) const {
     if (cache == 0)
       cache = isolation(pidex, cands, size) ? 1 : 2;
@@ -110,12 +114,12 @@ void ScPhase2PuppiW3PiDemo::produce(edm::Event &iEvent, const edm::EventSetup &i
   if (doCandidate_) {
     edm::Handle<OrbitCollection<l1t::PFCandidate>> src;
     iEvent.getByToken(candidateToken_, src);
-    runObj(*src, iEvent, countCandidate_, passCandidate_, "selectedBxCandidate");
+    runObj(*src, iEvent, countCandidate_, passCandidate_, "Candidate");
   }
   if (doStruct_) {
     edm::Handle<OrbitCollection<l1Scouting::Puppi>> src;
     iEvent.getByToken(structToken_, src);
-    runObj(*src, iEvent, countCandidate_, passCandidate_, "selectedBx");
+    runObj(*src, iEvent, countStruct_, passStruct_, "");
   }
   if (doSOA_) {
     edm::Handle<l1Scouting::PuppiSOA> src;
@@ -133,8 +137,12 @@ void ScPhase2PuppiW3PiDemo::endStream() {
     std::cout << "SOA analysis: " << countSOA_ << " -> " << passSOA_ << std::endl;
 }
 
-template<typename T>
-void ScPhase2PuppiW3PiDemo::runObj(const OrbitCollection<T> &src, edm::Event &iEvent, unsigned long &nTry, unsigned long &nPass, const std::string & bxLabel) {
+template <typename T>
+void ScPhase2PuppiW3PiDemo::runObj(const OrbitCollection<T> &src,
+                                   edm::Event &iEvent,
+                                   unsigned long &nTry,
+                                   unsigned long &nPass,
+                                   const std::string &label) {
   auto ret = std::make_unique<std::vector<unsigned>>();
   ROOT::RVec<unsigned int> ix;   // pions
   ROOT::RVec<unsigned int> iso;  //stores whether a particle passes isolation test so we don't calculate reliso twice
@@ -217,7 +225,7 @@ void ScPhase2PuppiW3PiDemo::runObj(const OrbitCollection<T> &src, edm::Event &iE
     }
   }  // loop on BXs
 
-  iEvent.put(std::move(ret), bxLabel);
+  iEvent.put(std::move(ret), "selectedBx" + label);
 }
 
 void ScPhase2PuppiW3PiDemo::runSOA(const l1Scouting::PuppiSOA &src, edm::Event &iEvent) {
@@ -325,7 +333,7 @@ void ScPhase2PuppiW3PiDemo::runSOA(const l1Scouting::PuppiSOA &src, edm::Event &
 }
 
 //TEST functions
-template<typename T>
+template <typename T>
 bool ScPhase2PuppiW3PiDemo::isolation(unsigned int pidex, const T *cands, unsigned int size) const {
   bool passed = false;
   float psum = 0;

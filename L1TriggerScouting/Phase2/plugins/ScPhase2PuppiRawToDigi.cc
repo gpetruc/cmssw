@@ -25,9 +25,8 @@ private:
   void produce(edm::Event &, const edm::EventSetup &) override;
   //void endStream() override;
 
-  std::unique_ptr<OrbitCollection<l1t::PFCandidate>> unpackCandidates(const SDSRawDataCollection &feds);
-
-  std::unique_ptr<OrbitCollection<l1Scouting::Puppi>> unpackStruct(const SDSRawDataCollection &feds);
+  template <typename T>
+  std::unique_ptr<OrbitCollection<T>> unpackObj(const SDSRawDataCollection &feds, std::vector<std::vector<T>> &buffer);
 
   std::unique_ptr<l1Scouting::PuppiSOA> unpackSOA(const SDSRawDataCollection &feds);
 
@@ -38,6 +37,9 @@ private:
   // temporary storage
   std::vector<std::vector<l1t::PFCandidate>> candBuffer_;
   std::vector<std::vector<l1Scouting::Puppi>> structBuffer_;
+
+  void unpackFromRaw(uint64_t data, std::vector<l1t::PFCandidate> &outBuffer);
+  void unpackFromRaw(uint64_t data, std::vector<l1Scouting::Puppi> &outBuffer);
 };
 
 ScPhase2PuppiRawToDigi::ScPhase2PuppiRawToDigi(const edm::ParameterSet &iConfig)
@@ -48,10 +50,10 @@ ScPhase2PuppiRawToDigi::ScPhase2PuppiRawToDigi(const edm::ParameterSet &iConfig)
       doSOA_(iConfig.getParameter<bool>("runSOAUnpacker")) {
   if (doCandidate_) {
     produces<OrbitCollection<l1t::PFCandidate>>();
-    candBuffer_.resize(OrbitCollection<l1t::PFCandidate>::NBX+1);  // FIXME magic number
+    candBuffer_.resize(OrbitCollection<l1t::PFCandidate>::NBX + 1);  // FIXME magic number
   }
   if (doStruct_) {
-    structBuffer_.resize(OrbitCollection<l1Scouting::Puppi>::NBX+1);  // FIXME magic number
+    structBuffer_.resize(OrbitCollection<l1Scouting::Puppi>::NBX + 1);  // FIXME magic number
     produces<OrbitCollection<l1Scouting::Puppi>>();
   }
   if (doSOA_) {
@@ -66,18 +68,19 @@ void ScPhase2PuppiRawToDigi::produce(edm::Event &iEvent, const edm::EventSetup &
   iEvent.getByToken(rawToken_, scoutingRawDataCollection);
 
   if (doCandidate_) {
-    iEvent.put(unpackCandidates(*scoutingRawDataCollection));
+    iEvent.put(unpackObj(*scoutingRawDataCollection, candBuffer_));
   }
   if (doStruct_) {
-      iEvent.put(unpackStruct(*scoutingRawDataCollection));
+    iEvent.put(unpackObj(*scoutingRawDataCollection, structBuffer_));
   }
   if (doSOA_) {
     iEvent.put(unpackSOA(*scoutingRawDataCollection));
   }
 }
 
-std::unique_ptr<OrbitCollection<l1t::PFCandidate>> ScPhase2PuppiRawToDigi::unpackCandidates(
-    const SDSRawDataCollection &feds) {
+template <typename T>
+std::unique_ptr<OrbitCollection<T>> ScPhase2PuppiRawToDigi::unpackObj(const SDSRawDataCollection &feds,
+                                                                      std::vector<std::vector<T>> &buffer) {
   unsigned int ntot = 0;
   for (auto &fedId : fedIDs_) {
     const FEDRawData &src = feds.FEDData(fedId);
@@ -89,88 +92,67 @@ std::unique_ptr<OrbitCollection<l1t::PFCandidate>> ScPhase2PuppiRawToDigi::unpac
       unsigned int bx = ((*p) >> 12) & 0xFFF;
       unsigned int nwords = (*p) & 0xFFF;
       ++p;
-      float pt, eta, phi, mass, z0, dxy, puppiw;
-      uint16_t hwPt, hwPuppiW;
-      int16_t pdgId, hwEta, hwPhi, hwZ0;
-      int8_t hwDxy;
-      uint8_t pid, hwQuality;
-      l1t::PFCandidate::ParticleType type;
-      int charge;
-      std::vector<l1t::PFCandidate> &candBuffer = candBuffer_[bx + 1];
-      assert(candBuffer.empty());
+      assert(bx < OrbitCollection<T>::NBX);
+      std::vector<T> &outputBuffer = buffer[bx + 1];
+      outputBuffer.reserve(nwords);
       for (unsigned int i = 0; i < nwords; ++i, ++p) {
         uint64_t data = *p;
-        phase2Utils::readshared(data, pt, eta, phi);
-        phase2Utils::readshared(data, hwPt, hwEta, hwPhi);
-        pid = (data >> 37) & 0x7;
-        phase2Utils::assignpdgid(pid, pdgId);
-        phase2Utils::assignCMSSWPFCandidateId(pid, type);
-        phase2Utils::assignmass(pid, mass);
-        phase2Utils::assigncharge(pid, charge);
-        reco::Particle::PolarLorentzVector p4(pt, eta, phi, mass);
-        if (pid > 1) {
-          phase2Utils::readcharged(data, z0, dxy, hwQuality);
-          phase2Utils::readcharged(data, hwZ0, hwDxy, hwQuality);
-          puppiw = 1.0;
-        } else {
-          phase2Utils::readneutral(data, puppiw, hwQuality);
-          phase2Utils::readneutral(data, hwPuppiW, hwQuality);
-          dxy = 0;
-          z0 = 0;
-        }
-        candBuffer.emplace_back(type, charge, p4, puppiw, hwPt, hwEta, hwPhi);
-        if (pid > 1) {
-          candBuffer.back().setZ0(z0);
-          candBuffer.back().setDxy(dxy);
-          candBuffer.back().setHwZ0(hwZ0);
-          candBuffer.back().setHwDxy(hwDxy);
-          candBuffer.back().setHwTkQuality(hwQuality);
-        } else {
-          candBuffer.back().setHwPuppiWeight(hwPuppiW);
-          candBuffer.back().setHwEmID(hwQuality);
-        }
-        candBuffer.back().setEncodedPuppi64(data);
+        unpackFromRaw(data, outputBuffer);
         ntot++;
       }
     }
   }
-
-  return std::make_unique<OrbitCollection<l1t::PFCandidate>>(candBuffer_, ntot);
+  return std::make_unique<OrbitCollection<T>>(buffer, ntot);
 }
 
-std::unique_ptr<OrbitCollection<l1Scouting::Puppi>> ScPhase2PuppiRawToDigi::unpackStruct(
-    const SDSRawDataCollection &feds) {
-  unsigned int ntot = 0;
-  for (auto &fedId : fedIDs_) {
-    const FEDRawData &src = feds.FEDData(fedId);
-    const uint64_t *begin = reinterpret_cast<const uint64_t *>(src.data());
-    const uint64_t *end = reinterpret_cast<const uint64_t *>(src.data() + src.size());
-    for (auto p = begin; p != end;) {
-      if ((*p) == 0)
-        continue;
-      unsigned int bx = ((*p) >> 12) & 0xFFF;
-      unsigned int nwords = (*p) & 0xFFF;
-      ++p;
-      assert(bx < OrbitCollection<l1Scouting::Puppi>::NBX);
-      std::vector<l1Scouting::Puppi> &structBuffer = structBuffer_[bx + 1];
-      structBuffer.reserve(nwords);
-      for (unsigned int i = 0; i < nwords; ++i, ++p) {
-        uint64_t data = *p;
-        float pt, eta, phi, z0 = 0, dxy = 0, puppiw = 1;
-        int16_t pdgId; uint8_t quality;
-        phase2Utils::readshared(data, pt, eta, phi);
-        uint8_t pid = (data >> 37) & 0x7;
-        phase2Utils::assignpdgid(pid, pdgId);
-        if (pid > 1) {
-          phase2Utils::readcharged(data, z0, dxy, quality);
-        } else {
-          phase2Utils::readneutral(data, puppiw, quality);
-        }
-        structBuffer.emplace_back(pt, eta, phi, pdgId, z0, dxy, puppiw, quality);
-      }
-    }
+void ScPhase2PuppiRawToDigi::unpackFromRaw(uint64_t data, std::vector<l1t::PFCandidate> &outBuffer) {
+  float pt, eta, phi, mass, z0 = 0, dxy = 0, puppiw = 1;
+  uint16_t hwPt, hwPuppiW = 1 << 8;
+  int16_t pdgId, hwEta, hwPhi, hwZ0 = 0;
+  int8_t hwDxy = 0;
+  uint8_t pid, hwQuality;
+  l1t::PFCandidate::ParticleType type;
+  int charge;
+  phase2Utils::readshared(data, pt, eta, phi);
+  phase2Utils::readshared(data, hwPt, hwEta, hwPhi);
+  pid = (data >> 37) & 0x7;
+  phase2Utils::assignpdgid(pid, pdgId);
+  phase2Utils::assignCMSSWPFCandidateId(pid, type);
+  phase2Utils::assignmass(pid, mass);
+  phase2Utils::assigncharge(pid, charge);
+  reco::Particle::PolarLorentzVector p4(pt, eta, phi, mass);
+  if (pid > 1) {
+    phase2Utils::readcharged(data, z0, dxy, hwQuality);
+    phase2Utils::readcharged(data, hwZ0, hwDxy, hwQuality);
+  } else {
+    phase2Utils::readneutral(data, puppiw, hwQuality);
+    phase2Utils::readneutral(data, hwPuppiW, hwQuality);
   }
-  return std::make_unique<OrbitCollection<l1Scouting::Puppi>>(structBuffer_, ntot);
+  outBuffer.emplace_back(type, charge, p4, puppiw, hwPt, hwEta, hwPhi);
+  if (pid > 1) {
+    outBuffer.back().setZ0(z0);
+    outBuffer.back().setDxy(dxy);
+    outBuffer.back().setHwZ0(hwZ0);
+    outBuffer.back().setHwDxy(hwDxy);
+    outBuffer.back().setHwTkQuality(hwQuality);
+  } else {
+    outBuffer.back().setHwPuppiWeight(hwPuppiW);
+    outBuffer.back().setHwEmID(hwQuality);
+  }
+  outBuffer.back().setEncodedPuppi64(data);
+}
+
+void ScPhase2PuppiRawToDigi::unpackFromRaw(uint64_t data, std::vector<l1Scouting::Puppi> &outBuffer) {
+  float pt, eta, phi, z0 = 0, dxy = 0, puppiw = 1;
+  uint8_t quality;
+  phase2Utils::readshared(data, pt, eta, phi);
+  uint8_t pid = (data >> 37) & 0x7;
+  if (pid > 1) {
+    phase2Utils::readcharged(data, z0, dxy, quality);
+  } else {
+    phase2Utils::readneutral(data, puppiw, quality);
+  }
+  outBuffer.emplace_back(pt, eta, phi, pid, z0, dxy, puppiw, quality);
 }
 
 std::unique_ptr<l1Scouting::PuppiSOA> ScPhase2PuppiRawToDigi::unpackSOA(const SDSRawDataCollection &feds) {

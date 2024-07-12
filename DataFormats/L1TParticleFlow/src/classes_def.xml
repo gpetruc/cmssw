@@ -36,7 +36,9 @@
   <class name="edm::Wrapper<l1t::RegionalOutput<l1t::PFCandidateCollection>>" />
   <class name="OrbitCollection<l1t::PFCandidate>" />
   <class name="edm::Wrapper<OrbitCollection<l1t::PFCandidate>>" />
-  <class name="l1Scouting::Puppi" />
+  <class name="l1Scouting::Puppi"  ClassVersion="3">
+        <version ClassVersion="3" checksum="3223900940"/>
+  </class>
   <class name="std::vector<l1Scouting::Puppi>" />
   <class name="OrbitCollection<l1Scouting::Puppi>" />
   <class name="edm::Wrapper<OrbitCollection<l1Scouting::Puppi>>" />
