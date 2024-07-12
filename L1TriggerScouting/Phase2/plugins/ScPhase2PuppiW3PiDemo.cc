@@ -7,9 +7,12 @@
 #include "FWCore/Utilities/interface/StreamID.h"
 
 #include "DataFormats/L1Scouting/interface/OrbitCollection.h"
+#include "DataFormats/L1Scouting/interface/OrbitFlatTable.h"
 #include "DataFormats/L1TParticleFlow/interface/PFCandidate.h"
 #include "DataFormats/L1TParticleFlow/interface/L1ScoutingPuppi.h"
+#include "L1TriggerScouting/Utilities/interface/BxOffsetsFiller.h"
 #include "L1TriggerScouting/Phase2/interface/phase2Utils.h"
+
 #include <ROOT/RVec.hxx>
 #include <Math/Vector4D.h>
 #include <Math/GenVector/LorentzVector.h>
@@ -88,10 +91,12 @@ ScPhase2PuppiW3PiDemo::ScPhase2PuppiW3PiDemo(const edm::ParameterSet &iConfig)
   if (doCandidate_) {
     candidateToken_ = consumes<OrbitCollection<l1t::PFCandidate>>(iConfig.getParameter<edm::InputTag>("src"));
     produces<std::vector<unsigned>>("selectedBxCandidate");
+    produces<l1ScoutingRun3::OrbitFlatTable>("w3piCandidate");
   }
   if (doStruct_) {
     structToken_ = consumes<OrbitCollection<l1Scouting::Puppi>>(iConfig.getParameter<edm::InputTag>("src"));
     produces<std::vector<unsigned>>("selectedBx");
+    produces<l1ScoutingRun3::OrbitFlatTable>("w3pi");
   }
   if (doSOA_) {
     soaToken_ = consumes<l1Scouting::PuppiSOA>(iConfig.getParameter<edm::InputTag>("src"));
@@ -143,11 +148,15 @@ void ScPhase2PuppiW3PiDemo::runObj(const OrbitCollection<T> &src,
                                    unsigned long &nTry,
                                    unsigned long &nPass,
                                    const std::string &label) {
+  l1ScoutingRun3::BxOffsetsFillter bxOffsetsFiller;
+  bxOffsetsFiller.start();
   auto ret = std::make_unique<std::vector<unsigned>>();
+  std::vector<float> masses;
+  std::vector<uint8_t> i0s, i1s, i2s;
   ROOT::RVec<unsigned int> ix;   // pions
   ROOT::RVec<unsigned int> iso;  //stores whether a particle passes isolation test so we don't calculate reliso twice
   std::array<unsigned int, 3> bestTriplet;  // best triplet
-  float bestTripletScore;
+  float bestTripletScore, bestTripletMass;
   for (unsigned int bx = 1; bx <= OrbitCollection<T>::NBX; ++bx) {
     nTry++;
     auto range = src.bxIterator(bx);
@@ -210,6 +219,7 @@ void ScPhase2PuppiW3PiDemo::runObj(const OrbitCollection<T> &src,
                   if (ptsum > bestTripletScore) {
                     std::copy_n(tr.begin(), 3, bestTriplet.begin());
                     bestTripletScore = ptsum;
+                    bestTripletMass = mass;
                   }
                 }  // iso
               }    // delta R
@@ -222,10 +232,23 @@ void ScPhase2PuppiW3PiDemo::runObj(const OrbitCollection<T> &src,
     if (bestTripletScore > 0) {
       ret->emplace_back(bx);
       nPass++;
+      masses.push_back(bestTripletMass);
+      i0s.push_back(bestTriplet[0]);
+      i1s.push_back(bestTriplet[1]);
+      i2s.push_back(bestTriplet[2]);
+      bxOffsetsFiller.addBx(bx, 1);
     }
   }  // loop on BXs
 
   iEvent.put(std::move(ret), "selectedBx" + label);
+  // now we make the table
+  auto bxOffsets = bxOffsetsFiller.done();
+  auto tab = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(bxOffsets, "W3Pi" + label, true);
+  tab->addColumn<float>("mass", masses, "3-pion invariant mass");
+  tab->addColumn<uint8_t>("i0", i0s, "leading pion");
+  tab->addColumn<uint8_t>("i1", i1s, "subleading pion");
+  tab->addColumn<uint8_t>("i2", i2s, "trailing pion");
+  iEvent.put(std::move(tab), "w3pi" + label);
 }
 
 void ScPhase2PuppiW3PiDemo::runSOA(const l1Scouting::PuppiSOA &src, edm::Event &iEvent) {

@@ -185,6 +185,7 @@ process.p_all = cms.Path(
   process.scPhase2PuppiRawToDigiCandidate+
   process.scPhase2PuppiRawToDigiStruct+
   process.scPhase2PuppiRawToDigiSOA+
+  process.scPhase2PuppiStructToTable+
   process.w3piCandidate+
   process.w3piStruct+
   process.w3piSOA
@@ -192,6 +193,7 @@ process.p_all = cms.Path(
 process.p_fast = cms.Path(
   process.scPhase2PuppiRawToDigiStruct+
   process.scPhase2PuppiRawToDigiSOA+
+  process.scPhase2PuppiStructToTable+
   process.w3piStruct+
   process.w3piSOA
 )
@@ -204,7 +206,10 @@ process.scPhase2PuppiStructNanoAll = cms.OutputModule("OrbitNanoAODOutputModule"
 process.scPhase2PuppiStructNanoW3pi = cms.OutputModule("OrbitNanoAODOutputModule",
     fileName = cms.untracked.string(options.outFile.replace(".root","")+".w3pi.root"),
     selectedBx = cms.InputTag("w3piStruct","selectedBx"),
-    outputCommands = cms.untracked.vstring("drop *", "keep l1ScoutingRun3OrbitFlatTable_scPhase2PuppiStructToTable_*_*"),
+    outputCommands = cms.untracked.vstring("drop *", 
+        "keep l1ScoutingRun3OrbitFlatTable_scPhase2PuppiStructToTable_*_*",
+        "keep l1ScoutingRun3OrbitFlatTable_w3piStruct_*_*"
+        ),
     compressionLevel = cms.untracked.int32(4),
     compressionAlgorithm = cms.untracked.string("LZ4"),
 )

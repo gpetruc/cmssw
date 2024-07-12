@@ -20,7 +20,12 @@ namespace l1ScoutingRun3 {
 
     OrbitFlatTable() : nanoaod::FlatTable(), bxOffsets_(orbitBufferSize_ + 1, 0) {}
 
-    OrbitFlatTable(std::vector<unsigned> bxOffsets,
+    OrbitFlatTable(const std::vector<unsigned> &bxOffsets,
+                   const std::string &name,
+                   bool singleton = false,
+                   bool extension = false);
+
+    OrbitFlatTable(std::vector<unsigned> &&bxOffsets,
                    const std::string &name,
                    bool singleton = false,
                    bool extension = false);
