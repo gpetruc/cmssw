@@ -47,17 +47,19 @@ private:
     float minpt2 = 5;  
     float minpt3 = 10; 
     float minpt4 = 25; 
-    float mindeltar2 = 0.15*0.15;
+    float maxdeltar2 = 0.15*0.15;
+    float mindeltarDsGamma2 = 3.5*3.5;
+    float mindeltaphiDsGamma = 2.5;
     float minmass = 60;   
     float maxmass = 100;  
-    float minmass3 = 1.5;
-    float maxmass3 = 2.5;
-    float mindr2 = 0.01 * 0.01;
-    float maxdr2 = 0.25 * 0.25;
-    float maxiso = 2.0;  //0.4
-    float mindr2tkem = 0.01 * 0.01;
-    float maxdr2tkem = 0.25 * 0.25;
-    float maxisotkem = 2.0;  //0.4
+    float minmass3 = 1.75;
+    float maxmass3 = 2.30;
+    float mindr2 = 0.00 * 0.00;
+    float maxdr2 = 0.50 * 0.50;
+    float maxiso = 0.45;  
+    float mindr2tkem = 0.02 * 0.02;
+    float maxdr2tkem = 0.50 * 0.50;
+    float maxisotkem = 0.25;  
   } cuts;
 
   template <typename T>
@@ -82,6 +84,8 @@ private:
 
 
   bool deltar(float eta1, float eta2, float phi1, float phi2) const;
+  bool deltarmin(float eta1, float eta2, float phi1, float phi2) const;
+  bool deltaphi(float phi1, float phi2) const;
   static float tripletmass(const std::array<unsigned int, 3> &t, const float *pts, const float *etas, const float *phis);
   static float quadrupletmass(const std::array<unsigned int, 4> &t, const float *pts, const float *etas, const float *phis);
 
@@ -225,7 +229,9 @@ void ScPhase2PuppiWDsGammaDemo::runObj(const OrbitCollection<T> &src,
                     deltar(cands[ix[i2]].eta(), cands[ix[i3]].eta(), cands[ix[i2]].phi(), cands[ix[i3]].phi())) {
                   //ISOLATION test for photon
                   bool isop = isolationTkEm(cands2[ig[i4]].pt(), cands2[ig[i4]].eta(), cands2[ig[i4]].phi(), cands, size, iso[1]);
-                  if (isop == true) {
+		  bool pass_deltaphi = deltaphi(cands[ix[i1]].phi(), cands2[ig[i4]].phi());
+		  bool pass_deltar = deltarmin(cands[ix[i1]].eta(), cands2[ig[i4]].eta(), cands[ix[i1]].phi(), cands2[ig[i4]].phi());
+                  if (isop == true and pass_deltaphi==true and pass_deltar==true) {
                     float ptsum = cands[ix[i1]].pt() + cands[ix[i2]].pt() + cands[ix[i3]].pt() + cands2[ig[i4]].pt();
                     if (ptsum > bestQuadrupletScore) {
                       std::copy_n(tr.begin(), 4, bestQuadruplet.begin());
@@ -300,13 +306,34 @@ bool ScPhase2PuppiWDsGammaDemo::isolationTkEm(float pt, float eta, float phi, co
   return passed;
 }
 
-
 bool ScPhase2PuppiWDsGammaDemo::deltar(float eta1, float eta2, float phi1, float phi2) const {
   bool passed = true;
   float deta = eta1 - eta2;
   float dphi = ROOT::VecOps::DeltaPhi<float>(phi1, phi2);
   float dr2 = deta * deta + dphi * dphi;
-  if (dr2 > cuts.mindeltar2) {
+  if (dr2 > cuts.maxdeltar2) {
+    passed = false;
+    return passed;
+  }
+  return passed;
+}
+
+bool ScPhase2PuppiWDsGammaDemo::deltarmin(float eta1, float eta2, float phi1, float phi2) const {
+  bool passed = true;
+  float deta = eta1 - eta2;
+  float dphi = ROOT::VecOps::DeltaPhi<float>(phi1, phi2);
+  float dr2 = deta * deta + dphi * dphi;
+  if (dr2 < cuts.mindeltarDsGamma2) {
+    passed = false;
+    return passed;
+  }
+  return passed;
+}
+
+bool ScPhase2PuppiWDsGammaDemo::deltaphi(float phi1, float phi2) const {
+  bool passed = true;
+  float dphi = ROOT::VecOps::DeltaPhi<float>(phi1, phi2);
+  if (fabs(dphi) < cuts.mindeltaphiDsGamma) {
     passed = false;
     return passed;
   }

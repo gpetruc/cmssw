@@ -54,29 +54,25 @@ void ScTkEmToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm::Eve
   iEvent.getByToken(src_, src);
   auto out = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(src->bxOffsets(), name_);
   out->setDoc(doc_);
-  std::vector<float> pt(out->size()), eta(out->size()), phi(out->size()); //, z0(out->size()), dxy(out->size()), puppiw(out->size());
-  //std::vector<int16_t> pdgId(out->size());
-  //std::vector<uint8_t> quality(out->size());
+  std::vector<float> pt(out->size()), eta(out->size()), phi(out->size()), isolation(out->size()); 
+  std::vector<bool> valid(out->size());
+  std::vector<uint8_t> quality(out->size());
   unsigned int i = 0;
   for (const l1Scouting::TkEm& tkem : *src) {
     pt[i] = tkem.pt();
     eta[i] = tkem.eta();
     phi[i] = tkem.phi();
-    /*z0[i] = tkem.z0();
-    dxy[i] = tkem.dxy();
-    tkemw[i] = tkem.tkemw();
-    pdgId[i] = tkem.pdgId();
-    quality[i] = tkem.quality();*/
+    valid[i] = tkem.valid();
+    quality[i] = tkem.quality();
+    isolation[i] = tkem.isolation();
     ++i;
   }
   out->addColumn<float>("pt", pt, "pt (GeV)");
   out->addColumn<float>("eta", eta, "eta (natural units)");
   out->addColumn<float>("phi", phi, "phi (natural units)");
-  /*out->addColumn<float>("z0", z0, "z0 (cm)");
-  out->addColumn<float>("dxy", dxy, "dxy (cm)");
-  out->addColumn<float>("puppiw", puppiw, "puppi weight (range [0,1])");
-  out->addColumn<int16_t>("pdgId", pdgId, "pdgId (natural units)");
-  out->addColumn<uint8_t>("quality", quality, "quality (8 bits");*/
+  out->addColumn<bool>("valid", valid, "valid (boolean)");
+  out->addColumn<uint8_t>("quality", quality, "quality (8 bits");
+  out->addColumn<float>("isolation", isolation, "isolation (natural units)");
   iEvent.put(std::move(out));
 }
 

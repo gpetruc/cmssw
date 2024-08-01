@@ -86,17 +86,10 @@ std::unique_ptr<OrbitCollection<T>> ScPhase2TkEmRawToDigi::unpackObj(const SDSRa
 }
 
 void ScPhase2TkEmRawToDigi::unpackFromRaw(uint64_t data, std::vector<l1Scouting::TkEm> &outBuffer) {
-  float pt, eta, phi, isolation =0;//, z0 = 0, dxy = 0, puppiw = 1;
+  float pt, eta, phi, isolation =0;
   uint8_t quality;
   bool valid;
   l1tkemUnpack::readshared(data, pt, eta, phi, valid, quality, isolation);
-  /*uint8_t pid = (data >> 37) & 0x7;
-  if (pid > 1) {
-    l1tkemUnpack::readcharged(data, z0, dxy, quality);
-  } else {
-    l1tkemUnpack::readneutral(data, puppiw, quality);
-  }*/
-  //outBuffer.emplace_back(pt, eta, phi, pid, z0, dxy, puppiw, quality);
   outBuffer.emplace_back(pt, eta, phi, valid, quality, isolation);
 }
 
