@@ -23,7 +23,7 @@ public:
   // The method fillAndClear will be used, meaning that, after copying the objects,
   // orbitBuffer's vectors will be cleared.
   OrbitCollection(std::vector<std::vector<T>>& orbitBuffer, unsigned nObjects = 0)
-      : bxOffsets_(orbitBufferSize_ + 1, 0), data_(nObjects) {
+      : bxOffsets_(orbitBufferSize_ + 1, 0), data_() {
     fillAndClear(orbitBuffer, nObjects);
   }
 
@@ -116,6 +116,9 @@ public:
 
   T& operator[](std::size_t i) { return data_[i]; }
   const T& operator[](std::size_t i) const { return data_[i]; }
+
+  //used by OrbitFlatTable
+  const std::vector<unsigned>& bxOffsets() const { return bxOffsets_; };
 
   // used by ROOT storage
   CMS_CLASS_VERSION(3)

@@ -87,9 +87,12 @@ class BranchGroup:
 
 
 def inspectRootFile(infile):
-    if not os.path.isfile(infile): raise RuntimeError
-    filesize = os.path.getsize(infile)/1024.0
     tfile = ROOT.TFile.Open(infile)
+    if os.path.isfile(infile):
+        ## local file
+        filesize = os.path.getsize(infile)/1024.0
+    else:
+        filesize = tfile.GetSize()/1024.0
     trees = {}
     for treeName in "Events", "Runs", "LuminosityBlocks":
         toplevelDoc={}
@@ -186,16 +189,16 @@ def writeSizeReport(fileData, trees, stream):
     for treename, treeData in trees.items():
         surveys[treename] = makeSurvey(treename, treeData)
     title = "%s (%.3f Mb, %d events, %.2f kb/event)" % (filename, filesize/1024.0, events, filesize/events)
-    stream.write("""
+    stream.write("""<!doctype html>
     <html>
     <head>
         <title>{title}</title>
-        <link rel="stylesheet" type="text/css" href="http://gpetrucc.web.cern.ch/gpetrucc/micro/patsize.css" />
-        <script type="text/javascript" src="http://gpetrucc.web.cern.ch/gpetrucc/rgraph/RGraph.common.core.js"></script>
-        <script type="text/javascript" src="http://gpetrucc.web.cern.ch/gpetrucc/rgraph/RGraph.pie.js"></script>
-        <script type="text/javascript" src="http://gpetrucc.web.cern.ch/gpetrucc/rgraph/RGraph.common.dynamic.js"></script>
-        <script type="text/javascript" src="http://gpetrucc.web.cern.ch/gpetrucc/rgraph/RGraph.common.tooltips.js"></script>
-        <script type="text/javascript" src="http://gpetrucc.web.cern.ch/gpetrucc/rgraph/RGraph.common.key.js"></script>
+        <link rel="stylesheet" type="text/css" href="https://gpetrucc.web.cern.ch/micro/patsize.css" />
+        <script type="text/javascript" src="https://gpetrucc.web.cern.ch/rgraph/RGraph.common.core.js"></script>
+        <script type="text/javascript" src="https://gpetrucc.web.cern.ch/rgraph/RGraph.pie.js"></script>
+        <script type="text/javascript" src="https://gpetrucc.web.cern.ch/rgraph/RGraph.common.dynamic.js"></script>
+        <script type="text/javascript" src="https://gpetrucc.web.cern.ch/rgraph/RGraph.common.tooltips.js"></script>
+        <script type="text/javascript" src="https://gpetrucc.web.cern.ch/rgraph/RGraph.common.key.js"></script>
     </head>
     <body>
     <a name="top" id="top"><h1>{title}</h1></a>
@@ -308,11 +311,11 @@ def writeSizeReport(fileData, trees, stream):
     """)
 
 def writeDocReport(fileName, trees, stream):
-    stream.write( """
+    stream.write( """<!doctype html>
     <html>
     <head>
         <title>Documentation for {filename} </title>
-        <link rel="stylesheet" type="text/css" href="http://gpetrucc.web.cern.ch/gpetrucc/micro/patsize.css" />
+        <link rel="stylesheet" type="text/css" href="https://gpetrucc.web.cern.ch/micro/patsize.css" />
     </head>
     <body>
     """.format(filename=fileName))
@@ -359,7 +362,7 @@ def writeMarkdownSizeReport(fileData, trees, stream):
         for s in survey:
             stream.write("| [**%s**](#%s '%s') | %s | %d" % (s['name'], s['name'].lower(), s['doc'].replace('|', '\|').replace('\'', '\"'), s['kind'].lower(), len(s['subs'])))
             stream.write("| %.2f|%.3f|%.1f" % (s['entries']/events, s['tot']/events, s['tot'] / s['entries'] * 1024 if s['entries'] else 0))
-            stream.write("| <img src='http://gpetrucc.web.cern.ch/gpetrucc/micro/blue-dot.gif' width='%d' height='%d' />" % (s['tot'] / treetotal * 200, 10))
+            stream.write("| <img src='http://gpetrucc.web.cern.ch/micro/blue-dot.gif' width='%d' height='%d' />" % (s['tot'] / treetotal * 200, 10))
             stream.write("| %.1f%%" % (s['tot'] / treetotal * 100.0))
             stream.write("| %.1f%%" % ((runningtotal+s['tot'])/treetotal * 100.0))
             stream.write("| %.1f%% |\n" % ((treetotal-runningtotal)/treetotal * 100.0))
@@ -368,21 +371,21 @@ def writeMarkdownSizeReport(fileData, trees, stream):
         # all known data
         stream.write("**All %s data**" % treename)
         stream.write("| | | | **%.2f**"  % (treetotal/events))
-        stream.write("| | <img src='http://gpetrucc.web.cern.ch/gpetrucc/micro/green-dot.gif' width='%d' height='%d' />" % (treetotal / filesize * 100.0, 10))
+        stream.write("| | <img src='http://gpetrucc.web.cern.ch/micro/green-dot.gif' width='%d' height='%d' />" % (treetotal / filesize * 100.0, 10))
         stream.write("| %.1f%%<sup>a</sup> | | |\n" % (treetotal/filesize * 100.0))
 
         if treename == "Events":
             # non-event
             stream.write("**Non per-event data or overhead**")
             stream.write("| | | | %.2f" % ((filesize-treetotal)/events))
-            stream.write("| | <img src='http://gpetrucc.web.cern.ch/gpetrucc/micro/red-dot.gif' width='%d' height='%d' />" % ((filesize - treetotal) / filesize * 100, 10))
+            stream.write("| | <img src='http://gpetrucc.web.cern.ch/micro/red-dot.gif' width='%d' height='%d' />" % ((filesize - treetotal) / filesize * 100, 10))
             stream.write("| %.1f%%<sup>a</sup> | | |\n" % ((filesize-treetotal)/filesize * 100.0))
 
     if len(surveys) > 1:
         # other, unknown overhead
         stream.write("**Overhead**")
         stream.write("| | | | %.2f" % ((filesize-runningtotal)/events))
-        stream.write("| | <img src='http://gpetrucc.web.cern.ch/gpetrucc/micro/red-dot.gif' width='%d' height='%d' />" % ((filesize - runningtotal) / filesize * 100, 10))
+        stream.write("| | <img src='http://gpetrucc.web.cern.ch/micro/red-dot.gif' width='%d' height='%d' />" % ((filesize - runningtotal) / filesize * 100, 10))
         stream.write("| %.1f%%<sup>a</sup> | | |\n" % ((filesize-runningtotal)/filesize * 100.0))
 
     # all file
