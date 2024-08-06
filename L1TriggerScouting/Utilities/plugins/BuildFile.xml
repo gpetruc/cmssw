@@ -5,6 +5,10 @@
 <use name="IOPool/Provenance"/>
 <use name="DataFormats/L1Trigger"/>
 <use name="DataFormats/L1Scouting"/>
+<use name="DataFormats/L1TMuon"/>
 <use name="EventFilter/Utilities"/>
+<use name="L1Trigger/L1TMuon"/>
+<use name="L1Trigger/L1TMuonBarrel"/>
 <use name="L1TriggerScouting/Utilities"/>
+
 <flags EDM_PLUGIN="1"/>

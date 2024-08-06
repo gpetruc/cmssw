@@ -33,6 +33,7 @@
   <class name="std::vector<l1ScoutingRun3::Muon>"/>
   <class name="std::vector<l1ScoutingRun3::Tau>"/>
   
+  <class name="l1ScoutingRun3::L1MuKBMTrackOrbitCollection"/>
   <class name="l1ScoutingRun3::BMTFStubOrbitCollection"/>
   <class name="l1ScoutingRun3::BxSumsOrbitCollection"/>
   <class name="l1ScoutingRun3::EGammaOrbitCollection"/>
@@ -40,6 +41,7 @@
   <class name="l1ScoutingRun3::MuonOrbitCollection"/>
   <class name="l1ScoutingRun3::TauOrbitCollection"/>
 
+  <class name="edm::Wrapper<l1ScoutingRun3::L1MuKBMTrackOrbitCollection>"/>
   <class name="edm::Wrapper<l1ScoutingRun3::BMTFStubOrbitCollection>"/>
   <class name="edm::Wrapper<l1ScoutingRun3::BxSumsOrbitCollection>"/>
   <class name="edm::Wrapper<l1ScoutingRun3::EGammaOrbitCollection>"/>
