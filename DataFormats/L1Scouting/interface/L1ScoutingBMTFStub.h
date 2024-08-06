@@ -2,6 +2,7 @@
 #define DataFormats_L1Scouting_L1ScoutingBMTFStub_h
 
 #include "DataFormats/L1Scouting/interface/OrbitCollection.h"
+#include "DataFormats/L1TMuon/interface/L1MuKBMTrack.h"
 
 namespace l1ScoutingRun3 {
 
@@ -54,6 +55,7 @@ namespace l1ScoutingRun3 {
   };
 
   typedef OrbitCollection<BMTFStub> BMTFStubOrbitCollection;
+  typedef OrbitCollection<L1MuKBMTrack> L1MuKBMTrackOrbitCollection;
 
 }  // namespace l1ScoutingRun3
 
