@@ -99,15 +99,15 @@ process.EvFDaqDirector = cms.Service("EvFDaqDirector",
     baseDir = cms.untracked.string(options.fuBaseDir),
     buBaseDir = cms.untracked.string(options.buBaseDir),
     buBaseDirsAll = cms.untracked.vstring(options.buBaseDir,),
-    buBaseDirsNumStreams = cms.untracked.vint32(0),
+    buBaseDirsNumStreams = cms.untracked.vint32(1),
     directorIsBU = cms.untracked.bool(False),
 )
 
 fuDir = options.fuBaseDir+("/run%06d" % options.runNumber)
 buDir = options.buBaseDir+("/run%06d" % options.runNumber)
-for d in fuDir, buDir, options.fuBaseDir, options.buBaseDir:
-  if not os.path.isdir(d):
-    os.makedirs(d)
+#for d in fuDir, buDir, options.fuBaseDir, options.buBaseDir:
+#  if not os.path.isdir(d):
+#    os.makedirs(d)
 
 process.source = cms.Source("DAQSource",
     testing = cms.untracked.bool(True),
@@ -139,9 +139,9 @@ process.scPhase2PuppiRawToDigiStruct = scPhase2PuppiRawToDigi.clone(
     runStructUnpacker = True
 )
 
-scPhase2TkEmRawToDigi = cms.EDProducer('ScPhase2TkEmRawToDigi',
+process.scPhase2TkEmRawToDigiStruct = cms.EDProducer('ScPhase2TkEmRawToDigi',
   src = cms.InputTag('rawDataCollector'),
-  fedIDs = cms.vuint32(0),
+  fedIDs = cms.vuint32(1),
   runStructUnpacker = cms.bool(True),
 )
 

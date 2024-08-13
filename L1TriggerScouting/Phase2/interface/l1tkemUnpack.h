@@ -14,13 +14,13 @@
 
 namespace l1tkemUnpack {
   template <typename U>
-  inline void parseHeader(const uint64_t &header, uint16_t &run, uint16_t &bx, uint32_t &orbit, bool &good, U &ntkem) {
-    ntkem = header & 0xFFF;
+  inline void parseHeader(const uint64_t &header, uint16_t &run, uint16_t &bx, uint32_t &orbit, bool &good, U &npackets) {
+    npackets = header & 0xFFF; // lenght of the packets in 64bit words // FIXME is 12 bits correct?
     bx = (header >> 12) & 0xFFF;
     orbit = (header >> 24) & 0X3FFFFFFF;
     run = (header >> 54);
     good = !(header & (1llu << 61));
-  } // FIXME Can I keep this identical to L1Puppi?
+  } 
 
   inline void readshared(const uint64_t data, uint16_t &pt, int16_t &eta, int16_t &phi, bool &valid, uint8_t &quality, uint16_t isolation) {  //int
     valid = data & 0x001;                                                                       // 1 bit
