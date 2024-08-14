@@ -14,39 +14,31 @@
 
 namespace l1tkemUnpack {
   template <typename U>
-  inline void parseHeader(const uint64_t &header, uint16_t &run, uint16_t &bx, uint32_t &orbit, bool &good, U &npackets) {
-    npackets = header & 0xFFF; // lenght of the packets in 64bit words // FIXME is 12 bits correct?
-    bx = (header >> 12) & 0xFFF;
-    orbit = (header >> 24) & 0X3FFFFFFF;
-    run = (header >> 54);
-    good = !(header & (1llu << 61));
-  } 
-
-  inline void readshared(const uint64_t data, uint16_t &pt, int16_t &eta, int16_t &phi, bool &valid, uint8_t &quality, uint16_t isolation) {  //int
-    valid = data & 0x001;                                                                       // 1 bit
-    pt = ((data >> 16) & 1) ? ((data >> 1) | (-0x8000)) : ((data >> 1) & (0xFFFF));             // 16 bits
-    phi = ((data >> 29) & 1) ? ((data >> 17) | (-0x1000)) : ((data >> 17) & (0x1FFF));          // 13 bits
-    eta = ((data >> 43) & 1) ? ((data >> 30) | (-0x2000)) : ((data >> 30) & (0x3FFF));          // 14 bits
-    quality = ((data >> 47) & 1) ? ((data >> 44) | (-0x8)) : ((data >> 44) & (0xF));            // 4 bits
-    isolation = ((data >> 58) & 1) ? ((data >> 48) | (-0x400)) : ((data >> 48) & (0x7FF));     // 11 bits
+  inline void readshared(const uint64_t datalow, const uint32_t datahigh, uint16_t &pt, int16_t &eta, int16_t &phi, bool &valid, uint8_t &quality, uint16_t isolation) {  //int
+    valid = datalow & 0x001;                                                                       // 1 bit
+    pt = ((datalow >> 16) & 1) ? ((datalow >> 1) | (-0x8000)) : ((datalow >> 1) & (0xFFFF));             // 16 bits
+    phi = ((datalow >> 29) & 1) ? ((datalow >> 17) | (-0x1000)) : ((datalow >> 17) & (0x1FFF));          // 13 bits
+    eta = ((datalow >> 43) & 1) ? ((datalow >> 30) | (-0x2000)) : ((datalow >> 30) & (0x3FFF));          // 14 bits
+    quality = ((datalow >> 47) & 1) ? ((datalow >> 44) | (-0x8)) : ((datalow >> 44) & (0xF));            // 4 bits
+    isolation = ((datalow >> 58) & 1) ? ((datalow >> 48) | (-0x400)) : ((datalow >> 48) & (0x7FF));     // 11 bits
 
   }
-  inline void readshared(const uint64_t data, float &pt, float &eta, float &phi, bool &valid, uint8_t &quality, float isolation) {  //float
+  inline void readshared(const uint64_t datalow, const uint32_t datahigh, float &pt, float &eta, float &phi, bool &valid, uint8_t &quality, float isolation) {  //float
 
-    valid = data & 0x001;
+    valid = datalow & 0x001;
 
-    uint16_t ptint = ((data >> 16) & 1) ? ((data >> 1) | (-0x8000)) : ((data >> 1) & (0xFFFF));
+    uint16_t ptint = ((datalow >> 16) & 1) ? ((datalow >> 1) | (-0x8000)) : ((datalow >> 1) & (0xFFFF));
     pt = ptint * 0.03125f;
 
-    int phiint = ((data >> 29) & 1) ? ((data >> 17) | (-0x1000)) : ((data >> 17) & (0x1FFF));
+    int phiint = ((datalow >> 29) & 1) ? ((datalow >> 17) | (-0x1000)) : ((datalow >> 17) & (0x1FFF));
     phi = phiint * float(M_PI / 4096.);
 
-    int etaint = ((data >> 43) & 1) ? ((data >> 30) | (-0x2000)) : ((data >> 30) & (0x3FFF));
+    int etaint = ((datalow >> 43) & 1) ? ((datalow >> 30) | (-0x2000)) : ((datalow >> 30) & (0x3FFF));
     eta = etaint * float(M_PI / 4096.);
 
-    quality = ((data >> 47) & 1) ? ((data >> 44) | (-0x8)) : ((data >> 44) & (0xF));
+    quality = ((datalow >> 47) & 1) ? ((datalow >> 44) | (-0x8)) : ((datalow >> 44) & (0xF));
 
-    int isolationint = ((data >> 58) & 1) ? ((data >> 48) | (-0x400)) : ((data >> 48) & (0x7FF));
+    int isolationint = ((datalow >> 58) & 1) ? ((datalow >> 48) | (-0x400)) : ((datalow >> 48) & (0x7FF));
     isolation = isolationint * 0.25f;
 
   }
