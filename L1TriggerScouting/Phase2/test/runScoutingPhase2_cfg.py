@@ -24,9 +24,15 @@ options.register ('daqSourceMode',
 
 options.register ('buBaseDir',
                   '/dev/shm/ramdisk', # default value
-                  VarParsing.VarParsing.multiplicity.singleton,
+                  VarParsing.VarParsing.multiplicity.list,
                   VarParsing.VarParsing.varType.string,          # string, int, or float
                   "BU base directory")
+
+options.register ('buNumStreams',
+                  1, # default value
+                  VarParsing.VarParsing.multiplicity.singleton,
+                  VarParsing.VarParsing.varType.int,          # string, int, or float
+                  "Number of input streams (i.e. files) used simultaneously for each event")
 
 options.register ('fuBaseDir',
                   '/dev/shm/data', # default value
@@ -97,15 +103,15 @@ process.EvFDaqDirector = cms.Service("EvFDaqDirector",
     fileBrokerHost = cms.untracked.string("htcp40.cern.ch"),
     runNumber = cms.untracked.uint32(options.runNumber),
     baseDir = cms.untracked.string(options.fuBaseDir),
-    buBaseDir = cms.untracked.string(options.buBaseDir),
-    buBaseDirsAll = cms.untracked.vstring(options.buBaseDir,),
-    buBaseDirsNumStreams = cms.untracked.vint32(0),
+    buBaseDir = cms.untracked.string(options.buBaseDir[0]),
+    buBaseDirsAll = cms.untracked.vstring(*options.buBaseDir),
+    buBaseDirsNumStreams = cms.untracked.vint32([options.buNumStreams for dir in options.buBaseDir]),
     directorIsBU = cms.untracked.bool(False),
 )
 
 fuDir = options.fuBaseDir+("/run%06d" % options.runNumber)
-buDir = options.buBaseDir+("/run%06d" % options.runNumber)
-for d in fuDir, buDir, options.fuBaseDir, options.buBaseDir:
+buDirs = [b+("/run%06d" % options.runNumber) for b in options.buBaseDir]
+for d in [fuDir, options.fuBaseDir] + buDirs + options.buBaseDir:
   if not os.path.isdir(d):
     os.makedirs(d)
 
@@ -121,10 +127,10 @@ process.source = cms.Source("DAQSource",
     maxBufferedFiles = cms.untracked.uint32(4),
     fileListMode = cms.untracked.bool(True),
     fileNames = cms.untracked.vstring(
-        buDir + "/" + "run%06d_ls%04d_index%06d_ts00.raw" % (options.runNumber, options.lumiNumber, 1)
+        buDirs[0] + "/" + "run%06d_ls%04d_index%06d_stream00.raw" % (options.runNumber, options.lumiNumber, 1),
     )
 )
-os.system("touch " + buDir + "/" + "fu.lock")
+os.system("touch " + buDirs[0] + "/" + "fu.lock")
 
 ## test pluging
 scPhase2PuppiRawToDigi = cms.EDProducer('ScPhase2PuppiRawToDigi',

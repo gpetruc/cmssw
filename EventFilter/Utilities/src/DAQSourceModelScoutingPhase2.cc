@@ -1,15 +1,24 @@
-#include "EventFilter//Utilities/interface/DAQSourceModelsScoutingPhase2.h"
-
+#include "EventFilter/Utilities/interface/DAQSourceModelsScoutingPhase2.h"
+#include <iostream>
 using namespace edm::streamer;
 
 void DataModeScoutingPhase2::makeDirectoryEntries(std::vector<std::string> const& baseDirs,
                                                   std::vector<int> const& numSources,
                                                   std::string const& runDir) {
+  std::cout << "makeDirectoryEntries called with runDir " << runDir << ",\n baseDirs = {\n";
+  for (auto& b : baseDirs)
+    std::cout << "   " << b << ",\n";
+  std::cout << "}\n";
   std::filesystem::path runDirP(runDir);
   for (auto& baseDir : baseDirs) {
     std::filesystem::path baseDirP(baseDir);
     buPaths_.emplace_back(baseDirP / runDirP);
   }
+  std::cout << ", numSources = { \n";
+  for (auto& n : numSources)
+    std::cout << "   " << n << ",\n";
+  std::cout << "}\n";
+  std::cout << std::endl;
 
   // store the number of sources in each BU
   buNumSources_ = numSources;
@@ -18,31 +27,44 @@ void DataModeScoutingPhase2::makeDirectoryEntries(std::vector<std::string> const
 std::pair<bool, std::vector<std::string>> DataModeScoutingPhase2::defineAdditionalFiles(std::string const& primaryName,
                                                                                         bool fileListMode) const {
   std::vector<std::string> additionalFiles;
-  if (fileListMode) {
-    assert(!buNumSources_.empty());
-    //for the unit test
-    for (int j = 1; j < buNumSources_[0]; j++) {
-      additionalFiles.push_back(primaryName + "_" + std::to_string(j));
-    }
-    return std::make_pair(true, additionalFiles);
-  }
-
+  assert(!buNumSources_.empty());
   auto fullpath = std::filesystem::path(primaryName);
-  auto fullname = fullpath.filename();
-
-  for (size_t i = 0; i < buPaths_.size(); i++) {
-    std::filesystem::path newPath = buPaths_[i] / fullname;
-
-    if (i != 0) {
-      // secondary files from other ramdisks
-      additionalFiles.push_back(newPath.generic_string());
+  auto fullstr = fullpath.filename().generic_string();
+  auto pos = fullstr.rfind("_stream00");
+  assert(pos != std::string::npos);
+  std::string pre = fullstr.substr(0, pos + 7), post = fullstr.substr(pos + 9);
+  char buff[3];
+  unsigned int nStreams = buNumSources_[0];
+  assert(nStreams > 0);
+  for (unsigned int istream = 0; istream < nStreams; ++istream) {
+    bool found = false;
+    snprintf(buff, sizeof(buff), "%02u", istream);
+    for (unsigned int i = 0, n = buPaths_.size(); i < n; ++i) {
+      auto path = buPaths_[i] / (pre + std::string(buff) + post);
+      if (std::filesystem::exists(path)) {
+        if (istream == 0) {
+          if (i != 0)
+            throw cms::Exception("DataModeFRDStriped::DataModeScoutingPhase2")
+                << "stream " << istream << " found in alternate path " << i << " " << path.generic_string() << "\n";
+        } else {
+          if (found)
+            throw cms::Exception("DataModeFRDStriped::DataModeScoutingPhase2")
+                << "stream " << istream << " found both in path " << path.generic_string() << " and "
+                << additionalFiles.back() << "\n";
+          additionalFiles.push_back(path.generic_string());
+        }
+        found = true;
+      }
     }
-
-    // add extra sources from the same ramdisk
-    for (int j = 1; j < buNumSources_[i]; j++) {
-      additionalFiles.push_back(newPath.generic_string() + "_" + std::to_string(j));
-    }
+    if (!found)
+      throw cms::Exception("DataModeFRDStriped::DataModeScoutingPhase2")
+          << "stream " << istream << " " << (pre + std::string(buff) + post) << " not found both any of BU paths\n";
   }
+  //for the unit test
+  std::cout << "defineAdditionalFiles called with primaryName '" << primaryName << "', will return {\n";
+  for (auto& f : additionalFiles)
+    std::cout << "    " << f << "\n";
+  std::cout << "}" << std::endl;
   return std::make_pair(true, additionalFiles);
 }
 
