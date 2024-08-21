@@ -45,6 +45,15 @@
   <class name="l1Scouting::PuppiSOA" />
   <class name="edm::Wrapper<l1Scouting::PuppiSOA>" />
 
+  <class name="l1Scouting::TkEm"  ClassVersion="5">
+	<version ClassVersion="5" checksum="1608215051"/>
+	<version ClassVersion="4" checksum="1384483608"/>
+	<version ClassVersion="3" checksum="3223900940"/>
+  </class>
+  <class name="std::vector<l1Scouting::TkEm>" />
+  <class name="OrbitCollection<l1Scouting::TkEm>" />
+  <class name="edm::Wrapper<OrbitCollection<l1Scouting::TkEm>>" />
+
   <class name="l1t::PFJet"  ClassVersion="6">
         <version ClassVersion="6" checksum="2599349078"/>
         <version ClassVersion="5" checksum="2270932343"/>

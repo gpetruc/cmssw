@@ -24,15 +24,9 @@ options.register ('daqSourceMode',
 
 options.register ('buBaseDir',
                   '/dev/shm/ramdisk', # default value
-                  VarParsing.VarParsing.multiplicity.list,
+                  VarParsing.VarParsing.multiplicity.singleton,
                   VarParsing.VarParsing.varType.string,          # string, int, or float
                   "BU base directory")
-
-options.register ('buNumStreams',
-                  1, # default value
-                  VarParsing.VarParsing.multiplicity.singleton,
-                  VarParsing.VarParsing.varType.int,          # string, int, or float
-                  "Number of input streams (i.e. files) used simultaneously for each event")
 
 options.register ('fuBaseDir',
                   '/dev/shm/data', # default value
@@ -103,17 +97,17 @@ process.EvFDaqDirector = cms.Service("EvFDaqDirector",
     fileBrokerHost = cms.untracked.string("htcp40.cern.ch"),
     runNumber = cms.untracked.uint32(options.runNumber),
     baseDir = cms.untracked.string(options.fuBaseDir),
-    buBaseDir = cms.untracked.string(options.buBaseDir[0]),
-    buBaseDirsAll = cms.untracked.vstring(*options.buBaseDir),
-    buBaseDirsNumStreams = cms.untracked.vint32([options.buNumStreams for dir in options.buBaseDir]),
+    buBaseDir = cms.untracked.string(options.buBaseDir),
+    buBaseDirsAll = cms.untracked.vstring(options.buBaseDir,),
+    buBaseDirsNumStreams = cms.untracked.vint32(1),
     directorIsBU = cms.untracked.bool(False),
 )
 
 fuDir = options.fuBaseDir+("/run%06d" % options.runNumber)
-buDirs = [b+("/run%06d" % options.runNumber) for b in options.buBaseDir]
-for d in [fuDir, options.fuBaseDir] + buDirs + options.buBaseDir:
-  if not os.path.isdir(d):
-    os.makedirs(d)
+buDir = options.buBaseDir+("/run%06d" % options.runNumber)
+#for d in fuDir, buDir, options.fuBaseDir, options.buBaseDir:
+#  if not os.path.isdir(d):
+#    os.makedirs(d)
 
 process.source = cms.Source("DAQSource",
     testing = cms.untracked.bool(True),
@@ -127,10 +121,10 @@ process.source = cms.Source("DAQSource",
     maxBufferedFiles = cms.untracked.uint32(4),
     fileListMode = cms.untracked.bool(True),
     fileNames = cms.untracked.vstring(
-        buDirs[0] + "/" + "run%06d_ls%04d_index%06d_stream00.raw" % (options.runNumber, options.lumiNumber, 1),
+        buDir + "/" + "run%06d_ls%04d_index%06d_ts00.raw" % (options.runNumber, options.lumiNumber, 1)
     )
 )
-os.system("touch " + buDirs[0] + "/" + "fu.lock")
+os.system("touch " + buDir + "/" + "fu.lock")
 
 ## test pluging
 scPhase2PuppiRawToDigi = cms.EDProducer('ScPhase2PuppiRawToDigi',
@@ -140,87 +134,65 @@ scPhase2PuppiRawToDigi = cms.EDProducer('ScPhase2PuppiRawToDigi',
   runStructUnpacker = cms.bool(False),
   runSOAUnpacker = cms.bool(False),
 )
-process.scPhase2PuppiRawToDigiCandidate = scPhase2PuppiRawToDigi.clone(
-    runCandidateUnpacker = True
-)
 process.scPhase2PuppiRawToDigiStruct = scPhase2PuppiRawToDigi.clone(
     runCandidateUnpacker = False,
     runStructUnpacker = True
 )
-process.scPhase2PuppiRawToDigiSOA = scPhase2PuppiRawToDigi.clone(
-    runCandidateUnpacker = False,
-    runSOAUnpacker = True
+
+process.scPhase2TkEmRawToDigiStruct = cms.EDProducer('ScPhase2TkEmRawToDigi',
+  src = cms.InputTag('rawDataCollector'),
+  fedIDs = cms.vuint32(1),
+  runStructUnpacker = cms.bool(True),
 )
-process.w3piCandidate = cms.EDProducer("ScPhase2PuppiW3PiDemo",
-    src = cms.InputTag("scPhase2PuppiRawToDigiCandidate"),
-    runCandidate = cms.bool(True),
-    runStruct = cms.bool(False),
-    runSOA = cms.bool(False)
-)
-process.w3piStruct = cms.EDProducer("ScPhase2PuppiW3PiDemo",
+
+process.wdsgStruct = cms.EDProducer("ScPhase2PuppiWDsGammaDemo",
     src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
-    runCandidate = cms.bool(False),
-    runStruct = cms.bool(True),
-    runSOA = cms.bool(False)
+    src2 = cms.InputTag("scPhase2TkEmRawToDigiStruct"),
+    runStruct = cms.bool(True)
 )
-process.w3piSOA = cms.EDProducer("ScPhase2PuppiW3PiDemo",
-    src = cms.InputTag("scPhase2PuppiRawToDigiSOA"),
-    runCandidate = cms.bool(False),
-    runStruct = cms.bool(False),
-    runSOA = cms.bool(True)
-)
+
 process.scPhase2PuppiStructToTable = cms.EDProducer("ScPuppiToOrbitFlatTable",
     src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
     name = cms.string("L1Puppi"),
     doc = cms.string("L1Puppi candidates from Correlator Layer 2"),
 )
-process.p_simple = cms.Path(
-  process.scPhase2PuppiRawToDigiCandidate
-  +process.w3piCandidate
+
+process.scPhase2TkEmStructToTable = cms.EDProducer("ScTkEmToOrbitFlatTable",
+    src = cms.InputTag("scPhase2TkEmRawToDigiStruct"),
+    name = cms.string("L1TkEm"),
+    doc = cms.string("L1TkEm candidates"),
 )
-process.p_struct = cms.Path(
-  process.scPhase2PuppiRawToDigiStruct
-  +process.w3piStruct
-  +process.scPhase2PuppiStructToTable
-)
-process.p_soa = cms.Path(
-  process.scPhase2PuppiRawToDigiSOA
-  +process.w3piSOA
-)
+
 process.p_all = cms.Path(
-  process.scPhase2PuppiRawToDigiCandidate+
   process.scPhase2PuppiRawToDigiStruct+
-  process.scPhase2PuppiRawToDigiSOA+
+  process.scPhase2TkEmRawToDigiStruct+
   process.scPhase2PuppiStructToTable+
-  process.w3piCandidate+
-  process.w3piStruct+
-  process.w3piSOA
+  process.scPhase2TkEmStructToTable+
+  process.wdsgStruct
 )
-process.p_fast = cms.Path(
-  process.scPhase2PuppiRawToDigiStruct+
-  process.scPhase2PuppiRawToDigiSOA+
-  process.scPhase2PuppiStructToTable+
-  process.w3piStruct+
-  process.w3piSOA
-)
+
 process.scPhase2PuppiStructNanoAll = cms.OutputModule("OrbitNanoAODOutputModule",
     fileName = cms.untracked.string(options.outFile),
-    outputCommands = cms.untracked.vstring("drop *", "keep l1ScoutingRun3OrbitFlatTable_scPhase2PuppiStructToTable_*_*"),
+    outputCommands = cms.untracked.vstring("drop *", "keep l1ScoutingRun3OrbitFlatTable_scPhase2PuppiStructToTable_*_*", "keep l1ScoutingRun3OrbitFlatTable_scPhase2TkEmStructToTable_*_*"),
     compressionLevel = cms.untracked.int32(4),
     compressionAlgorithm = cms.untracked.string("LZ4"),
 )
-process.scPhase2PuppiStructNanoW3pi = cms.OutputModule("OrbitNanoAODOutputModule",
-    fileName = cms.untracked.string(options.outFile.replace(".root","")+".w3pi.root"),
-    selectedBx = cms.InputTag("w3piStruct","selectedBx"),
+
+process.scPhase2PuppiStructNanoWDsg = cms.OutputModule("OrbitNanoAODOutputModule",
+    fileName = cms.untracked.string(options.outFile.replace(".root","")+".wdsg.root"),
+    selectedBx = cms.InputTag("wdsgStruct","selectedBx"),
     outputCommands = cms.untracked.vstring("drop *", 
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2PuppiStructToTable_*_*",
-        "keep l1ScoutingRun3OrbitFlatTable_w3piStruct_*_*"
+        "keep l1ScoutingRun3OrbitFlatTable_scPhase2TkEmStructToTable_*_*",
+        "keep l1ScoutingRun3OrbitFlatTable_wdsgStruct_*_*"
         ),
     compressionLevel = cms.untracked.int32(4),
     compressionAlgorithm = cms.untracked.string("LZ4"),
 )
+
 process.o_structAll = cms.EndPath( process.scPhase2PuppiStructNanoAll )
-process.o_structW3pi = cms.EndPath( process.scPhase2PuppiStructNanoW3pi )
+process.o_structWDsg = cms.EndPath( process.scPhase2PuppiStructNanoWDsg )
+
 sched = [ getattr(process, "p_"+options.puppiMode) ]
 if options.outMode != "none":
   sched.append(getattr(process, "o_"+options.outMode))
