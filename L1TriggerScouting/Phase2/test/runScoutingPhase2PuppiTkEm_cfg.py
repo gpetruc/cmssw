@@ -24,9 +24,15 @@ options.register ('daqSourceMode',
 
 options.register ('buBaseDir',
                   '/dev/shm/ramdisk', # default value
-                  VarParsing.VarParsing.multiplicity.singleton,
+                  VarParsing.VarParsing.multiplicity.list,
                   VarParsing.VarParsing.varType.string,          # string, int, or float
                   "BU base directory")
+
+options.register ('buNumStreams',
+                  2, # default value = 2: puppi, tkem
+                  VarParsing.VarParsing.multiplicity.singleton,
+                  VarParsing.VarParsing.varType.int,          # string, int, or float
+                  "Number of input streams (i.e. files) used simultaneously for each event")
 
 options.register ('fuBaseDir',
                   '/dev/shm/data', # default value
@@ -52,17 +58,11 @@ options.register ('numFwkStreams',
                   VarParsing.VarParsing.varType.int,          # string, int, or float
                   "Number of CMSSW streams")
 
-options.register ('puppiMode',
-                  'simple', # default value
-                  VarParsing.VarParsing.multiplicity.singleton,
-                  VarParsing.VarParsing.varType.string,          # string, int, or float
-                  "puppi mode to run (simple, struct, soa)")
-                 
 options.register ('outMode',
                   'none', # default value
                   VarParsing.VarParsing.multiplicity.singleton,
                   VarParsing.VarParsing.varType.string,          # string, int, or float
-                  "puppi mode to run (none, struct, soa)")
+                  "output (none, all, WDsg)")
                    
 options.register ('outFile',
                   "NanoOutput.root",
@@ -72,8 +72,6 @@ options.register ('outFile',
 
 
 options.parseArguments()
-if options.puppiMode not in ("simple", "sparse", "struct", "sparseStruct", "soa", "all", "fast"):
-    raise RuntimeError("Unsupported puppiMode %r" %options.puppiMode)
 
 cmsswbase = os.path.expandvars("$CMSSW_BASE/")
 
@@ -97,17 +95,17 @@ process.EvFDaqDirector = cms.Service("EvFDaqDirector",
     fileBrokerHost = cms.untracked.string("htcp40.cern.ch"),
     runNumber = cms.untracked.uint32(options.runNumber),
     baseDir = cms.untracked.string(options.fuBaseDir),
-    buBaseDir = cms.untracked.string(options.buBaseDir),
-    buBaseDirsAll = cms.untracked.vstring(options.buBaseDir,),
-    buBaseDirsNumStreams = cms.untracked.vint32(1),
+    buBaseDir = cms.untracked.string(options.buBaseDir[0]),
+    buBaseDirsAll = cms.untracked.vstring(*options.buBaseDir),
+    buBaseDirsNumStreams = cms.untracked.vint32([options.buNumStreams for dir in options.buBaseDir]),
     directorIsBU = cms.untracked.bool(False),
 )
 
 fuDir = options.fuBaseDir+("/run%06d" % options.runNumber)
-buDir = options.buBaseDir+("/run%06d" % options.runNumber)
-#for d in fuDir, buDir, options.fuBaseDir, options.buBaseDir:
-#  if not os.path.isdir(d):
-#    os.makedirs(d)
+buDirs = [b+("/run%06d" % options.runNumber) for b in options.buBaseDir]
+for d in [fuDir, options.fuBaseDir] + buDirs + options.buBaseDir:
+  if not os.path.isdir(d):
+    os.makedirs(d)
 
 process.source = cms.Source("DAQSource",
     testing = cms.untracked.bool(True),
@@ -121,28 +119,20 @@ process.source = cms.Source("DAQSource",
     maxBufferedFiles = cms.untracked.uint32(4),
     fileListMode = cms.untracked.bool(True),
     fileNames = cms.untracked.vstring(
-        buDir + "/" + "run%06d_ls%04d_index%06d_ts00.raw" % (options.runNumber, options.lumiNumber, 1)
+        buDirs[0] + "/" + "run%06d_ls%04d_index%06d_stream00.raw" % (options.runNumber, options.lumiNumber, 1),
     )
 )
-os.system("touch " + buDir + "/" + "fu.lock")
+os.system("touch " + buDirs[0] + "/" + "fu.lock")
 
 ## test pluging
-scPhase2PuppiRawToDigi = cms.EDProducer('ScPhase2PuppiRawToDigi',
+process.scPhase2PuppiRawToDigiStruct = cms.EDProducer('ScPhase2PuppiRawToDigi',
   src = cms.InputTag('rawDataCollector'),
   fedIDs = cms.vuint32(0),
-  runCandidateUnpacker = cms.bool(False),
-  runStructUnpacker = cms.bool(False),
-  runSOAUnpacker = cms.bool(False),
-)
-process.scPhase2PuppiRawToDigiStruct = scPhase2PuppiRawToDigi.clone(
-    runCandidateUnpacker = False,
-    runStructUnpacker = True
 )
 
 process.scPhase2TkEmRawToDigiStruct = cms.EDProducer('ScPhase2TkEmRawToDigi',
   src = cms.InputTag('rawDataCollector'),
   fedIDs = cms.vuint32(1),
-  runStructUnpacker = cms.bool(True),
 )
 
 process.wdsgStruct = cms.EDProducer("ScPhase2PuppiWDsGammaDemo",
@@ -190,10 +180,10 @@ process.scPhase2PuppiStructNanoWDsg = cms.OutputModule("OrbitNanoAODOutputModule
     compressionAlgorithm = cms.untracked.string("LZ4"),
 )
 
-process.o_structAll = cms.EndPath( process.scPhase2PuppiStructNanoAll )
-process.o_structWDsg = cms.EndPath( process.scPhase2PuppiStructNanoWDsg )
+process.o_all = cms.EndPath( process.scPhase2PuppiStructNanoAll )
+process.o_WDsg = cms.EndPath( process.scPhase2PuppiStructNanoWDsg )
 
-sched = [ getattr(process, "p_"+options.puppiMode) ]
+sched = [ process.p_all ]
 if options.outMode != "none":
   sched.append(getattr(process, "o_"+options.outMode))
 process.schedule = cms.Schedule(*sched)

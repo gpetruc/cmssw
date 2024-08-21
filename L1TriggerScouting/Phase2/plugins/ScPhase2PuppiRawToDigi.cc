@@ -50,10 +50,10 @@ ScPhase2PuppiRawToDigi::ScPhase2PuppiRawToDigi(const edm::ParameterSet &iConfig)
       doSOA_(iConfig.getParameter<bool>("runSOAUnpacker")) {
   if (doCandidate_) {
     produces<OrbitCollection<l1t::PFCandidate>>();
-    candBuffer_.resize(OrbitCollection<l1t::PFCandidate>::NBX + 1);  // FIXME magic number
+    candBuffer_.resize(OrbitCollection<l1t::PFCandidate>::NBX + 1);
   }
   if (doStruct_) {
-    structBuffer_.resize(OrbitCollection<l1Scouting::Puppi>::NBX + 1);  // FIXME magic number
+    structBuffer_.resize(OrbitCollection<l1Scouting::Puppi>::NBX + 1);
     produces<OrbitCollection<l1Scouting::Puppi>>();
   }
   if (doSOA_) {
@@ -66,7 +66,6 @@ ScPhase2PuppiRawToDigi::~ScPhase2PuppiRawToDigi(){};
 void ScPhase2PuppiRawToDigi::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
   edm::Handle<SDSRawDataCollection> scoutingRawDataCollection;
   iEvent.getByToken(rawToken_, scoutingRawDataCollection);
-
   if (doCandidate_) {
     iEvent.put(unpackObj(*scoutingRawDataCollection, candBuffer_));
   }
@@ -213,7 +212,11 @@ std::unique_ptr<l1Scouting::PuppiSOA> ScPhase2PuppiRawToDigi::unpackSOA(const SD
 
 void ScPhase2PuppiRawToDigi::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
   edm::ParameterSetDescription desc;
-  desc.setUnknown();
+  desc.add<edm::InputTag>("src", edm::InputTag("rawDataCollector"));
+  desc.add<std::vector<unsigned int>>("fedIDs");
+  desc.add<bool>("runCandidateUnpacker", false);
+  desc.add<bool>("runStructUnpacker", true);
+  desc.add<bool>("runSOAUnpacker", false);
   descriptions.addDefault(desc);
 }
 

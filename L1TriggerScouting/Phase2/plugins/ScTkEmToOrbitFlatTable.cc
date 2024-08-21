@@ -54,15 +54,13 @@ void ScTkEmToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm::Eve
   iEvent.getByToken(src_, src);
   auto out = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(src->bxOffsets(), name_);
   out->setDoc(doc_);
-  std::vector<float> pt(out->size()), eta(out->size()), phi(out->size()), isolation(out->size()); 
-  std::vector<bool> valid(out->size());
+  std::vector<float> pt(out->size()), eta(out->size()), phi(out->size()), isolation(out->size());
   std::vector<uint8_t> quality(out->size());
   unsigned int i = 0;
   for (const l1Scouting::TkEm& tkem : *src) {
     pt[i] = tkem.pt();
     eta[i] = tkem.eta();
     phi[i] = tkem.phi();
-    valid[i] = tkem.valid();
     quality[i] = tkem.quality();
     isolation[i] = tkem.isolation();
     ++i;
@@ -70,7 +68,6 @@ void ScTkEmToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm::Eve
   out->addColumn<float>("pt", pt, "pt (GeV)");
   out->addColumn<float>("eta", eta, "eta (natural units)");
   out->addColumn<float>("phi", phi, "phi (natural units)");
-  out->addColumn<bool>("valid", valid, "valid (boolean)");
   out->addColumn<uint8_t>("quality", quality, "quality (8 bits");
   out->addColumn<float>("isolation", isolation, "isolation (natural units)");
   iEvent.put(std::move(out));

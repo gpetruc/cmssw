@@ -13,19 +13,29 @@
 // 95-59 unassigned
 
 namespace l1tkemUnpack {
-  template <typename U>
-  inline void readshared(const uint64_t datalow, const uint32_t datahigh, uint16_t &pt, int16_t &eta, int16_t &phi, bool &valid, uint8_t &quality, uint16_t isolation) {  //int
-    valid = datalow & 0x001;                                                                       // 1 bit
-    pt = ((datalow >> 16) & 1) ? ((datalow >> 1) | (-0x8000)) : ((datalow >> 1) & (0xFFFF));             // 16 bits
-    phi = ((datalow >> 29) & 1) ? ((datalow >> 17) | (-0x1000)) : ((datalow >> 17) & (0x1FFF));          // 13 bits
-    eta = ((datalow >> 43) & 1) ? ((datalow >> 30) | (-0x2000)) : ((datalow >> 30) & (0x3FFF));          // 14 bits
-    quality = ((datalow >> 47) & 1) ? ((datalow >> 44) | (-0x8)) : ((datalow >> 44) & (0xF));            // 4 bits
-    isolation = ((datalow >> 58) & 1) ? ((datalow >> 48) | (-0x400)) : ((datalow >> 48) & (0x7FF));     // 11 bits
-
+  inline void readshared(const uint64_t datalow,
+                         const uint32_t datahigh,
+                         uint16_t &pt,
+                         int16_t &eta,
+                         int16_t &phi,
+                         uint8_t &quality,
+                         uint16_t isolation) {  //int
+    // bit 0 is the valid bit but it's always true so not worth unpacking
+    pt = ((datalow >> 16) & 1) ? ((datalow >> 1) | (-0x8000)) : ((datalow >> 1) & (0xFFFF));         // 16 bits
+    phi = ((datalow >> 29) & 1) ? ((datalow >> 17) | (-0x1000)) : ((datalow >> 17) & (0x1FFF));      // 13 bits
+    eta = ((datalow >> 43) & 1) ? ((datalow >> 30) | (-0x2000)) : ((datalow >> 30) & (0x3FFF));      // 14 bits
+    quality = ((datalow >> 47) & 1) ? ((datalow >> 44) | (-0x8)) : ((datalow >> 44) & (0xF));        // 4 bits
+    isolation = ((datalow >> 58) & 1) ? ((datalow >> 48) | (-0x400)) : ((datalow >> 48) & (0x7FF));  // 11 bits
   }
-  inline void readshared(const uint64_t datalow, const uint32_t datahigh, float &pt, float &eta, float &phi, bool &valid, uint8_t &quality, float isolation) {  //float
+  inline void readshared(const uint64_t datalow,
+                         const uint32_t datahigh,
+                         float &pt,
+                         float &eta,
+                         float &phi,
+                         uint8_t &quality,
+                         float isolation) {  //float
 
-    valid = datalow & 0x001;
+    // bit 0 is the valid bit but it's always true so not worth unpacking
 
     uint16_t ptint = ((datalow >> 16) & 1) ? ((datalow >> 1) | (-0x8000)) : ((datalow >> 1) & (0xFFFF));
     pt = ptint * 0.03125f;
@@ -40,7 +50,6 @@ namespace l1tkemUnpack {
 
     int isolationint = ((datalow >> 58) & 1) ? ((datalow >> 48) | (-0x400)) : ((datalow >> 48) & (0x7FF));
     isolation = isolationint * 0.25f;
-
   }
 
 }  // namespace l1tkemUnpack

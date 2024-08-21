@@ -45,10 +45,8 @@
   <class name="l1Scouting::PuppiSOA" />
   <class name="edm::Wrapper<l1Scouting::PuppiSOA>" />
 
-  <class name="l1Scouting::TkEm"  ClassVersion="5">
-	<version ClassVersion="5" checksum="1608215051"/>
-	<version ClassVersion="4" checksum="1384483608"/>
-	<version ClassVersion="3" checksum="3223900940"/>
+  <class name="l1Scouting::TkEm"  ClassVersion="3">
+	<version ClassVersion="3" checksum="429045954"/>
   </class>
   <class name="std::vector<l1Scouting::TkEm>" />
   <class name="OrbitCollection<l1Scouting::TkEm>" />
