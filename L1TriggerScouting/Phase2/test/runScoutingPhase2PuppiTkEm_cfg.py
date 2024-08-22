@@ -153,17 +153,27 @@ process.scPhase2TkEmStructToTable = cms.EDProducer("ScTkEmToOrbitFlatTable",
     doc = cms.string("L1TkEm candidates"),
 )
 
+process.scPhase2TkEleStructToTable = cms.EDProducer("ScTkEleToOrbitFlatTable",
+    src = cms.InputTag("scPhase2TkEmRawToDigiStruct"),
+    name = cms.string("L1TkEle"),
+    doc = cms.string("L1TkEle candidates"),
+)
+
 process.p_all = cms.Path(
   process.scPhase2PuppiRawToDigiStruct+
   process.scPhase2TkEmRawToDigiStruct+
   process.scPhase2PuppiStructToTable+
   process.scPhase2TkEmStructToTable+
+  process.scPhase2TkEleStructToTable+
   process.wdsgStruct
 )
 
 process.scPhase2PuppiStructNanoAll = cms.OutputModule("OrbitNanoAODOutputModule",
     fileName = cms.untracked.string(options.outFile),
-    outputCommands = cms.untracked.vstring("drop *", "keep l1ScoutingRun3OrbitFlatTable_scPhase2PuppiStructToTable_*_*", "keep l1ScoutingRun3OrbitFlatTable_scPhase2TkEmStructToTable_*_*"),
+    outputCommands = cms.untracked.vstring("drop *", 
+        "keep l1ScoutingRun3OrbitFlatTable_scPhase2PuppiStructToTable_*_*", 
+        "keep l1ScoutingRun3OrbitFlatTable_scPhase2TkEmStructToTable_*_*", 
+        "keep l1ScoutingRun3OrbitFlatTable_scPhase2TkEleStructToTable_*_*"),
     compressionLevel = cms.untracked.int32(4),
     compressionAlgorithm = cms.untracked.string("LZ4"),
 )
@@ -174,6 +184,7 @@ process.scPhase2PuppiStructNanoWDsg = cms.OutputModule("OrbitNanoAODOutputModule
     outputCommands = cms.untracked.vstring("drop *", 
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2PuppiStructToTable_*_*",
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2TkEmStructToTable_*_*",
+        "keep l1ScoutingRun3OrbitFlatTable_scPhase2TkEleStructToTable_*_*",
         "keep l1ScoutingRun3OrbitFlatTable_wdsgStruct_*_*"
         ),
     compressionLevel = cms.untracked.int32(4),

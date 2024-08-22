@@ -19,7 +19,7 @@ namespace l1tkemUnpack {
                          int16_t &eta,
                          int16_t &phi,
                          uint8_t &quality,
-                         uint16_t isolation) {  //int
+                         uint16_t &isolation) {  //int
     // bit 0 is the valid bit but it's always true so not worth unpacking
     pt = ((datalow >> 16) & 1) ? ((datalow >> 1) | (-0x8000)) : ((datalow >> 1) & (0xFFFF));         // 16 bits
     phi = ((datalow >> 29) & 1) ? ((datalow >> 17) | (-0x1000)) : ((datalow >> 17) & (0x1FFF));      // 13 bits
@@ -33,7 +33,7 @@ namespace l1tkemUnpack {
                          float &eta,
                          float &phi,
                          uint8_t &quality,
-                         float isolation) {  //float
+                         float &isolation) {  //float
 
     // bit 0 is the valid bit but it's always true so not worth unpacking
 
@@ -51,7 +51,19 @@ namespace l1tkemUnpack {
     int isolationint = ((datalow >> 58) & 1) ? ((datalow >> 48) | (-0x400)) : ((datalow >> 48) & (0x7FF));
     isolation = isolationint * 0.25f;
   }
+  inline void readele(const uint64_t datalow, const uint32_t datahigh, int8_t &charge,
+                      int16_t &z0) {  //int
+    charge = (datalow & (1llu << 59)) ? -1 : +1;
 
+    uint16_t z0raw = ((datahigh & 0x20) << 4) | (datalow >> 60);    // 6 bits from high, 4 from low
+    z0 = (z0raw & 0x200) ? (z0raw | (-0x200)) : (z0raw & (0x3FF));  // 10 bits
+  }
+  inline void readele(const uint64_t datalow, const uint32_t datahigh, int8_t &charge,
+                      float &z0) {  //float
+    int16_t z0int;
+    readele(datalow, datahigh, charge, z0int);
+    z0 = z0int * 0.05f;
+  }
 }  // namespace l1tkemUnpack
 
 #endif
