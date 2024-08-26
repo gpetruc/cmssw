@@ -54,8 +54,10 @@ void ScPhase2TkEmRawToDigi::produce(edm::Event &iEvent, const edm::EventSetup &i
     const uint64_t *begin = reinterpret_cast<const uint64_t *>(src.data());
     const uint64_t *end = reinterpret_cast<const uint64_t *>(src.data() + src.size());
     for (auto p = begin; p != end;) {
-      if ((*p) == 0)
+      if ((*p) == 0) {
+        ++p;
         continue;
+      }
       unsigned int bx = ((*p) >> 12) & 0xFFF;
       unsigned int nwords = (*p) & 0xFFF;
       unsigned int negamma = (nwords * 2) / 3;

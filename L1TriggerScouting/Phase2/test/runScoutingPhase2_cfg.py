@@ -81,8 +81,6 @@ options.parseArguments()
 if options.puppiMode not in ("simple", "sparse", "struct", "sparseStruct", "soa", "all", "fast"):
     raise RuntimeError("Unsupported puppiMode %r" %options.puppiMode)
 
-cmsswbase = os.path.expandvars("$CMSSW_BASE/")
-
 process = cms.Process("SCPU")
 process.maxEvents = cms.untracked.PSet(
     input = cms.untracked.int32(options.maxEvents)

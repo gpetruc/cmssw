@@ -21,9 +21,7 @@ public:
   static void fillDescriptions(edm::ConfigurationDescriptions &descriptions);
 
 private:
-  //void beginStream(edm::StreamID) override;
   void produce(edm::Event &, const edm::EventSetup &) override;
-  //void endStream() override;
 
   template <typename T>
   std::unique_ptr<OrbitCollection<T>> unpackObj(const SDSRawDataCollection &feds, std::vector<std::vector<T>> &buffer);
@@ -86,8 +84,10 @@ std::unique_ptr<OrbitCollection<T>> ScPhase2PuppiRawToDigi::unpackObj(const SDSR
     const uint64_t *begin = reinterpret_cast<const uint64_t *>(src.data());
     const uint64_t *end = reinterpret_cast<const uint64_t *>(src.data() + src.size());
     for (auto p = begin; p != end;) {
-      if ((*p) == 0)
+      if ((*p) == 0) {
+        ++p;
         continue;
+      }
       unsigned int bx = ((*p) >> 12) & 0xFFF;
       unsigned int nwords = (*p) & 0xFFF;
       ++p;
