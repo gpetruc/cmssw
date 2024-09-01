@@ -117,6 +117,7 @@ private:
   bool eventCached_ = false;
   std::vector<std::filesystem::path> buPaths_;
   std::vector<int> buNumSources_;
+  unsigned int totalNumSources_;
   unsigned int currOrbit = 0xFFFFFFFF;
 };
 

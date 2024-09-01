@@ -22,6 +22,7 @@ void DataModeScoutingPhase2::makeDirectoryEntries(std::vector<std::string> const
 
   // store the number of sources in each BU
   buNumSources_ = numSources;
+  totalNumSources_ = std::accumulate(numSources.begin(), numSources.begin() + baseDirs.size(), 0u);
 }
 
 std::pair<bool, std::vector<std::string>> DataModeScoutingPhase2::defineAdditionalFiles(std::string const& primaryName,
@@ -34,37 +35,17 @@ std::pair<bool, std::vector<std::string>> DataModeScoutingPhase2::defineAddition
   assert(pos != std::string::npos);
   std::string pre = fullstr.substr(0, pos + 7), post = fullstr.substr(pos + 9);
   char buff[3];
-  unsigned int nStreams = buNumSources_[0];
-  assert(nStreams > 0);
-  for (unsigned int istream = 0; istream < nStreams; ++istream) {
-    bool found = false;
-    snprintf(buff, sizeof(buff), "%02u", istream);
-    for (unsigned int i = 0, n = buPaths_.size(); i < n; ++i) {
+  unsigned int istream = 0;
+  for (unsigned int i = 0, n = buPaths_.size(); i < n; ++i) {
+    for (unsigned int j = 0, nj = buNumSources_[i]; j < nj; ++j, ++istream) {
+      if (istream == 0)
+        continue;  // this is the main file
+      snprintf(buff, sizeof(buff), "%02u", istream);
       auto path = buPaths_[i] / (pre + std::string(buff) + post);
-      if (std::filesystem::exists(path)) {
-        if (istream == 0) {
-          if (i != 0)
-            throw cms::Exception("DataModeFRDStriped::DataModeScoutingPhase2")
-                << "stream " << istream << " found in alternate path " << i << " " << path.generic_string() << "\n";
-        } else {
-          if (found)
-            throw cms::Exception("DataModeFRDStriped::DataModeScoutingPhase2")
-                << "stream " << istream << " found both in path " << path.generic_string() << " and "
-                << additionalFiles.back() << "\n";
-          additionalFiles.push_back(path.generic_string());
-        }
-        found = true;
-      }
+      additionalFiles.push_back(path.generic_string());
     }
-    if (!found)
-      throw cms::Exception("DataModeFRDStriped::DataModeScoutingPhase2")
-          << "stream " << istream << " " << (pre + std::string(buff) + post) << " not found both any of BU paths\n";
   }
-  //for the unit test
-  std::cout << "defineAdditionalFiles called with primaryName '" << primaryName << "', will return {\n";
-  for (auto& f : additionalFiles)
-    std::cout << "    " << f << "\n";
-  std::cout << "}" << std::endl;
+  assert(istream == totalNumSources_);
   return std::make_pair(true, additionalFiles);
 }
 

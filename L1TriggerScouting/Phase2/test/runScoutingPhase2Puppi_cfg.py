@@ -22,6 +22,12 @@ options.register ('daqSourceMode',
                   VarParsing.VarParsing.varType.string,          # string, int, or float
                   "DAQ source data mode")
 
+options.register ('broker',
+                  'none', # default value
+                  VarParsing.VarParsing.multiplicity.singleton,
+                  VarParsing.VarParsing.varType.string,          # string, int, or float
+                  "Broker: 'none' or 'hostname:port'")
+
 options.register ('buBaseDir',
                   '/dev/shm/ramdisk', # default value
                   VarParsing.VarParsing.multiplicity.list,
@@ -29,10 +35,16 @@ options.register ('buBaseDir',
                   "BU base directory")
 
 options.register ('buNumStreams',
-                  1, # default value
-                  VarParsing.VarParsing.multiplicity.singleton,
+                  [1], # default value
+                  VarParsing.VarParsing.multiplicity.list,
                   VarParsing.VarParsing.varType.int,          # string, int, or float
-                  "Number of input streams (i.e. files) used simultaneously for each event")
+                  "Number of input streams (i.e. files) used simultaneously for each BU directory")
+
+options.register ('puppiStreamIDs',
+                  [], # default value
+                  VarParsing.VarParsing.multiplicity.list,
+                  VarParsing.VarParsing.varType.int,          # string, int, or float
+                  "Stream IDs for the Puppi inputs")
 
 options.register ('fuBaseDir',
                   '/dev/shm/data', # default value
@@ -59,7 +71,7 @@ options.register ('numFwkStreams',
                   "Number of CMSSW streams")
 
 options.register ('puppiMode',
-                  'simple', # default value
+                  'struct', # default value
                   VarParsing.VarParsing.multiplicity.singleton,
                   VarParsing.VarParsing.varType.string,          # string, int, or float
                   "puppi mode to run (simple, struct, soa)")
@@ -93,19 +105,29 @@ process.options = cms.untracked.PSet(
     wantSummary = cms.untracked.bool(True)
 )
 process.load("FWCore.MessageService.MessageLogger_cfi")
-process.MessageLogger.cerr.FwkReport.reportEvery = 100
+process.MessageLogger.cerr.FwkReport.reportEvery = 1000
+
+if len(options.buNumStreams) != len(options.buBaseDir):
+    raise RuntimeError("Mismatch between buNumStreams (%d) and buBaseDirs (%d)" % (len(options.buNumStreams), len(options.buBaseDir)))
+
+if options.puppiStreamIDs == []:
+    puppiStreamIDs = list(range(sum(options.buNumStreams))) # take all 
+else:
+    puppiStreamIDs = options.puppiStreamIDs
 
 process.EvFDaqDirector = cms.Service("EvFDaqDirector",
-    useFileBroker = cms.untracked.bool(False),
-    fileBrokerHostFromCfg = cms.untracked.bool(True),
-    fileBrokerHost = cms.untracked.string("htcp40.cern.ch"),
+    useFileBroker = cms.untracked.bool(options.broker != "none"),
+    fileBrokerHostFromCfg = cms.untracked.bool(False),
+    fileBrokerHost = cms.untracked.string(options.broker.split(":")[0] if options.broker != "none" else "htcp40.cern.ch"),
+    fileBrokerPort = cms.untracked.string(options.broker.split(":")[1] if options.broker != "none" else "8080"),
     runNumber = cms.untracked.uint32(options.runNumber),
     baseDir = cms.untracked.string(options.fuBaseDir),
     buBaseDir = cms.untracked.string(options.buBaseDir[0]),
     buBaseDirsAll = cms.untracked.vstring(*options.buBaseDir),
-    buBaseDirsNumStreams = cms.untracked.vint32([options.buNumStreams for dir in options.buBaseDir]),
+    buBaseDirsNumStreams = cms.untracked.vint32(*options.buNumStreams),
     directorIsBU = cms.untracked.bool(False),
 )
+process.FastMonitoringService = cms.Service("FastMonitoringService")
 
 fuDir = options.fuBaseDir+("/run%06d" % options.runNumber)
 buDirs = [b+("/run%06d" % options.runNumber) for b in options.buBaseDir]
@@ -123,7 +145,7 @@ process.source = cms.Source("DAQSource",
     maxChunkSize = cms.untracked.uint32(4 * 1024),
     numBuffers = cms.untracked.uint32(4),
     maxBufferedFiles = cms.untracked.uint32(4),
-    fileListMode = cms.untracked.bool(True),
+    fileListMode = cms.untracked.bool(options.broker == "none"),
     fileNames = cms.untracked.vstring(
         buDirs[0] + "/" + "run%06d_ls%04d_index%06d_stream00.raw" % (options.runNumber, options.lumiNumber, 1),
     )
@@ -133,7 +155,7 @@ os.system("touch " + buDirs[0] + "/" + "fu.lock")
 ## test pluging
 scPhase2PuppiRawToDigi = cms.EDProducer('ScPhase2PuppiRawToDigi',
   src = cms.InputTag('rawDataCollector'),
-  fedIDs = cms.vuint32(0),
+  fedIDs = cms.vuint32(*puppiStreamIDs),
   runCandidateUnpacker = cms.bool(False),
   runStructUnpacker = cms.bool(False),
   runSOAUnpacker = cms.bool(False),
