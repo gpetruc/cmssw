@@ -36,6 +36,7 @@ std::pair<bool, std::vector<std::string>> DataModeScoutingPhase2::defineAddition
   std::string pre = fullstr.substr(0, pos + 7), post = fullstr.substr(pos + 9);
   char buff[3];
   unsigned int istream = 0;
+  //std::string files = primaryName;
   for (unsigned int i = 0, n = buPaths_.size(); i < n; ++i) {
     for (unsigned int j = 0, nj = buNumSources_[i]; j < nj; ++j, ++istream) {
       if (istream == 0)
@@ -43,9 +44,11 @@ std::pair<bool, std::vector<std::string>> DataModeScoutingPhase2::defineAddition
       snprintf(buff, sizeof(buff), "%02u", istream);
       auto path = buPaths_[i] / (pre + std::string(buff) + post);
       additionalFiles.push_back(path.generic_string());
+      //files += ", " + path.generic_string();
     }
   }
   assert(istream == totalNumSources_);
+  //std::cout << "Will open " << files << std::endl;
   return std::make_pair(true, additionalFiles);
 }
 
@@ -131,7 +134,7 @@ bool DataModeScoutingPhase2::makeEvents() {
     /*
     std::cout << "Emplaced event " << i << " (check: " << (events_.size() - 1) << ") of size " << events_[i]->size()
               << " eventSize " << events_[i]->eventSize() << ", payload at " << (void*)(events_[i]->payload())
-              << std::endl;
+              << ", event id:" << events_[i]->event() << std::endl;
     */
     if (dataBlockAddrs_[i] + events_[i]->size() > dataBlockMaxAddrs_[i])
       throw cms::Exception("DAQSource::getNextEvent")

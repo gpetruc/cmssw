@@ -40,6 +40,7 @@ ScPhase2TkEmRawToDigi::ScPhase2TkEmRawToDigi(const edm::ParameterSet &iConfig)
   structBufferEle_.resize(OrbitCollection<l1Scouting::TkEle>::NBX + 1);
   produces<OrbitCollection<l1Scouting::TkEm>>();
   produces<OrbitCollection<l1Scouting::TkEle>>();
+  produces<unsigned int>("nbx");
 }
 
 ScPhase2TkEmRawToDigi::~ScPhase2TkEmRawToDigi(){};
@@ -48,7 +49,7 @@ void ScPhase2TkEmRawToDigi::produce(edm::Event &iEvent, const edm::EventSetup &i
   edm::Handle<SDSRawDataCollection> feds;
   iEvent.getByToken(rawToken_, feds);
 
-  unsigned int ntotEm = 0, ntotEle = 0;
+  unsigned int ntotEm = 0, ntotEle = 0, nbx = 0, reforbit = iEvent.id().event();
   for (auto &fedId : fedIDs_) {
     const FEDRawData &src = feds->FEDData(fedId);
     const uint64_t *begin = reinterpret_cast<const uint64_t *>(src.data());
@@ -60,6 +61,12 @@ void ScPhase2TkEmRawToDigi::produce(edm::Event &iEvent, const edm::EventSetup &i
       }
       unsigned int bx = ((*p) >> 12) & 0xFFF;
       unsigned int nwords = (*p) & 0xFFF;
+      unsigned int orbit = ((*p) >> 24) & 0xFFFFFFFFFlu;
+      if (reforbit != orbit) {
+        throw cms::Exception("CorruptData") << "Data for orbit " << reforbit << ", fedId " << fedId
+                                            << " has header with mismatching orbit number " << orbit << std::endl;
+      }
+      nbx++;
       unsigned int negamma = (nwords * 2) / 3;
       assert(negamma >= 12);
       unsigned int ntkem = 12;  // always 12, then followed by some number of tkEle
@@ -97,6 +104,7 @@ void ScPhase2TkEmRawToDigi::produce(edm::Event &iEvent, const edm::EventSetup &i
   auto outEle = std::make_unique<OrbitCollection<l1Scouting::TkEle>>(structBufferEle_, ntotEle);
   iEvent.put(std::move(outEm));
   iEvent.put(std::move(outEle));
+  iEvent.put(std::make_unique<unsigned int>(nbx), "nbx");
 }
 
 void ScPhase2TkEmRawToDigi::unpackFromRaw(uint64_t datalow,

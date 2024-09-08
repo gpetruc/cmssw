@@ -84,6 +84,14 @@ def runMonitor(options):
 def runBackgroundMonitor(options):
     if os.fork() != 0:
         return
+    me = options.username if options.username else os.getlogin()
+    thispid = str(os.getpid())
+    for p in pathlib.Path("/proc").glob("[0-9]*"):
+        if p.is_dir() and p.owner() == me and p.name != thispid:
+            cmdline = (p / "cmdline").open().readline().split("\x00")
+            if cmdline[1] == "prometheusMonitor.py" and "-b" in cmdline:
+                print(f"Stopping older process {p.name} with cmdline {cmdline}")
+                os.system("kill %s" % p.name)
     runMonitor(options)
 
 if __name__ == '__main__':

@@ -24,7 +24,9 @@ private:
   void produce(edm::Event &, const edm::EventSetup &) override;
 
   template <typename T>
-  std::unique_ptr<OrbitCollection<T>> unpackObj(const SDSRawDataCollection &feds, std::vector<std::vector<T>> &buffer);
+  std::unique_ptr<OrbitCollection<T>> unpackObj(unsigned int orbit,
+                                                const SDSRawDataCollection &feds,
+                                                std::vector<std::vector<T>> &buffer);
 
   std::unique_ptr<l1Scouting::PuppiSOA> unpackSOA(const SDSRawDataCollection &feds);
 
@@ -35,6 +37,7 @@ private:
   // temporary storage
   std::vector<std::vector<l1t::PFCandidate>> candBuffer_;
   std::vector<std::vector<l1Scouting::Puppi>> structBuffer_;
+  unsigned int nbx_;
 
   void unpackFromRaw(uint64_t data, std::vector<l1t::PFCandidate> &outBuffer);
   void unpackFromRaw(uint64_t data, std::vector<l1Scouting::Puppi> &outBuffer);
@@ -47,8 +50,8 @@ ScPhase2PuppiRawToDigi::ScPhase2PuppiRawToDigi(const edm::ParameterSet &iConfig)
       doStruct_(iConfig.getParameter<bool>("runStructUnpacker")),
       doSOA_(iConfig.getParameter<bool>("runSOAUnpacker")) {
   if (doCandidate_) {
-    produces<OrbitCollection<l1t::PFCandidate>>();
     candBuffer_.resize(OrbitCollection<l1t::PFCandidate>::NBX + 1);
+    produces<OrbitCollection<l1t::PFCandidate>>();
   }
   if (doStruct_) {
     structBuffer_.resize(OrbitCollection<l1Scouting::Puppi>::NBX + 1);
@@ -56,6 +59,9 @@ ScPhase2PuppiRawToDigi::ScPhase2PuppiRawToDigi(const edm::ParameterSet &iConfig)
   }
   if (doSOA_) {
     produces<l1Scouting::PuppiSOA>();
+  }
+  if (doCandidate_ || doStruct_ || doSOA_) {
+    produces<unsigned int>("nbx");
   }
 }
 
@@ -65,20 +71,25 @@ void ScPhase2PuppiRawToDigi::produce(edm::Event &iEvent, const edm::EventSetup &
   edm::Handle<SDSRawDataCollection> scoutingRawDataCollection;
   iEvent.getByToken(rawToken_, scoutingRawDataCollection);
   if (doCandidate_) {
-    iEvent.put(unpackObj(*scoutingRawDataCollection, candBuffer_));
+    iEvent.put(unpackObj(iEvent.id().event(), *scoutingRawDataCollection, candBuffer_));
   }
   if (doStruct_) {
-    iEvent.put(unpackObj(*scoutingRawDataCollection, structBuffer_));
+    iEvent.put(unpackObj(iEvent.id().event(), *scoutingRawDataCollection, structBuffer_));
   }
   if (doSOA_) {
     iEvent.put(unpackSOA(*scoutingRawDataCollection));
   }
+  if (doCandidate_ || doStruct_ || doSOA_) {
+    iEvent.put(std::make_unique<unsigned int>(nbx_), "nbx");
+  }
 }
 
 template <typename T>
-std::unique_ptr<OrbitCollection<T>> ScPhase2PuppiRawToDigi::unpackObj(const SDSRawDataCollection &feds,
+std::unique_ptr<OrbitCollection<T>> ScPhase2PuppiRawToDigi::unpackObj(unsigned int orbit,
+                                                                      const SDSRawDataCollection &feds,
                                                                       std::vector<std::vector<T>> &buffer) {
   unsigned int ntot = 0;
+  nbx_ = 0;
   for (auto &fedId : fedIDs_) {
     const FEDRawData &src = feds.FEDData(fedId);
     const uint64_t *begin = reinterpret_cast<const uint64_t *>(src.data());
@@ -89,7 +100,13 @@ std::unique_ptr<OrbitCollection<T>> ScPhase2PuppiRawToDigi::unpackObj(const SDSR
         continue;
       }
       unsigned int bx = ((*p) >> 12) & 0xFFF;
+      unsigned int orbitno = ((*p) >> 24) & 0xFFFFFFFFFlu;
       unsigned int nwords = (*p) & 0xFFF;
+      if (orbitno != orbit) {
+        throw cms::Exception("CorruptData") << "Data for orbit " << orbit << ", fedId " << fedId
+                                            << " has header with mismatching orbit number " << orbitno << std::endl;
+      }
+      nbx_++;
       ++p;
       assert(bx < OrbitCollection<T>::NBX);
       std::vector<T> &outputBuffer = buffer[bx + 1];
@@ -157,6 +174,7 @@ void ScPhase2PuppiRawToDigi::unpackFromRaw(uint64_t data, std::vector<l1Scouting
 std::unique_ptr<l1Scouting::PuppiSOA> ScPhase2PuppiRawToDigi::unpackSOA(const SDSRawDataCollection &feds) {
   std::vector<std::pair<const uint64_t *, const uint64_t *>> buffers;
   unsigned int sizeguess = 0;
+  nbx_ = 0;
   for (auto &fedId : fedIDs_) {
     const FEDRawData &src = feds.FEDData(fedId);
     buffers.emplace_back(reinterpret_cast<const uint64_t *>(src.data()),
@@ -182,6 +200,7 @@ std::unique_ptr<l1Scouting::PuppiSOA> ScPhase2PuppiRawToDigi::unpackSOA(const SD
       continue;
     unsigned int bx = ((*pa.first) >> 12) & 0xFFF;
     unsigned int nwords = (*pa.first) & 0xFFF;
+    nbx_++;
     pa.first++;
     ret.bx.push_back(bx);
     ret.offsets.push_back(i0);
