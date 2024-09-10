@@ -80,7 +80,7 @@ options.register ('outMode',
                   'none', # default value
                   VarParsing.VarParsing.multiplicity.singleton,
                   VarParsing.VarParsing.varType.string,          # string, int, or float
-                  "output (none, all, WDsg)")
+                  "output (none, all, WDsg, WPig)")
                    
 options.register ('outFile',
                   "NanoOutput.root",
@@ -177,6 +177,12 @@ process.wdsgStruct = cms.EDProducer("ScPhase2PuppiWDsGammaDemo",
     runStruct = cms.bool(True)
 )
 
+process.wpigStruct = cms.EDProducer("ScPhase2PuppiWPiGammaDemo",
+    src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
+    src2 = cms.InputTag("scPhase2TkEmRawToDigiStruct"),
+    runStruct = cms.bool(True)
+)
+
 process.scPhase2PuppiStructToTable = cms.EDProducer("ScPuppiToOrbitFlatTable",
     src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
     name = cms.string("L1Puppi"),
@@ -208,6 +214,15 @@ process.p_wdsg = cms.Path(
   process.scPhase2TkEmStructToTable+
   process.scPhase2TkEleStructToTable+
   process.wdsgStruct
+)
+
+process.p_wpig = cms.Path(
+  process.scPhase2PuppiRawToDigiStruct+
+  process.scPhase2TkEmRawToDigiStruct+
+  process.scPhase2PuppiStructToTable+
+  process.scPhase2TkEmStructToTable+
+  process.scPhase2TkEleStructToTable+
+  process.wpigStruct
 )
 
 process.scPhase2PuppiStructNanoAll = cms.OutputModule("OrbitNanoAODOutputModule",
@@ -244,11 +259,25 @@ process.scPhase2PuppiStructNanoWDsg = cms.OutputModule("OrbitNanoAODOutputModule
     compressionAlgorithm = cms.untracked.string("LZ4"),
 )
 
+process.scPhase2PuppiStructNanoWPig = cms.OutputModule("OrbitNanoAODOutputModule",
+    fileName = cms.untracked.string(options.outFile.replace(".root","")+".wpig.root"),
+    selectedBx = cms.InputTag("wpigStruct","selectedBx"),
+    outputCommands = cms.untracked.vstring("drop *",
+        "keep l1ScoutingRun3OrbitFlatTable_scPhase2PuppiStructToTable_*_*",
+        "keep l1ScoutingRun3OrbitFlatTable_scPhase2TkEmStructToTable_*_*",
+        "keep l1ScoutingRun3OrbitFlatTable_scPhase2TkEleStructToTable_*_*",
+        "keep l1ScoutingRun3OrbitFlatTable_wpigStruct_*_*"
+        ),
+    compressionLevel = cms.untracked.int32(4),
+    compressionAlgorithm = cms.untracked.string("LZ4"),
+)
+
 process.o_all = cms.EndPath( process.scPhase2PuppiStructNanoAll )
 process.o_w3pi = cms.EndPath( process.scPhase2PuppiStructNanoW3pi )
 process.o_wdsg = cms.EndPath( process.scPhase2PuppiStructNanoWDsg )
+process.o_wpig = cms.EndPath( process.scPhase2PuppiStructNanoWPig )
 
-sched = [ process.p_w3pi, process.p_wdsg ]
+sched = [ process.p_w3pi, process.p_wdsg, process.p_wpig ]
 if options.outMode != "none":
   sched.append(getattr(process, "o_"+options.outMode))
 process.schedule = cms.Schedule(*sched)
