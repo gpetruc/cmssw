@@ -287,5 +287,5 @@ sched = [ getattr(process, "p_"+options.mode) ]
 if options.outMode != "none":
     for mode in options.outMode.split(","):
         sched.append(getattr(process, "o_"+mode))
-
 process.schedule = cms.Schedule(*sched)
+
