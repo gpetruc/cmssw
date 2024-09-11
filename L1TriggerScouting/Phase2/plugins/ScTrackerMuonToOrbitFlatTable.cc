@@ -50,25 +50,25 @@ ScTrackerMuonToOrbitFlatTable::ScTrackerMuonToOrbitFlatTable(const edm::Paramete
 
 // ----------------------- method called for each orbit  -----------------------
 void ScTrackerMuonToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm::EventSetup const&) const {
-  
   edm::Handle<OrbitCollection<l1Scouting::TrackerMuon>> src;
   iEvent.getByToken(src_, src);
-  
+
   auto out = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(src->bxOffsets(), name_);
   out->setDoc(doc_);
-  std::vector<float> pt(out->size()), eta(out->size()), phi(out->size()), z0(out->size()), d0(out->size()),beta(out->size());
-  std::vector<uint8_t> quality(out->size()),isolation(out->size());
-  std::vector<int32_t>  charge(out->size());
+  std::vector<float> pt(out->size()), eta(out->size()), phi(out->size()), z0(out->size()), d0(out->size()),
+      beta(out->size());
+  std::vector<uint8_t> quality(out->size()), isolation(out->size());
+  std::vector<int32_t> charge(out->size());
   unsigned int i = 0;
   for (const l1Scouting::TrackerMuon& muon : *src) {
-    pt[i]      = muon.pt();
-    eta[i]     = muon.eta();
-    phi[i]     = muon.phi();
-    z0[i]      = muon.z0();
-    d0[i]      = muon.d0();
+    pt[i] = muon.pt();
+    eta[i] = muon.eta();
+    phi[i] = muon.phi();
+    z0[i] = muon.z0();
+    d0[i] = muon.d0();
     quality[i] = muon.quality();
     isolation[i] = muon.isolation();
-    charge[i]  = muon.charge();
+    charge[i] = muon.charge();
     ++i;
   }
 
@@ -79,7 +79,7 @@ void ScTrackerMuonToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, e
   out->addColumn<float>("d0", d0, "d0 (cm)");
   out->addColumn<int32_t>("charge", charge, "charge (+1/-1)");
   out->addColumn<uint8_t>("isolation", isolation, "isolation (8 bits");
-  out->addColumn<uint8_t>("quality",quality, "quality (8 bits");
+  out->addColumn<uint8_t>("quality", quality, "quality (8 bits");
   iEvent.put(std::move(out));
 }
 

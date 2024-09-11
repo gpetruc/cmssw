@@ -43,12 +43,12 @@ private:
   //edm::EDGetTokenT<l1Scouting::TrackerMuonSOA> soaToken_;
 
   struct Cuts {
-    float minptOverMass = 0.25;  
+    float minptOverMass = 0.25;
     float qualityMin = 75;
-    float massMin = 7.0 ;   //  after b's
-    bool  doOppsiteCharge = true;
+    float massMin = 7.0;  //  after b's
+    bool doOppsiteCharge = true;
     float etaMax = 2.0;
-    float ptMin = 2.0; 
+    float ptMin = 2.0;
     float z0Max = 1.0;
   } cuts;
 
@@ -57,18 +57,16 @@ private:
 };
 
 ScPhase2TrackerMuonDiMuDemo::ScPhase2TrackerMuonDiMuDemo(const edm::ParameterSet &iConfig)
-    : doStruct_(iConfig.getParameter<bool>("runStruct")),
-      doSOA_(iConfig.getParameter<bool>("runSOA")) {
-
+    : doStruct_(iConfig.getParameter<bool>("runStruct")), doSOA_(iConfig.getParameter<bool>("runSOA")) {
   if (doStruct_) {
     structToken_ = consumes<OrbitCollection<l1Scouting::TrackerMuon>>(iConfig.getParameter<edm::InputTag>("src"));
     produces<std::vector<unsigned>>("selectedBx");
     produces<l1ScoutingRun3::OrbitFlatTable>("DiMu");
   }
-//  if (doSOA_) {
-//    soaToken_ = consumes<l1Scouting::TrackerMuonSOA>(iConfig.getParameter<edm::InputTag>("src"));
-//    produces<l1Scouting::TrackerMuonSOA>();
-//  }
+  //  if (doSOA_) {
+  //    soaToken_ = consumes<l1Scouting::TrackerMuonSOA>(iConfig.getParameter<edm::InputTag>("src"));
+  //    produces<l1Scouting::TrackerMuonSOA>();
+  //  }
 }
 
 ScPhase2TrackerMuonDiMuDemo::~ScPhase2TrackerMuonDiMuDemo(){};
@@ -81,32 +79,31 @@ void ScPhase2TrackerMuonDiMuDemo::beginStream(edm::StreamID) {
 }
 
 void ScPhase2TrackerMuonDiMuDemo::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
-
   if (doStruct_) {
     edm::Handle<OrbitCollection<l1Scouting::TrackerMuon>> src;
     iEvent.getByToken(structToken_, src);
     runObj(*src, iEvent, countStruct_, passStruct_, "");
   }
-//  if (doSOA_) {
-//    edm::Handle<l1Scouting::TrackerMuonSOA> src;
-//    iEvent.getByToken(soaToken_, src);
-//    runSOA(*src, iEvent);
-//  }
+  //  if (doSOA_) {
+  //    edm::Handle<l1Scouting::TrackerMuonSOA> src;
+  //    iEvent.getByToken(soaToken_, src);
+  //    runSOA(*src, iEvent);
+  //  }
 }
 
 void ScPhase2TrackerMuonDiMuDemo::endStream() {
   if (doStruct_)
     std::cout << "DiTrackerMuon | Struct analysis : " << countStruct_ << " -> " << passStruct_ << std::endl;
   if (doSOA_)
-    std::cout << "DiTrackerMuon | SOA analysis    : " << countSOA_    << " -> " << passSOA_    << std::endl;
+    std::cout << "DiTrackerMuon | SOA analysis    : " << countSOA_ << " -> " << passSOA_ << std::endl;
 }
 
 template <typename T>
 void ScPhase2TrackerMuonDiMuDemo::runObj(const OrbitCollection<T> &src,
-                                   edm::Event &iEvent,
-                                   unsigned long &nTry,
-                                   unsigned long &nPass,
-                                   const std::string &label) {
+                                         edm::Event &iEvent,
+                                         unsigned long &nTry,
+                                         unsigned long &nPass,
+                                         const std::string &label) {
   l1ScoutingRun3::BxOffsetsFillter bxOffsetsFiller;
   bxOffsetsFiller.start();
   auto selectedBx_idx = std::make_unique<std::vector<unsigned>>();
@@ -118,36 +115,49 @@ void ScPhase2TrackerMuonDiMuDemo::runObj(const OrbitCollection<T> &src,
     auto range = src.bxIterator(bx);
     const T *cands = &range.front();
     auto size = range.size();
-    bool hasCandidate=false;
-    for (unsigned int i = 0; i < size; ++i) { 
-        if(    cands[i].pt()   <  cuts.ptMin  ) break; // assumes pt ordering
-        if(    cands[i].z0()        > cuts.z0Max ) continue;
-        if(abs(cands[i].eta())      > cuts.etaMax ) continue;
-        if(    cands[i].quality()   < cuts.qualityMin  ) continue;
-       // if(    cands[i].isolation()   > XX  ) continue;
-    
-        for (unsigned int j = i+1; j < size; ++j) { 
-            if(    cands[j].pt()   <  cuts.ptMin  ) break; // assumes pt ordering
-            if( cuts.doOppsiteCharge and ( cands[i].charge() * cands[j].charge() >0 )  )  continue;
-            if(    abs(cands[j].z0())   > cuts.z0Max  ) continue;
-            if(abs(cands[j].eta())      > cuts.etaMax ) continue;
-            if(    cands[j].quality()   < cuts.qualityMin  ) continue;
-      //      if(    cands[j].isolation()   > YY  ) continue;
-            
-            mass = (cands[i].p4() + cands[j].p4()).mass() ;
-            if( mass < cuts.massMin ) continue;
-            if( cands[j].pt() < cuts.minptOverMass * mass) continue;
-            if( cands[i].pt() < cuts.minptOverMass * mass) continue;
-            selectedBx_idx->emplace_back(bx);
-            masses.push_back(mass);
-            i0s.push_back(i);
-            i1s.push_back(j);
-            bxOffsetsFiller.addBx(bx, 1);
-            hasCandidate=true;
-         }    
-      }
+    bool hasCandidate = false;
+    for (unsigned int i = 0; i < size; ++i) {
+      if (cands[i].pt() < cuts.ptMin)
+        break;  // assumes pt ordering
+      if (cands[i].z0() > cuts.z0Max)
+        continue;
+      if (abs(cands[i].eta()) > cuts.etaMax)
+        continue;
+      if (cands[i].quality() < cuts.qualityMin)
+        continue;
+      // if(    cands[i].isolation()   > XX  ) continue;
 
-      if (hasCandidate) nPass++;
+      for (unsigned int j = i + 1; j < size; ++j) {
+        if (cands[j].pt() < cuts.ptMin)
+          break;  // assumes pt ordering
+        if (cuts.doOppsiteCharge and (cands[i].charge() * cands[j].charge() > 0))
+          continue;
+        if (abs(cands[j].z0()) > cuts.z0Max)
+          continue;
+        if (abs(cands[j].eta()) > cuts.etaMax)
+          continue;
+        if (cands[j].quality() < cuts.qualityMin)
+          continue;
+        //      if(    cands[j].isolation()   > YY  ) continue;
+
+        mass = (cands[i].p4() + cands[j].p4()).mass();
+        if (mass < cuts.massMin)
+          continue;
+        if (cands[j].pt() < cuts.minptOverMass * mass)
+          continue;
+        if (cands[i].pt() < cuts.minptOverMass * mass)
+          continue;
+        selectedBx_idx->emplace_back(bx);
+        masses.push_back(mass);
+        i0s.push_back(i);
+        i1s.push_back(j);
+        bxOffsetsFiller.addBx(bx, 1);
+        hasCandidate = true;
+      }
+    }
+
+    if (hasCandidate)
+      nPass++;
   }  // loop on BXs
 
   iEvent.put(std::move(selectedBx_idx), "selectedBx" + label);

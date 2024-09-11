@@ -105,13 +105,12 @@ namespace l1puppiUnpack {
     quality = pid > 1 ? (data >> 58) & 0x7 : (data >> 50) & 0x3F;
   }
 
-
   template <unsigned int start, unsigned int bits = 16, typename T>
-     inline uint16_t extractBitsFromW(const T word) {
+  inline uint16_t extractBitsFromW(const T word) {
     return (word >> start) & ((1 << bits) - 1);
   }
   template <unsigned int start, unsigned int bits = 16, typename T>
-    inline int16_t extractSignedBitsFromW(const T word) {
+  inline int16_t extractSignedBitsFromW(const T word) {
     uint16_t raw = extractBitsFromW<start, bits>(word);
     if ((bits < 16) && (raw & (1 << (bits - 1)))) {
       constexpr uint16_t ormask = (1 << 16) - (1 << bits);
@@ -119,8 +118,6 @@ namespace l1puppiUnpack {
     }
     return raw;
   }
-
-
 
 }  // namespace l1puppiUnpack
 
