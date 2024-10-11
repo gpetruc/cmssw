@@ -61,6 +61,12 @@ options.register ('tkEmStreamIDs',
                   VarParsing.VarParsing.varType.int,          # string, int, or float
                   "Stream IDs for the TkEm inputs")
 
+options.register ('tkMuStreamIDs',
+                  [], # default value
+                  VarParsing.VarParsing.multiplicity.list,
+                  VarParsing.VarParsing.varType.int,          # string, int, or float
+                  "Stream IDs for the TkMu inputs")
+
 options.register ('fuBaseDir',
                   '/dev/shm/data', # default value
                   VarParsing.VarParsing.multiplicity.singleton,
@@ -95,7 +101,7 @@ options.register ('analyses',
                   [], # default value
                   VarParsing.VarParsing.multiplicity.list,
                   VarParsing.VarParsing.varType.string,          # string, int, or float
-                  "analyses: any list of w3pi, wdsg, wpig, hrhog, hphig, hjpsig, h2rho, h2phi")
+                  "analyses: any list of w3pi, wdsg, wpig, hrhog, hphig, hjpsig, h2rho, h2phi, dimu")
 
 options.register ('prescaleInclusive',
                   100, # default value

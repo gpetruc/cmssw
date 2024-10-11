@@ -80,7 +80,7 @@ void GoodOrbitNBxSelector::endJob() {
 void GoodOrbitNBxSelector::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
   edm::ParameterSetDescription desc;
   desc.add<std::vector<edm::InputTag>>("unpackers");
-  desc.add<unsigned int>("nbxMin", 3564);            // BXs in one orbit
+  desc.add<unsigned int>("nbxMin", 3564);           // BXs in one orbit
   desc.addUntracked<unsigned int>("nPrint", 1000);  // Number of orbits between printouts
   descriptions.addDefault(desc);
 }

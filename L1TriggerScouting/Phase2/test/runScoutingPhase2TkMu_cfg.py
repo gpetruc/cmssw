@@ -5,8 +5,8 @@ import os
 from L1TriggerScouting.Phase2.options_cff import options
 options.parseArguments()
 if options.buNumStreams == []:
-    options.buNumStreams.append(2)
-analyses = options.analyses if options.analyses else ["w3pi", "wdsg", "wpig", "hrhog", "hphig", "hjpsig", "hphijpsi", "h2rho", "h2phi"]
+    options.buNumStreams.append(1)
+analyses = options.analyses if options.analyses else ["dimu"]
 print(f"Analyses set to {analyses}")
 
 process = cms.Process("SCPU")
@@ -26,13 +26,10 @@ process.MessageLogger.cerr.FwkReport.reportEvery = 100
 if len(options.buNumStreams) != len(options.buBaseDir):
     raise RuntimeError("Mismatch between buNumStreams (%d) and buBaseDirs (%d)" % (len(options.buNumStreams), len(options.buBaseDir)))
 
-if options.puppiStreamIDs == [] and options.tkEmStreamIDs ==  []:
-    nStreamsTot = sum(options.buNumStreams)
-    puppiStreamIDs = list(range(nStreamsTot//2)) # take first half 
-    tkEmStreamIDs = list(range(nStreamsTot//2, nStreamsTot)) # take second half 
+if options.tkMuStreamIDs == []:
+    tkMuStreamIDs = list(range(sum(options.buNumStreams))) # take all 
 else:
-    puppiStreamIDs = options.puppiStreamIDs
-    tkEmStreamIDs = options.tkEmStreamIDs
+    tkMuStreamIDs = options.tkMuStreamIDs
 
 process.EvFDaqDirector = cms.Service("EvFDaqDirector",
     useFileBroker = cms.untracked.bool(options.broker != "none"),
@@ -77,19 +74,20 @@ process.source = cms.Source("DAQSource",
 os.system("touch " + buDirs[0] + "/" + "fu.lock")
 
 process.load("L1TriggerScouting.Phase2.unpackers_cff")
-process.load("L1TriggerScouting.Phase2.rareDecayAnalyses_cff")
+process.load("L1TriggerScouting.Phase2.darkPhotonAnalyses_cff")
 process.load("L1TriggerScouting.Phase2.maskedCollections_cff")
 process.load("L1TriggerScouting.Phase2.nanoAODOutputs_cff")
 
 ## Configure unpackers
-process.scPhase2PuppiRawToDigiStruct.fedIDs = [*puppiStreamIDs]
-process.scPhase2TkEmRawToDigiStruct.fedIDs = [*tkEmStreamIDs]
+process.scPhase2TrackerMuonRawToDigiStruct.fedIDs = [*tkMuStreamIDs]
 process.goodOrbitsByNBX.nbxMin = 3564 * options.timeslices // options.tmuxPeriod
-process.goodOrbitsByNBX.unpackers = [ "scPhase2PuppiRawToDigiStruct", "scPhase2TkEmRawToDigiStruct" ]
+process.goodOrbitsByNBX.unpackers = [ "scPhase2TrackerMuonRawToDigiStruct" ]
+
 
 ## Configure analyses
 analysisModules = [getattr(process,f"{a}Struct") for a in analyses]
 process.s_analyses = cms.Sequence(sum(analysisModules[1:], analysisModules[0]))
+
 
 ## Configure selected outputs
 process.scPhase2SelectedBXs.analysisLabels = [cms.InputTag(f"{a}Struct", "selectedBx") for a in analyses]
@@ -98,21 +96,21 @@ process.scPhase2SelectedBXs.analysisLabels = [cms.InputTag(f"{a}Struct", "select
 from FWCore.Modules.preScaler_cfi import preScaler
 process.prescaleInclusive = preScaler.clone(prescaleFactor = options.prescaleInclusive)
 process.p_inclusive = cms.Path(
-  process.s_unpackers +
-  process.prescaleInclusive
+  process.scPhase2TrackerMuonRawToDigiStruct +
+  process.goodOrbitsByNBX +
+  process.prescaleInclusive +
+  process.scPhase2TrackerMuonStructToTable
 )
-process.p_inclusive.associate(cms.Task(process.scPhase2PuppiStructToTable, process.tableProducersTkEmTask))
 
 ## Define selected processing (Physics streams)
 process.p_selected = cms.Path(
-  process.s_unpackers + 
+  process.scPhase2TrackerMuonRawToDigiStruct +
+  process.goodOrbitsByNBX +
   process.s_analyses +
   process.scPhase2SelectedBXs +
-  process.scPhase2PuppiMasked +
-  process.scPhase2TkEmMasked +
-  process.scPhase2TkEleMasked
+  process.scPhase2TrackerMuonMasked + 
+  process.scPhase2TrackerMuonMaskedStructToTable
 )
-process.p_selected.associate(cms.Task(process.scPhase2PuppiMaskedStructToTable, process.maskedTableProducersTkEmTask))
 
 process.scPhase2NanoAll.fileName = options.outFile.replace(".root","")+".inclusive.root"
 process.scPhase2NanoAll.SelectEvents.SelectEvents = ['p_inclusive']
