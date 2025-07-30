@@ -29,6 +29,8 @@ public:
   static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
 
 private:
+  const unsigned int NBX = 3564;  // BX per orbit
+
   void produce(edm::Event&, const edm::EventSetup&) override;
 
   void unpackOrbit(const unsigned char* buf, size_t len, int sdsId);
@@ -38,8 +40,8 @@ private:
   std::vector<std::vector<l1ScoutingRun3::CaloTower>> orbitBuffer_;
   int nCaloTowersOrbit_;
 
-  bool debug_ = false;
   std::vector<int> sourceIdList_;
   edm::InputTag srcInputTag_;
   edm::EDGetToken rawToken_;
+  bool debug_;
 };

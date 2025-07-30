@@ -61,26 +61,25 @@ void ScoutingJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSe
   iEvent.getByToken(src_, caloTowerCollection);
 
   std::unique_ptr<OrbitCollection<l1ScoutingRun3::FastJet>> fastJetCollection(new FastJetOrbitCollection);
-  std::vector<std::vector<l1ScoutingRun3::FastJet>> fastJetBuffer(3565);
+  std::vector<std::vector<l1ScoutingRun3::FastJet>> fastJetBuffer(3565);  // range of BX values
   unsigned nFastJet = 0;
 
   // define fastjet algorithm
   fastjet::JetDefinition jetDef(fastjet::antikt_algorithm, akR_);
 
+  // create pseudojet vector to be filled
+  std::vector<fastjet::PseudoJet> pjCTs;
+
   // loop over valid bunch crossings
-  int nConst = 0;
-  double area = 0.;
   for (const unsigned& bx : caloTowerCollection->getFilledBxs()) {
     const auto& cts = caloTowerCollection->bxIterator(bx);
 
-    // create pseudojet vector to be filled
-    std::vector<fastjet::PseudoJet> pjCTs;
-    pjCTs.reserve(cts.size());
-
     // prepare pseudojets to give in input to fastjet
+    pjCTs.reserve(cts.size());
+    pjCTs.clear();
     for (const auto& ct : cts) {
       ROOT::Math::PtEtaPhiMVector ctLV(calol2::fEt(ct.hwEt()), calol2::fEta(ct.hwEta()), calol2::fPhi(ct.hwPhi()), 0);
-      pjCTs.push_back(fastjet::PseudoJet(ctLV.px(), ctLV.py(), ctLV.pz(), ctLV.E()));
+      pjCTs.emplace_back(ctLV.px(), ctLV.py(), ctLV.pz(), ctLV.E());
     }
 
     // run the jet clustering with the given jet definition
@@ -90,12 +89,12 @@ void ScoutingJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSe
     std::vector<fastjet::PseudoJet> incJets = fastjet::sorted_by_pt(clustSeq.inclusive_jets(ptMin_));
 
     // fill fast jet objects buffer
-    fastJetBuffer[bx].reserve(incJets.size());
+    auto& bufferThisBX = fastJetBuffer[bx];
+    bufferThisBX.reserve(incJets.size());
     for (const auto& incJet : incJets) {
-      nConst = incJet.has_constituents() ? incJet.constituents().size() : 0;
-      area = incJet.has_area() ? incJet.area() : -1.0;
-      FastJet fj = FastJet(incJet.Et(), incJet.eta(), incJet.phi(), nConst, area);
-      fastJetBuffer[bx].push_back(fj);
+      int nConst = incJet.has_constituents() ? incJet.constituents().size() : 0;
+      float area = incJet.has_area() ? incJet.area() : -1.0f;
+      bufferThisBX.emplace_back(incJet.Et(), incJet.eta(), incJet.phi(), nConst, area);
       nFastJet++;
     }
   }
@@ -107,7 +106,10 @@ void ScoutingJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSe
 
 void ScoutingJetProducer::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
   edm::ParameterSetDescription desc;
-  desc.setUnknown();
+  desc.add<edm::InputTag>("src");
+  desc.add<double>("akR");
+  desc.add<double>("ptMin");
+  desc.addUntracked<bool>("debug", false);
   descriptions.addDefault(desc);
 }
 
