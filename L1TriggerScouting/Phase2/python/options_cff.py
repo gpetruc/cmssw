@@ -101,7 +101,7 @@ options.register ('analyses',
                   [], # default value
                   VarParsing.VarParsing.multiplicity.list,
                   VarParsing.VarParsing.varType.string,          # string, int, or float
-                  "analyses: any list of w3pi, wdsg, wpig, hrhog, hphig, hjpsig, h2rho, h2phi, dimu")
+                  "analyses: any list of w3pi, wdsg, wpig, hrhog, hphig, hjpsig, h2rho, h2phi, dimu, recmeson")
 
 options.register ('prescaleInclusive',
                   100, # default value
@@ -110,7 +110,7 @@ options.register ('prescaleInclusive',
                   "Prescale factor for the inclusive stream.")
 
 options.register ('outMode',
-                  'none', # default value
+                  'nanoBoth', # default value
                   VarParsing.VarParsing.multiplicity.singleton,
                   VarParsing.VarParsing.varType.string,          # string, int, or float
                   "output (none, nanoSelected, nanoInclusive, nanoBoth)")

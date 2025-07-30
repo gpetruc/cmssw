@@ -10,6 +10,7 @@
 #include "DataFormats/L1Scouting/interface/OrbitFlatTable.h"
 #include "DataFormats/L1TParticleFlow/interface/L1ScoutingPuppi.h"
 #include "DataFormats/L1TParticleFlow/interface/L1ScoutingTkEm.h"
+#include "DataFormats/L1TParticleFlow/interface/RecMeson.h"
 #include "L1TriggerScouting/Utilities/interface/BxOffsetsFiller.h"
 
 #include <ROOT/RVec.hxx>
@@ -20,10 +21,13 @@
 #include <array>
 #include <iostream>
 
-class ScPhase2PuppiH2PhiDemo : public edm::stream::EDProducer<> {
+//CHANGES TO IMPLEMENT
+//- RETURN THE FULL 4 particles ?
+
+class ScPhase2RecMeson : public edm::stream::EDProducer<> {
 public:
-  explicit ScPhase2PuppiH2PhiDemo(const edm::ParameterSet &);
-  ~ScPhase2PuppiH2PhiDemo() override;
+  explicit ScPhase2RecMeson(const edm::ParameterSet &);
+  ~ScPhase2RecMeson() override;
   static void fillDescriptions(edm::ConfigurationDescriptions &descriptions);
 
 private:
@@ -39,9 +43,11 @@ private:
 
   bool doStruct_;
   edm::EDGetTokenT<OrbitCollection<l1Scouting::Puppi>> structToken_;
+  std::string mesonType_;
+  std::vector<float> mesonMassRange_ = {0.0f, 0.0f};
 
   struct Cuts {
-    float minptD = 10;
+    float minptD = 1;
     float minptQ = 30;
     float maxdeltarD2 = 0.40 * 0.40;
     float minmassH = 100;
@@ -68,23 +74,30 @@ private:
   unsigned long passStruct_;
 };
 
-ScPhase2PuppiH2PhiDemo::ScPhase2PuppiH2PhiDemo(const edm::ParameterSet &iConfig)
-    : doStruct_(iConfig.getParameter<bool>("runStruct")) {
+ScPhase2RecMeson::ScPhase2RecMeson(const edm::ParameterSet &iConfig)
+    : doStruct_(iConfig.getParameter<bool>("runStruct")),
+      mesonType_(iConfig.getParameter<std::string>("mesonType")) {
   if (doStruct_) {
+    //PUPPI input being given here
     structToken_ = consumes<OrbitCollection<l1Scouting::Puppi>>(iConfig.getParameter<edm::InputTag>("src"));
-    produces<std::vector<unsigned>>("selectedBx");
-    produces<l1ScoutingRun3::OrbitFlatTable>("h2phi");
+
+    if (mesonType_ == "phi") {
+      mesonMassRange_ = {1., 1.};
+    }
+
+    produces<OrbitCollection<l1Scouting::RecMeson>>();
+    produces<unsigned int>("nbx");
   }
 }
 
-ScPhase2PuppiH2PhiDemo::~ScPhase2PuppiH2PhiDemo() {};
+ScPhase2RecMeson::~ScPhase2RecMeson() {};
 
-void ScPhase2PuppiH2PhiDemo::beginStream(edm::StreamID) {
+void ScPhase2RecMeson::beginStream(edm::StreamID) {
   countStruct_ = 0;
   passStruct_ = 0;
 }
 
-void ScPhase2PuppiH2PhiDemo::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
+void ScPhase2RecMeson::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
   if (doStruct_) {
     edm::Handle<OrbitCollection<l1Scouting::Puppi>> src;
     iEvent.getByToken(structToken_, src);
@@ -93,13 +106,13 @@ void ScPhase2PuppiH2PhiDemo::produce(edm::Event &iEvent, const edm::EventSetup &
   }
 }
 
-void ScPhase2PuppiH2PhiDemo::endStream() {
+void ScPhase2RecMeson::endStream() {
   if (doStruct_)
-    edm::LogImportant("ScPhase2AnalysisSummary") << "H2Phi Struct analysis: " << countStruct_ << " -> " << passStruct_;
+    edm::LogImportant("ScPhase2AnalysisSummary") << "RecMeson Struct analysis: " << countStruct_ << " -> " << passStruct_;
 }
 
 template <typename T>
-void ScPhase2PuppiH2PhiDemo::runObj(const OrbitCollection<T> &src,
+void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
                                     edm::Event &iEvent,
                                     unsigned long &nTry,
                                     unsigned long &nPass,
@@ -107,13 +120,15 @@ void ScPhase2PuppiH2PhiDemo::runObj(const OrbitCollection<T> &src,
   l1ScoutingRun3::BxOffsetsFillter bxOffsetsFiller;
   bxOffsetsFiller.start();
   auto ret = std::make_unique<std::vector<unsigned>>();
-  std::vector<float> masses;
-  std::vector<uint8_t> i0s, i1s, i2s, i3s;
-  ROOT::RVec<unsigned int> ix;  //
-  std::array<unsigned int, 2> bestPair1, bestPair2;
-  bool bestPair1Found, bestPair2Found;
-  float bestPair1Score, bestPair2Score;
+
+  ROOT::RVec<unsigned int> ix;
+  std::vector<std::vector<l1Scouting::RecMeson>> mesonVec;
+  unsigned int ntotRecMeson = 0, nbx = 0;
+
   for (unsigned int bx = 1; bx <= OrbitCollection<T>::NBX; ++bx) {
+    nbx++;
+    std::vector<l1Scouting::RecMeson> mesonVec_thisBx;
+
     nTry++;
     auto range = src.bxIterator(bx);
     const T *cands = &range.front();
@@ -127,12 +142,8 @@ void ScPhase2PuppiH2PhiDemo::runObj(const OrbitCollection<T> &src,
       }
     }
     unsigned int ndaus = ix.size();
-    if (ndaus < 4)
-      continue;
-
-    // Q1 candidate from closest OS pair with mass compatible with mQ
-    bestPair1Found = false;
-    bestPair1Score = 999;
+    //std::cout << "BX = " << bx << " ; number of daugthers = " << ndaus << std::endl;
+    
     for (unsigned int i1 = 0; i1 < ndaus; ++i1) {
       if (cands[ix[i1]].pt() < cuts.minptD)
         continue;  // D1 pt cut
@@ -144,104 +155,42 @@ void ScPhase2PuppiH2PhiDemo::runObj(const OrbitCollection<T> &src,
           continue;
 
         auto mass2 = pairmass({{ix[i1], ix[i2]}}, cands, {{0.4937, 0.4937}});
-        if (mass2 >= cuts.minmassQ and mass2 <= cuts.maxmassQ)
+        if (!(mass2 >= cuts.minmassQ and mass2 <= cuts.maxmassQ))
           continue;
 
         auto [drcond, drQ] = deltar(cands[ix[i1]].eta(), cands[ix[i2]].eta(), cands[ix[i1]].phi(), cands[ix[i2]].phi());
         if (!drcond)
           continue;  // angular sep of top 2 tracks
 
-        std::array<unsigned int, 2> pair{{ix[i1], ix[i2]}};  // pair of indices
-        if (drQ < bestPair1Score) {
-          std::copy_n(pair.begin(), 2, bestPair1.begin());
-          bestPair1Score = drQ;
-          if (bestPair1Score * bestPair1Score < cuts.maxdeltarD2)
-            bestPair1Found = true;
-        }
+        //std::array<unsigned int, 2> pair{{ix[i1], ix[i2]}};  // pair of indices
+        //std::cout << "found a meson!!" << std::endl;
+
+        auto recMeson = l1Scouting::RecMeson(cands[ix[i1]].pt(), 2.2, 3.3, i1, i2);
+        mesonVec_thisBx.push_back(recMeson);
+        ntotRecMeson++;
       }
     }
-    if (!bestPair1Found)
-      continue;  // pair was found
-    auto ptQ = (cands[bestPair1[0]].p4() + cands[bestPair1[1]].p4()).pt();
-    if (ptQ < cuts.minptQ)
-      continue;  // Q pt
-    if (!isolationQ(bestPair1[0], bestPair1[1], cands, size))
-      continue;  // Q isolation
 
-    // Q2 candidate from closest OS pair with mass compatible with mQ
-    bestPair2Found = false;
-    bestPair2Score = 999;
-    for (unsigned int i3 = 0; i3 < ndaus; ++i3) {
-      if (cands[ix[i3]].pt() < cuts.minptD)
-        continue;  // D1 pt cut
-      if (ix[i3] == bestPair1[0] or ix[i3] == bestPair1[1])
-        continue;  // don't reuse candidates from previous pair
-      for (unsigned int i4 = 0; i4 < ndaus; ++i4) {
-        if (i4 == i3 || cands[ix[i4]].pt() < cuts.minptD)
-          continue;  // D2 pt cut
-        if (ix[i4] == bestPair1[0] or ix[i4] == bestPair1[1])
-          continue;  // don't reuse candidates from previous pair
-        if (!(cands[ix[i3]].charge() * cands[ix[i4]].charge() < 0))
-          continue;  // OS pair
-        auto mass2 = pairmass(
-            {{ix[i3], ix[i4]}}, cands, {{0.4937, 0.4937}});  // (cands[ix[i3]].p4() + cands[ix[i4]].p4()).mass();
-        if (mass2 >= cuts.minmassQ and mass2 <= cuts.maxmassQ)
-          continue;  // Q mass
-        auto [drcond, drQ] = deltar(cands[ix[i3]].eta(), cands[ix[i4]].eta(), cands[ix[i3]].phi(), cands[ix[i4]].phi());
-        if (!drcond)
-          continue;  // angular sep of top 2 tracks
-
-        std::array<unsigned int, 2> pair{{ix[i3], ix[i4]}};  // pair of indices
-        if (drQ < bestPair2Score) {
-          std::copy_n(pair.begin(), 2, bestPair2.begin());
-          bestPair2Score = drQ;
-          if (bestPair2Score * bestPair2Score < cuts.maxdeltarD2)
-            bestPair2Found = true;
-        }
-      }
-    }
-    if (!bestPair2Found)
-      continue;  // pair was found
-    ptQ = (cands[bestPair2[0]].p4() + cands[bestPair2[1]].p4()).pt();
-    if (ptQ < cuts.minptQ)
-      continue;  // Q pt
-    if (!isolationQ(bestPair2[0], bestPair2[1], cands, size))
-      continue;  // Q isolation
-
-    std::array<unsigned int, 4> bestQuadruplet{{bestPair1[0], bestPair1[1], bestPair2[0], bestPair2[1]}};
-    // H mass
-    auto mass = quadrupletmass(bestQuadruplet, cands, {{0.4937, 0.4937, 0.4937, 0.4937}});
-    if (!(mass >= cuts.minmassH and mass <= cuts.maxmassH))
-      continue;
-
-    ret->emplace_back(bx);
-    nPass++;
-    masses.push_back(mass);
-    i0s.push_back(bestQuadruplet[0]);
-    i1s.push_back(bestQuadruplet[1]);
-    i2s.push_back(bestQuadruplet[2]);
-    i3s.push_back(bestQuadruplet[3]);
+    //std::cout << "BX = " << bx << " ; number of mesons = " << mesonVec_thisBx.size() << std::endl;
+    mesonVec.push_back(mesonVec_thisBx);
+    if(bx == 1) mesonVec.push_back(mesonVec_thisBx);
     bxOffsetsFiller.addBx(bx, 1);
   }  // loop on BXs
 
-  std::cout << "H 2 Phi - i0s.size() - " << i0s.size() << std::endl;
-  std::cout << "H 2 Phi - nPass - " << nPass << std::endl;
+  std::cout << "Rec Meson - mesonVec.size() - " << mesonVec.size() << std::endl;
+  std::cout << "Rec Meson - nbx - " << nbx << std::endl;
 
-  iEvent.put(std::move(ret), "selectedBx" + label);
-  // now we make the table
   auto bxOffsets = bxOffsetsFiller.done();
-  auto tab = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(bxOffsets, "H2Phi" + label, true);
-  tab->addColumn<float>("mass", masses, "4 kaons invariant mass");
-  tab->addColumn<uint8_t>("i0", i0s, "1st kaon (phi1)");
-  tab->addColumn<uint8_t>("i1", i1s, "2nd kaon (phi1)");
-  tab->addColumn<uint8_t>("i2", i2s, "1st kaon (phi2)");
-  tab->addColumn<uint8_t>("i3", i3s, "2nd kaon (phi2)");
-  iEvent.put(std::move(tab), "h2phi" + label);
+
+  // Put flat table into event
+  auto outRecMeson = std::make_unique<OrbitCollection<l1Scouting::RecMeson>>(mesonVec, ntotRecMeson);
+  iEvent.put(std::move(outRecMeson));
+  iEvent.put(std::make_unique<unsigned int>(nbx), "nbx");
 }
 
 //TEST functions
 template <typename T>
-bool ScPhase2PuppiH2PhiDemo::isolationQ(unsigned int pidex1,
+bool ScPhase2RecMeson::isolationQ(unsigned int pidex1,
                                         unsigned int pidex2,
                                         const T *cands,
                                         unsigned int size) const {
@@ -262,7 +211,7 @@ bool ScPhase2PuppiH2PhiDemo::isolationQ(unsigned int pidex1,
   return passed;
 }
 
-std::tuple<bool, float> ScPhase2PuppiH2PhiDemo::deltar(float eta1, float eta2, float phi1, float phi2) const {
+std::tuple<bool, float> ScPhase2RecMeson::deltar(float eta1, float eta2, float phi1, float phi2) const {
   bool passed = true;
   float deta = eta1 - eta2;
   float dphi = ROOT::VecOps::DeltaPhi<float>(phi1, phi2);
@@ -275,7 +224,7 @@ std::tuple<bool, float> ScPhase2PuppiH2PhiDemo::deltar(float eta1, float eta2, f
 }
 
 template <typename T>
-float ScPhase2PuppiH2PhiDemo::pairmass(const std::array<unsigned int, 2> &t,
+float ScPhase2RecMeson::pairmass(const std::array<unsigned int, 2> &t,
                                        const T *cands,
                                        const std::array<float, 2> &massD) {
   ROOT::Math::PtEtaPhiMVector p1(cands[t[0]].pt(), cands[t[0]].eta(), cands[t[0]].phi(), massD[0]);
@@ -285,7 +234,7 @@ float ScPhase2PuppiH2PhiDemo::pairmass(const std::array<unsigned int, 2> &t,
 }
 
 template <typename T>
-float ScPhase2PuppiH2PhiDemo::quadrupletmass(const std::array<unsigned int, 4> &t,
+float ScPhase2RecMeson::quadrupletmass(const std::array<unsigned int, 4> &t,
                                              const T *cands,
                                              const std::array<float, 4> &massD) {
   ROOT::Math::PtEtaPhiMVector p1(cands[t[0]].pt(), cands[t[0]].eta(), cands[t[0]].phi(), massD[0]);
@@ -296,11 +245,12 @@ float ScPhase2PuppiH2PhiDemo::quadrupletmass(const std::array<unsigned int, 4> &
   return mass;
 }
 
-void ScPhase2PuppiH2PhiDemo::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
+void ScPhase2RecMeson::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
   edm::ParameterSetDescription desc;
   desc.add<edm::InputTag>("src");
   desc.add<bool>("runStruct", true);
+  desc.add<std::string>("mesonType");
   descriptions.addDefault(desc);
 }
 
-DEFINE_FWK_MODULE(ScPhase2PuppiH2PhiDemo);
+DEFINE_FWK_MODULE(ScPhase2RecMeson);

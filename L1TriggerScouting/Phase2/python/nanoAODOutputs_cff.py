@@ -10,6 +10,12 @@ scPhase2PuppiMaskedStructToTable = scPhase2PuppiStructToTable.clone(
     src = "scPhase2PuppiMasked"
 )
 
+scPhase2RecMesonStructToTable = cms.EDProducer("ScRecMesonToOrbitFlatTable",
+    src = cms.InputTag("ScPhase2RecMesonStruct"),
+    name = cms.string("RecMeson"),
+    doc = cms.string("Reconstructed Meson candidates"),
+)
+
 scPhase2TkEmStructToTable = cms.EDProducer("ScTkEmToOrbitFlatTable",
     src = cms.InputTag("scPhase2TkEmRawToDigiStruct"),
     name = cms.string("L1TkEm"),
@@ -46,6 +52,7 @@ tableProducersTkEmTask = cms.Task(
 )
 
 tableProducersTask = cms.Task(
+    scPhase2RecMesonStructToTable,
     scPhase2PuppiStructToTable,
     tableProducersTkEmTask,
     scPhase2TrackerMuonStructToTable,
@@ -57,6 +64,7 @@ maskedTableProducersTkEmTask = cms.Task(
 )
 
 maskedTableProducersTask = cms.Task(
+    scPhase2RecMesonStructToTable,
     scPhase2PuppiMaskedStructToTable,
     maskedTableProducersTkEmTask,
     scPhase2TrackerMuonMaskedStructToTable,
