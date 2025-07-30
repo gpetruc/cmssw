@@ -6,7 +6,8 @@ from L1TriggerScouting.Phase2.options_cff import options
 options.parseArguments()
 if options.buNumStreams == []:
     options.buNumStreams.append(2)
-analyses = options.analyses if options.analyses else ["w3pi", "wdsg", "wpig", "hrhog", "hphig", "hjpsig", "hphijpsi", "h2rho", "h2phi"]
+# Declare analysis to run
+analyses = options.analyses if options.analyses else ["h2rho", "h2phi", "phiRecmeson"]
 print(f"Analyses set to {analyses}")
 
 process = cms.Process("SCPU")
@@ -76,16 +77,22 @@ process.source = cms.Source("DAQSource",
 )
 os.system("touch " + buDirs[0] + "/" + "fu.lock")
 
+# Declare analysis to run
 process.load("L1TriggerScouting.Phase2.unpackers_cff")
+# Declare rare decay analyses to run
 process.load("L1TriggerScouting.Phase2.rareDecayAnalyses_cff")
+# Declare the filter of the data that keeps only data 
+# belonging to selected BXs
 process.load("L1TriggerScouting.Phase2.maskedCollections_cff")
+# Declare the flat table (ntuples) output
 process.load("L1TriggerScouting.Phase2.nanoAODOutputs_cff")
 
 ## Configure unpackers
 process.scPhase2PuppiRawToDigiStruct.fedIDs = [*puppiStreamIDs]
+# process.ScPhase2RecMesonStruct.fedIDs = [*recMusonIDs]
 process.scPhase2TkEmRawToDigiStruct.fedIDs = [*tkEmStreamIDs]
 process.goodOrbitsByNBX.nbxMin = 3564 * options.timeslices // options.tmuxPeriod
-process.goodOrbitsByNBX.unpackers = [ "scPhase2PuppiRawToDigiStruct", "scPhase2TkEmRawToDigiStruct" ]
+process.goodOrbitsByNBX.unpackers = [ "scPhase2PuppiRawToDigiStruct", "scPhase2TkEmRawToDigiStruct"] #, "ScPhase2RecMesonStruct" ]
 
 ## Configure analyses
 analysisModules = [getattr(process,f"{a}Struct") for a in analyses]
@@ -101,7 +108,7 @@ process.p_inclusive = cms.Path(
   process.s_unpackers +
   process.prescaleInclusive
 )
-process.p_inclusive.associate(cms.Task(process.scPhase2PuppiStructToTable, process.tableProducersTkEmTask))
+process.p_inclusive.associate(cms.Task(process.scPhase2PuppiStructToTable, process.tableProducersTkEmTask, process.scPhase2RecMesonStructToTable))
 
 ## Define selected processing (Physics streams)
 process.p_selected = cms.Path(
@@ -119,7 +126,7 @@ process.scPhase2NanoAll.SelectEvents.SelectEvents = ['p_inclusive']
  
 process.scPhase2PuppiNanoSelected.fileName = options.outFile.replace(".root","")+".selected.root"
 process.scPhase2PuppiNanoSelected.SelectEvents.SelectEvents = ['p_selected']
-process.scPhase2PuppiNanoSelected.outputCommands += [ f"keep *_{a}Struct_*_*" for a in analyses ]
+process.scPhase2PuppiNanoSelected.outputCommands += [ f"keep *_{a}Struct_*_*" for a in analyses if "Recmeson" not in a ]
 
 process.o_nanoInclusive = cms.EndPath(process.scPhase2NanoAll)
 process.o_nanoSelected = cms.EndPath(process.scPhase2PuppiNanoSelected)

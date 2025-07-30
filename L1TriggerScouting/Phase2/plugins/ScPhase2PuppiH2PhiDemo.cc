@@ -224,9 +224,6 @@ void ScPhase2PuppiH2PhiDemo::runObj(const OrbitCollection<T> &src,
     bxOffsetsFiller.addBx(bx, 1);
   }  // loop on BXs
 
-  std::cout << "H 2 Phi - i0s.size() - " << i0s.size() << std::endl;
-  std::cout << "H 2 Phi - nPass - " << nPass << std::endl;
-
   iEvent.put(std::move(ret), "selectedBx" + label);
   // now we make the table
   auto bxOffsets = bxOffsetsFiller.done();
