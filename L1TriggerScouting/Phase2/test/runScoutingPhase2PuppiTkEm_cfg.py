@@ -7,7 +7,7 @@ options.parseArguments()
 if options.buNumStreams == []:
     options.buNumStreams.append(2)
 # Declare analysis to run
-analyses = options.analyses if options.analyses else ["h2rho", "h2phi", "phiRecmeson"]
+analyses = options.analyses if options.analyses else ["phiRecmeson", "rhoRecmeson", "h2rho", "h2phi"]
 print(f"Analyses set to {analyses}")
 
 process = cms.Process("SCPU")
@@ -89,10 +89,9 @@ process.load("L1TriggerScouting.Phase2.nanoAODOutputs_cff")
 
 ## Configure unpackers
 process.scPhase2PuppiRawToDigiStruct.fedIDs = [*puppiStreamIDs]
-# process.ScPhase2RecMesonStruct.fedIDs = [*recMusonIDs]
 process.scPhase2TkEmRawToDigiStruct.fedIDs = [*tkEmStreamIDs]
 process.goodOrbitsByNBX.nbxMin = 3564 * options.timeslices // options.tmuxPeriod
-process.goodOrbitsByNBX.unpackers = [ "scPhase2PuppiRawToDigiStruct", "scPhase2TkEmRawToDigiStruct"] #, "ScPhase2RecMesonStruct" ]
+process.goodOrbitsByNBX.unpackers = [ "scPhase2PuppiRawToDigiStruct", "scPhase2TkEmRawToDigiStruct"] 
 
 ## Configure analyses
 analysisModules = [getattr(process,f"{a}Struct") for a in analyses]
@@ -108,7 +107,7 @@ process.p_inclusive = cms.Path(
   process.s_unpackers +
   process.prescaleInclusive
 )
-process.p_inclusive.associate(cms.Task(process.scPhase2PuppiStructToTable, process.tableProducersTkEmTask, process.scPhase2RecMesonStructToTable))
+process.p_inclusive.associate(cms.Task(process.scPhase2PuppiStructToTable, process.tableProducersTkEmTask, process.scPhase2PhiRecMesonStructToTable, process.scPhase2RhoRecMesonStructToTable))
 
 ## Define selected processing (Physics streams)
 process.p_selected = cms.Path(

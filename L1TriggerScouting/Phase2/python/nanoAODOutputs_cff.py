@@ -10,10 +10,16 @@ scPhase2PuppiMaskedStructToTable = scPhase2PuppiStructToTable.clone(
     src = "scPhase2PuppiMasked"
 )
 
-scPhase2RecMesonStructToTable = cms.EDProducer("ScRecMesonToOrbitFlatTable",
-    src = cms.InputTag("ScPhase2RecMesonStruct"),
-    name = cms.string("RecMeson"),
-    doc = cms.string("Reconstructed Meson candidates"),
+scPhase2PhiRecMesonStructToTable = cms.EDProducer("ScRecMesonToOrbitFlatTable",
+    src = cms.InputTag("phiRecmesonStruct", "RecMeson"),
+    name = cms.string("phiRecMeson"),
+    doc = cms.string("Reconstructed Phi Meson candidates"),
+)
+
+scPhase2RhoRecMesonStructToTable = cms.EDProducer("ScRecMesonToOrbitFlatTable",
+    src = cms.InputTag("rhoRecmesonStruct", "RecMeson"),
+    name = cms.string("rhoRecMeson"),
+    doc = cms.string("Reconstructed Rho Meson candidates"),
 )
 
 scPhase2TkEmStructToTable = cms.EDProducer("ScTkEmToOrbitFlatTable",
@@ -52,7 +58,8 @@ tableProducersTkEmTask = cms.Task(
 )
 
 tableProducersTask = cms.Task(
-    scPhase2RecMesonStructToTable,
+    scPhase2PhiRecMesonStructToTable,
+    scPhase2RhoRecMesonStructToTable,
     scPhase2PuppiStructToTable,
     tableProducersTkEmTask,
     scPhase2TrackerMuonStructToTable,
@@ -64,7 +71,8 @@ maskedTableProducersTkEmTask = cms.Task(
 )
 
 maskedTableProducersTask = cms.Task(
-    scPhase2RecMesonStructToTable,
+    scPhase2PhiRecMesonStructToTable,
+    scPhase2RhoRecMesonStructToTable,
     scPhase2PuppiMaskedStructToTable,
     maskedTableProducersTkEmTask,
     scPhase2TrackerMuonMaskedStructToTable,
@@ -74,6 +82,8 @@ scPhase2NanoAll = cms.OutputModule("OrbitNanoAODOutputModule",
     fileName = cms.untracked.string("all.root"),
     SelectEvents = cms.untracked.PSet(SelectEvents = cms.vstring()),
     outputCommands = cms.untracked.vstring("drop *", 
+        "keep l1ScoutingRun3OrbitFlatTable_scPhase2PhiRecMesonStructToTable_*_*",
+        "keep l1ScoutingRun3OrbitFlatTable_scPhase2RhoRecMesonStructToTable_*_*",
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2PuppiStructToTable_*_*", 
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2TkEmStructToTable_*_*", 
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2TkEleStructToTable_*_*",

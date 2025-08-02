@@ -5,7 +5,14 @@ import FWCore.ParameterSet.Config as cms
 
 phiRecmesonStruct = cms.EDProducer("ScPhase2RecMeson",
     src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
-    mesonType = cms.string("phi")
+    mesonType = cms.string("phi"),
+    runStruct = cms.bool(True)
+)
+
+rhoRecmesonStruct = cms.EDProducer("ScPhase2RecMeson",
+    src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
+    mesonType = cms.string("rho"),
+    runStruct = cms.bool(True)
 )
 
 w3piStruct = cms.EDProducer("ScPhase2PuppiW3PiDemo",
