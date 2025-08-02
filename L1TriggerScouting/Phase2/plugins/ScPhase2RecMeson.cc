@@ -48,12 +48,7 @@ private:
 
   struct Cuts {
     float minptD = 1;
-    float minptQ = 30;
     float maxdeltarD2 = 0.40 * 0.40;
-    float minmassH = 100;
-    float maxmassH = 150;
-    float minmassQ = 0.95;
-    float maxmassQ = 1.25;
     float mindr2 = 0.05 * 0.05;
     float maxdr2 = 0.25 * 0.25;
     float maxiso = 0.25;
@@ -82,9 +77,9 @@ ScPhase2RecMeson::ScPhase2RecMeson(const edm::ParameterSet &iConfig)
     structToken_ = consumes<OrbitCollection<l1Scouting::Puppi>>(iConfig.getParameter<edm::InputTag>("src"));
 
     if (mesonType_ == "phi") {
-      mesonMassRange_ = {1., 1.};
+      mesonMassRange_ = {0.95, 1.25};
     } else if (mesonType_ == "rho") {
-      mesonMassRange_ = {1., 1.};
+      mesonMassRange_ = {0.40, 1.30};
     }
 
     produces<OrbitCollection<l1Scouting::RecMeson>>("RecMeson");
@@ -159,7 +154,7 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
           continue;
 
         auto mass2 = pairmass({{ix[i1], ix[i2]}}, cands, {{0.4937, 0.4937}});
-        if (!(mass2 >= cuts.minmassQ and mass2 <= cuts.maxmassQ))
+        if (!(mass2 >= mesonMassRange_[0] and mass2 <= mesonMassRange_[1]))
           continue;
 
         auto [drcond, drQ] = deltar(cands[ix[i1]].eta(), cands[ix[i2]].eta(), cands[ix[i1]].phi(), cands[ix[i2]].phi());
@@ -169,7 +164,11 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
         //std::array<unsigned int, 2> pair{{ix[i1], ix[i2]}};  // pair of indices
         //std::cout << "found a meson!!" << std::endl;
 
-        auto recMeson = l1Scouting::RecMeson(cands[ix[i1]].pt(), 2.2, 3.3, i1, i2);
+        auto p4_1 = cands[ix[i1]].p4();
+        auto p4_2 = cands[ix[i2]].p4();
+        auto recMeson_quad = p4_1 + p4_2;  
+        
+        auto recMeson = l1Scouting::RecMeson(recMeson_quad.pt(), recMeson_quad.eta(), recMeson_quad.phi(), i1, i2);
         mesonVec_thisBx.push_back(recMeson);
         ntotRecMeson++;
       }
