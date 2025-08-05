@@ -7,7 +7,7 @@ options.parseArguments()
 if options.buNumStreams == []:
     options.buNumStreams.append(2)
 # Declare analysis to run
-analyses = options.analyses if options.analyses else ["phiRecmeson", "rhoRecmeson", "h2rho", "h2phi"]
+analyses = options.analyses if options.analyses else ["phiRecmeson", "rhoRecmeson", "h2phiRecmeson", "h2rho", "h2phi"]
 print(f"Analyses set to {analyses}")
 
 process = cms.Process("SCPU")
@@ -107,7 +107,7 @@ process.p_inclusive = cms.Path(
   process.s_unpackers +
   process.prescaleInclusive
 )
-process.p_inclusive.associate(cms.Task(process.scPhase2PuppiStructToTable, process.tableProducersTkEmTask, process.scPhase2PhiRecMesonStructToTable, process.scPhase2RhoRecMesonStructToTable))
+process.p_inclusive.associate(cms.Task(process.scPhase2PuppiStructToTable, process.tableProducersTkEmTask))
 
 ## Define selected processing (Physics streams)
 process.p_selected = cms.Path(
@@ -125,7 +125,9 @@ process.scPhase2NanoAll.SelectEvents.SelectEvents = ['p_inclusive']
  
 process.scPhase2PuppiNanoSelected.fileName = options.outFile.replace(".root","")+".selected.root"
 process.scPhase2PuppiNanoSelected.SelectEvents.SelectEvents = ['p_selected']
-process.scPhase2PuppiNanoSelected.outputCommands += [ f"keep *_{a}Struct_*_*" for a in analyses if "Recmeson" not in a ]
+
+analyses_print = ["h2phiRecmeson", "h2rho", "h2phi"]
+process.scPhase2PuppiNanoSelected.outputCommands += [ f"keep *_{a}Struct_*_*" for a in analyses_print ]
 
 process.o_nanoInclusive = cms.EndPath(process.scPhase2NanoAll)
 process.o_nanoSelected = cms.EndPath(process.scPhase2PuppiNanoSelected)

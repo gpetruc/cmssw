@@ -82,7 +82,7 @@ ScPhase2RecMeson::ScPhase2RecMeson(const edm::ParameterSet &iConfig)
       mesonMassRange_ = {0.40, 1.30};
     }
 
-    produces<OrbitCollection<l1Scouting::RecMeson>>("RecMeson");
+    produces<OrbitCollection<l1Scouting::RecMeson>>();
     produces<std::vector<unsigned>>("selectedBx");
     produces<unsigned int>("nbx");
   }
@@ -187,7 +187,7 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
 
   // Put flat table into event
   auto outRecMeson = std::make_unique<OrbitCollection<l1Scouting::RecMeson>>(mesonVec, ntotRecMeson);
-  iEvent.put(std::move(outRecMeson), "RecMeson");
+  iEvent.put(std::move(outRecMeson));
   iEvent.put(std::make_unique<unsigned int>(nbx), "nbx");
   iEvent.put(std::move(selectedBx), "selectedBx");
 }

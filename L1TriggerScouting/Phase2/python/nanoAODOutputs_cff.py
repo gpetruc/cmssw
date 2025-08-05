@@ -11,13 +11,13 @@ scPhase2PuppiMaskedStructToTable = scPhase2PuppiStructToTable.clone(
 )
 
 scPhase2PhiRecMesonStructToTable = cms.EDProducer("ScRecMesonToOrbitFlatTable",
-    src = cms.InputTag("phiRecmesonStruct", "RecMeson"),
+    src = cms.InputTag("phiRecmesonStruct"),
     name = cms.string("phiRecMeson"),
     doc = cms.string("Reconstructed Phi Meson candidates"),
 )
 
 scPhase2RhoRecMesonStructToTable = cms.EDProducer("ScRecMesonToOrbitFlatTable",
-    src = cms.InputTag("rhoRecmesonStruct", "RecMeson"),
+    src = cms.InputTag("rhoRecmesonStruct"),
     name = cms.string("rhoRecMeson"),
     doc = cms.string("Reconstructed Rho Meson candidates"),
 )

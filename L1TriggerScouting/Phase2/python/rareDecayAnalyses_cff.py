@@ -9,6 +9,10 @@ phiRecmesonStruct = cms.EDProducer("ScPhase2RecMeson",
     runStruct = cms.bool(True)
 )
 
+h2phiRecmesonStruct = cms.EDProducer("ScPhase2RecMesonH2Phi",
+     src = cms.InputTag("phiRecmesonStruct"),
+)
+
 rhoRecmesonStruct = cms.EDProducer("ScPhase2RecMeson",
     src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
     mesonType = cms.string("rho"),
