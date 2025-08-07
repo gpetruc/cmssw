@@ -146,10 +146,15 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
     unsigned int ndaus = ix.size();
     //std::cout << "BX = " << bx << " ; number of daugthers = " << ndaus << std::endl;
     
+    std::set<unsigned int> usedIndices;
+
     for (unsigned int i1 = 0; i1 < ndaus; ++i1) {
+      if (usedIndices.count(ix[i1])) continue;
       if (cands[ix[i1]].pt() < cuts.minptD)
         continue;  // D1 pt cut
+
       for (unsigned int i2 = 0; i2 < ndaus; ++i2) {
+        if (usedIndices.count(ix[i2])) continue;
         if (i2 == i1 || cands[ix[i2]].pt() < cuts.minptD)
           continue;  // D2 pt cut
 
@@ -171,13 +176,23 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
         auto p4_2 = cands[ix[i2]].p4();
         auto recMeson_quad = p4_1 + p4_2;  
         
-        auto recMeson = l1Scouting::RecMeson(recMeson_quad.pt(), recMeson_quad.eta(), recMeson_quad.phi(), 211, i1, i2);
+        auto recMeson = l1Scouting::RecMeson(recMeson_quad.pt(), recMeson_quad.eta(), recMeson_quad.phi(), 211, ix[i1], ix[i2]);
         mesonVec_thisBx.push_back(recMeson);
+
+        usedIndices.insert(ix[i1]);
+        usedIndices.insert(ix[i2]);
+
         ntotRecMeson++;
+        break;
       }
     }
 
-    //std::cout << "BX = " << bx << " ; number of mesons = " << mesonVec_thisBx.size() << std::endl;
+    // if ( mesonVec_thisBx.size() >= 2) {
+    //   std::cout << "BX = " << bx << " ; number of mesons = " << mesonVec_thisBx.size() << std::endl;
+    //   std::cout << "cand 0 - ids = " << mesonVec_thisBx[0].id1() << " and " << mesonVec_thisBx[0].id2() << std::endl ;
+    //   std::cout << "cand 1 - ids = " << mesonVec_thisBx[1].id1() << " and " << mesonVec_thisBx[1].id2() << std::endl << std::endl;
+    // }
+
     mesonVec.push_back(mesonVec_thisBx);
     if(bx == 1) mesonVec.push_back(mesonVec_thisBx);
     bxOffsetsFiller.addBx(bx, 1);

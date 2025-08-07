@@ -214,6 +214,10 @@ void ScPhase2PuppiH2PhiDemo::runObj(const OrbitCollection<T> &src,
     if (!(mass >= cuts.minmassH and mass <= cuts.maxmassH))
       continue;
 
+    // std::cout << "ORIGINAL" << std::endl;
+    // std::cout << "cand 0 - ids = " << bestQuadruplet[0] << " and " << bestQuadruplet[1] << std::endl ;
+    // std::cout << "cand 1 - ids = " << bestQuadruplet[2] << " and " << bestQuadruplet[3] << std::endl << std::endl;
+
     ret->emplace_back(bx);
     nPass++;
     masses.push_back(mass);

@@ -108,11 +108,15 @@ void ScPhase2RecMesonH2Phi::runObj(const OrbitCollection<T> &src,
     auto size = range.size();
     unsigned int ndaus = size;
 
-    if (ndaus < 4)
-      continue;
+    if ( ndaus >= 2) {
+      // std::cout << "NEW" << std::endl;
+      // std::cout << "BX = " << bx << " ; number of mesons = " << ndaus << std::endl;
+      // std::cout << "cand 0 - ids = " << cands[0].id1() << " and " << cands[0].id2() << std::endl ;
+      // std::cout << "cand 1 - ids = " << cands[1].id1() << " and " << cands[1].id2() << std::endl << std::endl;
+    }
 
-    std::cout << "number of daugthers = " << ndaus << std::endl;
-    std::cout << "ids = " << cands[0].id1() << cands[0].id2() << cands[1].id1() << cands[1].id2() << std::endl << std::endl;
+    if (ndaus < 2)
+      continue;
 
     // H mass
     auto mass = quadrupletmass(cands, {{0.4937, 0.4937, 0.4937, 0.4937}});
@@ -122,11 +126,11 @@ void ScPhase2RecMesonH2Phi::runObj(const OrbitCollection<T> &src,
     ret->emplace_back(bx);
 
     nPass++;
-    masses.push_back(1.);
-    i0s.push_back(1.); //bestQuadruplet[0]);
-    i1s.push_back(1.); //bestQuadruplet[1]);
-    i2s.push_back(1.); //bestQuadruplet[2]);
-    i3s.push_back(1.); //bestQuadruplet[3]);
+    masses.push_back(mass);
+    i0s.push_back(cands[0].id1());
+    i1s.push_back(cands[0].id2());
+    i2s.push_back(cands[1].id1());
+    i3s.push_back(cands[1].id2());
     bxOffsetsFiller.addBx(bx, 1);
   }  // loop on BXs
 
@@ -135,7 +139,7 @@ void ScPhase2RecMesonH2Phi::runObj(const OrbitCollection<T> &src,
   auto bxOffsets = bxOffsetsFiller.done();
   auto tab = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(bxOffsets, "recMesonH2phi" + label, true);
   tab->addColumn<float>("mass", masses, "4 kaons invariant mass");
-  tab->addColumn<uint8_t>("teste", i0s, "1st kaon (phi1)");
+  tab->addColumn<uint8_t>("i0", i0s, "1st kaon (phi1)");
   tab->addColumn<uint8_t>("i1", i1s, "2nd kaon (phi1)");
   tab->addColumn<uint8_t>("i2", i2s, "1st kaon (phi2)");
   tab->addColumn<uint8_t>("i3", i3s, "2nd kaon (phi2)");
