@@ -43,6 +43,8 @@ private:
   struct Cuts {
     float minmassH = 100;
     float maxmassH = 150;
+    float minptQ = 30;
+    float maxiso = 0.25;
   } cuts;
 
   template <typename T>
@@ -50,7 +52,7 @@ private:
 
   std::tuple<bool, float> deltar(float eta1, float eta2, float phi1, float phi2) const;
 
-  static float quadrupletmass(const l1Scouting::RecMeson *cands);
+  static float pairmass(const l1Scouting::RecMeson *cands);
 
   unsigned long countStruct_;
   unsigned long passStruct_;
@@ -97,9 +99,9 @@ void ScPhase2RecMesonH2Rho::runObj(const OrbitCollection<T> &src,
   auto ret = std::make_unique<std::vector<unsigned>>();
   std::vector<float> masses;
   std::vector<uint8_t> i0s, i1s, i2s, i3s;
-  std::array<unsigned int, 2> bestPair1, bestPair2;
-  bool bestPair1Found, bestPair2Found;
-  float bestPair1Score, bestPair2Score;
+  std::array<unsigned int, 2> bestMesonPair;
+  float bestMesonPairScore;
+  bool bestMesonPairFound;
 
   for (unsigned int bx = 1; bx <= OrbitCollection<T>::NBX; ++bx) {
     nTry++;
@@ -108,18 +110,42 @@ void ScPhase2RecMesonH2Rho::runObj(const OrbitCollection<T> &src,
     auto size = range.size();
     unsigned int ndaus = size;
 
-    if ( ndaus >= 2) {
-      // std::cout << "NEW" << std::endl;
-      // std::cout << "BX = " << bx << " ; number of mesons = " << ndaus << std::endl;
-      // std::cout << "cand 0 - ids = " << cands[0].id1() << " and " << cands[0].id2() << std::endl ;
-      // std::cout << "cand 1 - ids = " << cands[1].id1() << " and " << cands[1].id2() << std::endl << std::endl;
-    }
+    bestMesonPairScore = 0.;
+    bestMesonPairFound = false;
 
     if (ndaus < 2)
       continue;
 
+    for (unsigned int i1 = 0; i1 < ndaus; ++i1) {
+      // minimum pt and isolation of Q1
+      if ((cands[i1].pt() < cuts.minptQ) || (cands[i1].isoDR0p25() >= cuts.maxiso))
+        continue;
+      for (unsigned int i2 = i1 + 1; i2 < ndaus; ++i2) {
+        // minimum pt and isolation of Q2
+        if ((cands[i2].pt() < cuts.minptQ) || (cands[i2].isoDR0p25() >= cuts.maxiso))
+          continue;
+
+        // Four different dauther particles
+        if ((cands[i1].id1() == cands[i2].id1()) || (cands[i1].id1() == cands[i2].id2()))
+          continue;
+        if ((cands[i1].id2() == cands[i2].id1()) || (cands[i1].id1() == cands[i2].id2()))
+          continue;
+
+        // Choose best pair of mesons based on score (e.g. max pt)
+        float ptsum = cands[i1].pt() + cands[i2].pt();
+        if (ptsum > bestMesonPairScore) {
+          bestMesonPairScore = ptsum;
+          bestMesonPair = {{i1, i2}};
+          bestMesonPairFound = true;
+        }
+      }
+    }
+
+    if (!bestMesonPairFound)
+      continue;
+
     // H mass
-    auto mass = quadrupletmass(cands);
+    auto mass = pairmass(cands);
     if (!(mass >= cuts.minmassH and mass <= cuts.maxmassH))
       continue;
 
@@ -127,10 +153,10 @@ void ScPhase2RecMesonH2Rho::runObj(const OrbitCollection<T> &src,
 
     nPass++;
     masses.push_back(mass);
-    i0s.push_back(cands[0].id1());
-    i1s.push_back(cands[0].id2());
-    i2s.push_back(cands[1].id1());
-    i3s.push_back(cands[1].id2());
+    i0s.push_back(cands[bestMesonPair[0]].id1());
+    i1s.push_back(cands[bestMesonPair[0]].id2());
+    i2s.push_back(cands[bestMesonPair[1]].id1());
+    i3s.push_back(cands[bestMesonPair[1]].id2());
     bxOffsetsFiller.addBx(bx, 1);
   }  // loop on BXs
 
@@ -138,20 +164,18 @@ void ScPhase2RecMesonH2Rho::runObj(const OrbitCollection<T> &src,
   // now we make the table
   auto bxOffsets = bxOffsetsFiller.done();
   auto tab = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(bxOffsets, "recMesonH2rho" + label, true);
-  tab->addColumn<float>("mass", masses, "4 kaons invariant mass");
-  tab->addColumn<uint8_t>("i0", i0s, "1st kaon (rho1)");
-  tab->addColumn<uint8_t>("i1", i1s, "2nd kaon (rho1)");
-  tab->addColumn<uint8_t>("i2", i2s, "1st kaon (rho2)");
-  tab->addColumn<uint8_t>("i3", i3s, "2nd kaon (rho2)");
+  tab->addColumn<float>("mass", masses, "4 pions invariant mass");
+  tab->addColumn<uint8_t>("i0", i0s, "1st pion (rho1)");
+  tab->addColumn<uint8_t>("i1", i1s, "2nd pion (rho1)");
+  tab->addColumn<uint8_t>("i2", i2s, "1st pion (rho2)");
+  tab->addColumn<uint8_t>("i3", i3s, "2nd pion (rho2)");
   iEvent.put(std::move(tab), "recMesonH2rho" + label);
 }
 
-float ScPhase2RecMesonH2Rho::quadrupletmass(const l1Scouting::RecMeson *cands) {
+float ScPhase2RecMesonH2Rho::pairmass(const l1Scouting::RecMeson *cands) {
   ROOT::Math::PtEtaPhiMVector p1(cands[0].pt(), cands[0].eta(), cands[0].phi(), cands[0].mass());
   ROOT::Math::PtEtaPhiMVector p2(cands[1].pt(), cands[1].eta(), cands[1].phi(), cands[1].mass());
-  ROOT::Math::PtEtaPhiMVector p3(cands[2].pt(), cands[2].eta(), cands[2].phi(), cands[2].mass());
-  ROOT::Math::PtEtaPhiMVector p4(cands[3].pt(), cands[3].eta(), cands[3].phi(), cands[3].mass());
-  float mass = (p1 + p2 + p3 + p4).M();
+  float mass = (p1 + p2).M();
   return mass;
 }
 

@@ -10,52 +10,42 @@ namespace l1Scouting {
   class RecMeson {
   public:
     RecMeson() {}
-    RecMeson(float pt, float eta, float phi, float dmass1, float dmass2, uint8_t pid, uint8_t id1, uint8_t id2)
-      : pt_(pt), eta_(eta), phi_(phi), dmass1_(dmass1), dmass2_(dmass2), pid_(pid), id1_(id1), id2_(id2) {}
+    RecMeson(float pt, float eta, float phi, float mass, int charge, float dmass1, float dmass2, int pdgId, int id1, int id2, float isoDR0p25)
+      : pt_(pt), eta_(eta), phi_(phi), mass_(mass), charge_(charge), dmass1_(dmass1), dmass2_(dmass2), pdgId_(pdgId), id1_(id1), id2_(id2), isoDR0p25_(isoDR0p25) {}
 
     float pt() const { return pt_; }
     float eta() const { return eta_; }
     float phi() const { return phi_; }
-    uint8_t pid() const { return pid_; }
-    int16_t pdgId() const { return PDGID_[pid_]; }
+    float mass() const { return mass_; }
+    int charge() const { return charge_; }
     float dmass1() const { return dmass1_; }
     float dmass2() const { return dmass2_; }
+    int pdgId() const { return pdgId_; }
     int id1() const { return id1_; }
     int id2() const { return id2_; }
-    float mass() const { return MASS_[pid_]; }
-    int charge() const { return (pid_ < 2) ? 0 : (2 * (pid_ & 1) - 1); }
+    float isoDR0p25() const { return isoDR0p25_; }
+    ROOT::Math::PtEtaPhiMVector p4() const { return ROOT::Math::PtEtaPhiMVector(pt_, eta_, phi_, mass()); }
 
     void setPt(float pt) { pt_ = pt; }
     void setEta(float eta) { eta_ = eta; }
     void setPhi(float phi) { phi_ = phi; }
-    void setPid(int8_t pid) { pid_ = pid; }
-    void dmass1(float dmass1) { dmass1_ = dmass1; }
-    void dmass2(float dmass2) { dmass2_ = dmass2; }
-    void id1(int id1) { id1_ = id1; }
-    void id2(int id2) { id2_ = id2; }
+    void setMass(float mass) { mass_ = mass; }
+    void setCharge(int charge) { charge_ = charge; }
+    void setDmass1(float dmass1) { dmass1_ = dmass1; }
+    void setDmass2(float dmass2) { dmass2_ = dmass2; }
+    void setPdgId(int pdgId) { pdgId_ = pdgId; }
+    void setId1(int id1) { id1_ = id1; }
+    void setId2(int id2) { id2_ = id2; }
+    void setIsoDR0p25(float isoDR0p25) { isoDR0p25_ = isoDR0p25; }
 
-    ROOT::Math::PtEtaPhiMVector p4() const { return ROOT::Math::PtEtaPhiMVector(pt_, eta_, phi_, mass()); }
-  
-    enum PIDs {
-      HadZero = 0,
-      Gamma = 1,
-      HadMinus = 2,
-      HadPlus = 3,
-      EleMinus = 4,
-      ElePlus = 5,
-      MuMinus = 6,
-      MuPlus = 7,
-      nPIDs = 8
-    };
 
   private:
-    float pt_, eta_, phi_;
+    float pt_, eta_, phi_, mass_;
+    int charge_;
     float dmass1_, dmass2_;
-    uint8_t pid_;
+    int pdgId_;
     int id1_, id2_;
-
-    static constexpr int16_t PDGID_[nPIDs] = {130, 22, -211, 211, 11, -11, 13, -13};
-    static constexpr float MASS_[nPIDs] = {0.5, 0.0, 0.13, 0.13, 0.0005, 0.0005, 0.105, 0.105};
+    float isoDR0p25_;
   };
 }  // namespace l1Scouting
 #endif
