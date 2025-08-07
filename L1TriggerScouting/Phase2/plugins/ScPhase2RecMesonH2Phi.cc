@@ -50,11 +50,7 @@ private:
 
   std::tuple<bool, float> deltar(float eta1, float eta2, float phi1, float phi2) const;
 
-  template <typename T>
-  static float pairmass(const std::array<unsigned int, 2> &t, const T *cands, const std::array<float, 2> &massD);
-
-  template <typename T>
-  static float quadrupletmass(const std::array<unsigned int, 4> &t, const T *cands, const std::array<float, 4> &massD);
+  static float quadrupletmass(const l1Scouting::RecMeson *cands, const std::array<float, 4> &massD);
 
   unsigned long countStruct_;
   unsigned long passStruct_;
@@ -101,7 +97,6 @@ void ScPhase2RecMesonH2Phi::runObj(const OrbitCollection<T> &src,
   auto ret = std::make_unique<std::vector<unsigned>>();
   std::vector<float> masses;
   std::vector<uint8_t> i0s, i1s, i2s, i3s;
-  ROOT::RVec<unsigned int> ix;  //
   std::array<unsigned int, 2> bestPair1, bestPair2;
   bool bestPair1Found, bestPair2Found;
   float bestPair1Score, bestPair2Score;
@@ -111,11 +106,20 @@ void ScPhase2RecMesonH2Phi::runObj(const OrbitCollection<T> &src,
     auto range = src.bxIterator(bx);
     const T *cands = &range.front();
     auto size = range.size();
+    unsigned int ndaus = size;
 
-    ix.clear();
-    unsigned int ndaus = ix.size();
     if (ndaus < 4)
       continue;
+
+    std::cout << "number of daugthers = " << ndaus << std::endl;
+    std::cout << "ids = " << cands[0].id1() << cands[0].id2() << cands[1].id1() << cands[1].id2() << std::endl << std::endl;
+
+    // H mass
+    auto mass = quadrupletmass(cands, {{0.4937, 0.4937, 0.4937, 0.4937}});
+    if (!(mass >= cuts.minmassH and mass <= cuts.maxmassH))
+      continue;
+
+    ret->emplace_back(bx);
 
     nPass++;
     masses.push_back(1.);
@@ -131,31 +135,19 @@ void ScPhase2RecMesonH2Phi::runObj(const OrbitCollection<T> &src,
   auto bxOffsets = bxOffsetsFiller.done();
   auto tab = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(bxOffsets, "recMesonH2phi" + label, true);
   tab->addColumn<float>("mass", masses, "4 kaons invariant mass");
-  tab->addColumn<uint8_t>("i0", i0s, "1st kaon (phi1)");
+  tab->addColumn<uint8_t>("teste", i0s, "1st kaon (phi1)");
   tab->addColumn<uint8_t>("i1", i1s, "2nd kaon (phi1)");
   tab->addColumn<uint8_t>("i2", i2s, "1st kaon (phi2)");
   tab->addColumn<uint8_t>("i3", i3s, "2nd kaon (phi2)");
   iEvent.put(std::move(tab), "recMesonH2phi" + label);
 }
 
-template <typename T>
-float ScPhase2RecMesonH2Phi::pairmass(const std::array<unsigned int, 2> &t,
-                                       const T *cands,
-                                       const std::array<float, 2> &massD) {
-  ROOT::Math::PtEtaPhiMVector p1(cands[t[0]].pt(), cands[t[0]].eta(), cands[t[0]].phi(), massD[0]);
-  ROOT::Math::PtEtaPhiMVector p2(cands[t[1]].pt(), cands[t[1]].eta(), cands[t[1]].phi(), massD[1]);
-  float mass = (p1 + p2).M();
-  return mass;
-}
-
-template <typename T>
-float ScPhase2RecMesonH2Phi::quadrupletmass(const std::array<unsigned int, 4> &t,
-                                             const T *cands,
+float ScPhase2RecMesonH2Phi::quadrupletmass(const l1Scouting::RecMeson *cands,
                                              const std::array<float, 4> &massD) {
-  ROOT::Math::PtEtaPhiMVector p1(cands[t[0]].pt(), cands[t[0]].eta(), cands[t[0]].phi(), massD[0]);
-  ROOT::Math::PtEtaPhiMVector p2(cands[t[1]].pt(), cands[t[1]].eta(), cands[t[1]].phi(), massD[1]);
-  ROOT::Math::PtEtaPhiMVector p3(cands[t[2]].pt(), cands[t[2]].eta(), cands[t[2]].phi(), massD[2]);
-  ROOT::Math::PtEtaPhiMVector p4(cands[t[3]].pt(), cands[t[3]].eta(), cands[t[3]].phi(), massD[3]);
+  ROOT::Math::PtEtaPhiMVector p1(cands[0].pt(), cands[0].eta(), cands[0].phi(), massD[0]);
+  ROOT::Math::PtEtaPhiMVector p2(cands[1].pt(), cands[1].eta(), cands[1].phi(), massD[1]);
+  ROOT::Math::PtEtaPhiMVector p3(cands[2].pt(), cands[2].eta(), cands[2].phi(), massD[2]);
+  ROOT::Math::PtEtaPhiMVector p4(cands[3].pt(), cands[3].eta(), cands[3].phi(), massD[3]);
   float mass = (p1 + p2 + p3 + p4).M();
   return mass;
 }

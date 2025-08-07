@@ -45,9 +45,10 @@ private:
   edm::EDGetTokenT<OrbitCollection<l1Scouting::Puppi>> structToken_;
   std::string mesonType_;
   std::vector<float> mesonMassRange_ = {0.0f, 0.0f};
+  float daugther_mass_ = 0;
 
   struct Cuts {
-    float minptD = 1;
+    float minptD = 10;
     float maxdeltarD2 = 0.40 * 0.40;
     float mindr2 = 0.05 * 0.05;
     float maxdr2 = 0.25 * 0.25;
@@ -78,8 +79,10 @@ ScPhase2RecMeson::ScPhase2RecMeson(const edm::ParameterSet &iConfig)
 
     if (mesonType_ == "phi") {
       mesonMassRange_ = {0.95, 1.25};
+      daugther_mass_ = 0.4937;
     } else if (mesonType_ == "rho") {
       mesonMassRange_ = {0.40, 1.30};
+      daugther_mass_ = 0.1396;
     }
 
     produces<OrbitCollection<l1Scouting::RecMeson>>();
@@ -153,7 +156,7 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
         if (!(cands[ix[i1]].charge() * cands[ix[i2]].charge() < 0))
           continue;
 
-        auto mass2 = pairmass({{ix[i1], ix[i2]}}, cands, {{0.4937, 0.4937}});
+        auto mass2 = pairmass({{ix[i1], ix[i2]}}, cands, {{daugther_mass_, daugther_mass_}});
         if (!(mass2 >= mesonMassRange_[0] and mass2 <= mesonMassRange_[1]))
           continue;
 
@@ -168,7 +171,7 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
         auto p4_2 = cands[ix[i2]].p4();
         auto recMeson_quad = p4_1 + p4_2;  
         
-        auto recMeson = l1Scouting::RecMeson(recMeson_quad.pt(), recMeson_quad.eta(), recMeson_quad.phi(), i1, i2);
+        auto recMeson = l1Scouting::RecMeson(recMeson_quad.pt(), recMeson_quad.eta(), recMeson_quad.phi(), 211, i1, i2);
         mesonVec_thisBx.push_back(recMeson);
         ntotRecMeson++;
       }
