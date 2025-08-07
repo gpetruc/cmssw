@@ -19,6 +19,10 @@ rhoRecmesonStruct = cms.EDProducer("ScPhase2RecMeson",
     runStruct = cms.bool(True)
 )
 
+h2rhoRecmesonStruct = cms.EDProducer("ScPhase2RecMesonH2Rho",
+     src = cms.InputTag("rhoRecmesonStruct"),
+)
+
 w3piStruct = cms.EDProducer("ScPhase2PuppiW3PiDemo",
     src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
 )

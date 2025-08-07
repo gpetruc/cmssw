@@ -10,14 +10,16 @@ namespace l1Scouting {
   class RecMeson {
   public:
     RecMeson() {}
-    RecMeson(float pt, float eta, float phi, uint8_t pid, uint8_t id1, uint8_t id2)
-      : pt_(pt), eta_(eta), phi_(phi), pid_(pid), id1_(id1), id2_(id2) {}
+    RecMeson(float pt, float eta, float phi, float dmass1, float dmass2, uint8_t pid, uint8_t id1, uint8_t id2)
+      : pt_(pt), eta_(eta), phi_(phi), dmass1_(dmass1), dmass2_(dmass2), pid_(pid), id1_(id1), id2_(id2) {}
 
     float pt() const { return pt_; }
     float eta() const { return eta_; }
     float phi() const { return phi_; }
     uint8_t pid() const { return pid_; }
     int16_t pdgId() const { return PDGID_[pid_]; }
+    float dmass1() const { return dmass1_; }
+    float dmass2() const { return dmass2_; }
     int id1() const { return id1_; }
     int id2() const { return id2_; }
     float mass() const { return MASS_[pid_]; }
@@ -27,6 +29,8 @@ namespace l1Scouting {
     void setEta(float eta) { eta_ = eta; }
     void setPhi(float phi) { phi_ = phi; }
     void setPid(int8_t pid) { pid_ = pid; }
+    void dmass1(float dmass1) { dmass1_ = dmass1; }
+    void dmass2(float dmass2) { dmass2_ = dmass2; }
     void id1(int id1) { id1_ = id1; }
     void id2(int id2) { id2_ = id2; }
 
@@ -46,6 +50,7 @@ namespace l1Scouting {
 
   private:
     float pt_, eta_, phi_;
+    float dmass1_, dmass2_;
     uint8_t pid_;
     int id1_, id2_;
 

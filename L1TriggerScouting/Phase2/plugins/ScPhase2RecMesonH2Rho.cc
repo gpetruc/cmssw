@@ -20,10 +20,10 @@
 #include <array>
 #include <iostream>
 
-class ScPhase2RecMesonH2Phi : public edm::stream::EDProducer<> {
+class ScPhase2RecMesonH2Rho : public edm::stream::EDProducer<> {
 public:
-  explicit ScPhase2RecMesonH2Phi(const edm::ParameterSet &);
-  ~ScPhase2RecMesonH2Phi() override;
+  explicit ScPhase2RecMesonH2Rho(const edm::ParameterSet &);
+  ~ScPhase2RecMesonH2Rho() override;
   static void fillDescriptions(edm::ConfigurationDescriptions &descriptions);
 
 private:
@@ -56,23 +56,23 @@ private:
   unsigned long passStruct_;
 };
 
-ScPhase2RecMesonH2Phi::ScPhase2RecMesonH2Phi(const edm::ParameterSet &iConfig)
+ScPhase2RecMesonH2Rho::ScPhase2RecMesonH2Rho(const edm::ParameterSet &iConfig)
     : doStruct_(iConfig.getParameter<bool>("runStruct")) {
   if (doStruct_) {
     structToken_ = consumes<OrbitCollection<l1Scouting::RecMeson>>(iConfig.getParameter<edm::InputTag>("src"));
     produces<std::vector<unsigned>>("selectedBx");
-    produces<l1ScoutingRun3::OrbitFlatTable>("recMesonH2phi");
+    produces<l1ScoutingRun3::OrbitFlatTable>("recMesonH2rho");
   }
 }
 
-ScPhase2RecMesonH2Phi::~ScPhase2RecMesonH2Phi() {};
+ScPhase2RecMesonH2Rho::~ScPhase2RecMesonH2Rho() {};
 
-void ScPhase2RecMesonH2Phi::beginStream(edm::StreamID) {
+void ScPhase2RecMesonH2Rho::beginStream(edm::StreamID) {
   countStruct_ = 0;
   passStruct_ = 0;
 }
 
-void ScPhase2RecMesonH2Phi::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
+void ScPhase2RecMesonH2Rho::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
   if (doStruct_) {
     edm::Handle<OrbitCollection<l1Scouting::RecMeson>> src;
     iEvent.getByToken(structToken_, src);
@@ -81,13 +81,13 @@ void ScPhase2RecMesonH2Phi::produce(edm::Event &iEvent, const edm::EventSetup &i
   }
 }
 
-void ScPhase2RecMesonH2Phi::endStream() {
+void ScPhase2RecMesonH2Rho::endStream() {
   if (doStruct_)
-    edm::LogImportant("ScPhase2AnalysisSummary") << "Rec Meson H2Phi Struct analysis: " << countStruct_ << " -> " << passStruct_;
+    edm::LogImportant("ScPhase2AnalysisSummary") << "Rec Meson H2Rho Struct analysis: " << countStruct_ << " -> " << passStruct_;
 }
 
 template <typename T>
-void ScPhase2RecMesonH2Phi::runObj(const OrbitCollection<T> &src,
+void ScPhase2RecMesonH2Rho::runObj(const OrbitCollection<T> &src,
                                     edm::Event &iEvent,
                                     unsigned long &nTry,
                                     unsigned long &nPass,
@@ -137,16 +137,16 @@ void ScPhase2RecMesonH2Phi::runObj(const OrbitCollection<T> &src,
   iEvent.put(std::move(ret), "selectedBx" + label);
   // now we make the table
   auto bxOffsets = bxOffsetsFiller.done();
-  auto tab = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(bxOffsets, "recMesonH2phi" + label, true);
+  auto tab = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(bxOffsets, "recMesonH2rho" + label, true);
   tab->addColumn<float>("mass", masses, "4 kaons invariant mass");
-  tab->addColumn<uint8_t>("i0", i0s, "1st kaon (phi1)");
-  tab->addColumn<uint8_t>("i1", i1s, "2nd kaon (phi1)");
-  tab->addColumn<uint8_t>("i2", i2s, "1st kaon (phi2)");
-  tab->addColumn<uint8_t>("i3", i3s, "2nd kaon (phi2)");
-  iEvent.put(std::move(tab), "recMesonH2phi" + label);
+  tab->addColumn<uint8_t>("i0", i0s, "1st kaon (rho1)");
+  tab->addColumn<uint8_t>("i1", i1s, "2nd kaon (rho1)");
+  tab->addColumn<uint8_t>("i2", i2s, "1st kaon (rho2)");
+  tab->addColumn<uint8_t>("i3", i3s, "2nd kaon (rho2)");
+  iEvent.put(std::move(tab), "recMesonH2rho" + label);
 }
 
-float ScPhase2RecMesonH2Phi::quadrupletmass(const l1Scouting::RecMeson *cands) {
+float ScPhase2RecMesonH2Rho::quadrupletmass(const l1Scouting::RecMeson *cands) {
   ROOT::Math::PtEtaPhiMVector p1(cands[0].pt(), cands[0].eta(), cands[0].phi(), cands[0].mass());
   ROOT::Math::PtEtaPhiMVector p2(cands[1].pt(), cands[1].eta(), cands[1].phi(), cands[1].mass());
   ROOT::Math::PtEtaPhiMVector p3(cands[2].pt(), cands[2].eta(), cands[2].phi(), cands[2].mass());
@@ -155,11 +155,11 @@ float ScPhase2RecMesonH2Phi::quadrupletmass(const l1Scouting::RecMeson *cands) {
   return mass;
 }
 
-void ScPhase2RecMesonH2Phi::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
+void ScPhase2RecMesonH2Rho::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
   edm::ParameterSetDescription desc;
   desc.add<edm::InputTag>("src");
   desc.add<bool>("runStruct", true);
   descriptions.addDefault(desc);
 }
 
-DEFINE_FWK_MODULE(ScPhase2RecMesonH2Phi);
+DEFINE_FWK_MODULE(ScPhase2RecMesonH2Rho);
