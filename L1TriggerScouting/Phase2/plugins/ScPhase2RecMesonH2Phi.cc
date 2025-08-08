@@ -43,7 +43,7 @@ private:
   struct Cuts {
     float minmassH = 100;
     float maxmassH = 150;
-    float minptQ = 30;
+    float minptQ = 1;
     float maxiso = 0.25;
   } cuts;
 
@@ -52,7 +52,7 @@ private:
 
   std::tuple<bool, float> deltar(float eta1, float eta2, float phi1, float phi2) const;
 
-  static float pairmass(const l1Scouting::RecMeson *cands);
+  static float pairmass(const l1Scouting::RecMeson *cands, int a, int b);
 
   unsigned long countStruct_;
   unsigned long passStruct_;
@@ -128,7 +128,7 @@ void ScPhase2RecMesonH2Phi::runObj(const OrbitCollection<T> &src,
         // Four different dauther particles
         if ((cands[i1].id1() == cands[i2].id1()) || (cands[i1].id1() == cands[i2].id2()))
           continue;
-        if ((cands[i1].id2() == cands[i2].id1()) || (cands[i1].id1() == cands[i2].id2()))
+        if ((cands[i1].id2() == cands[i2].id1()) || (cands[i1].id2() == cands[i2].id2()))
           continue;
 
         // Choose best pair of mesons based on score (e.g. max pt)
@@ -145,7 +145,7 @@ void ScPhase2RecMesonH2Phi::runObj(const OrbitCollection<T> &src,
       continue;
 
     // H mass
-    auto mass = pairmass(cands);
+    auto mass = pairmass(cands, bestMesonPair[0], bestMesonPair[1]);
     if (!(mass >= cuts.minmassH and mass <= cuts.maxmassH))
       continue;
 
@@ -172,9 +172,9 @@ void ScPhase2RecMesonH2Phi::runObj(const OrbitCollection<T> &src,
   iEvent.put(std::move(tab), "recMesonH2phi" + label);
 }
 
-float ScPhase2RecMesonH2Phi::pairmass(const l1Scouting::RecMeson *cands) {
-  ROOT::Math::PtEtaPhiMVector p1(cands[0].pt(), cands[0].eta(), cands[0].phi(), cands[0].mass());
-  ROOT::Math::PtEtaPhiMVector p2(cands[1].pt(), cands[1].eta(), cands[1].phi(), cands[1].mass());
+float ScPhase2RecMesonH2Phi::pairmass(const l1Scouting::RecMeson *cands, int a, int b) {
+  ROOT::Math::PtEtaPhiMVector p1(cands[a].pt(), cands[a].eta(), cands[a].phi(), cands[a].mass());
+  ROOT::Math::PtEtaPhiMVector p2(cands[b].pt(), cands[b].eta(), cands[b].phi(), cands[b].mass());
   float mass = (p1 + p2).M();
   return mass;
 }

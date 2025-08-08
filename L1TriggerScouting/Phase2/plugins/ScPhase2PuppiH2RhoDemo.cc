@@ -42,7 +42,7 @@ private:
 
   struct Cuts {
     float minptD = 10;
-    float minptQ = 30;
+    float minptQ = 3;
     float maxdeltarD2 = 0.40 * 0.40;
     float minmassH = 100;
     float maxmassH = 150;
