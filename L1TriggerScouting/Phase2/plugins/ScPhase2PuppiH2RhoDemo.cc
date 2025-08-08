@@ -184,7 +184,7 @@ void ScPhase2PuppiH2RhoDemo::runObj(const OrbitCollection<T> &src,
         if (!(cands[ix[i3]].charge() * cands[ix[i4]].charge() < 0))
           continue;  // OS pair
         auto mass2 = pairmass({{ix[i3], ix[i4]}}, cands, {{0.1396, 0.1396}});
-        if (mass2 >= cuts.minmassQ and mass2 <= cuts.maxmassQ)
+        if (!(mass2 >= cuts.minmassQ and mass2 <= cuts.maxmassQ))
           continue;  // Q mass
         auto [drcond, drQ] = deltar(cands[ix[i3]].eta(), cands[ix[i4]].eta(), cands[ix[i3]].phi(), cands[ix[i4]].phi());
         if (!drcond)

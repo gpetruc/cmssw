@@ -145,7 +145,7 @@ void ScPhase2PuppiHPhiJPsiDemo::runObj(const OrbitCollection<T> &src,
           continue;
 
         auto mass2 = pairmass({{ix[i1], ix[i2]}}, cands, {{0.4937, 0.4937}});
-        if (mass2 >= cuts.minmassQ1 and mass2 <= cuts.maxmassQ1)
+        if (!(mass2 >= cuts.minmassQ1 and mass2 <= cuts.maxmassQ1))
           continue;
 
         auto [drcond, drQ] = deltar(cands[ix[i1]].eta(), cands[ix[i2]].eta(), cands[ix[i1]].phi(), cands[ix[i2]].phi());
@@ -186,7 +186,7 @@ void ScPhase2PuppiHPhiJPsiDemo::runObj(const OrbitCollection<T> &src,
           continue;  // OS pair
         auto mass2 = pairmass(
             {{ix[i3], ix[i4]}}, cands, {{0.1057, 0.1057}});  // (cands[ix[i3]].p4() + cands[ix[i4]].p4()).mass();
-        if (mass2 >= cuts.minmassQ2 and mass2 <= cuts.maxmassQ2)
+        if (!(mass2 >= cuts.minmassQ2 and mass2 <= cuts.maxmassQ2))
           continue;  // Q mass
         auto [drcond, drQ] = deltar(cands[ix[i3]].eta(), cands[ix[i4]].eta(), cands[ix[i3]].phi(), cands[ix[i4]].phi());
         if (!drcond)

@@ -37,8 +37,6 @@ private:
   template <typename T>
   void runObj(const OrbitCollection<T> &src,
               edm::Event &out,
-              unsigned long &nTry,
-              unsigned long &nPass,
               const std::string &bxLabel);
 
   bool doStruct_;
@@ -57,15 +55,12 @@ private:
   } cuts;
 
   template <typename T>
-  bool isolationQ(unsigned int pidex1, unsigned int pidex2, const T *cands, unsigned int size) const;
+  float isolationQ(unsigned int pidex1, unsigned int pidex2, const T *cands, unsigned int size) const;
 
   std::tuple<bool, float> deltar(float eta1, float eta2, float phi1, float phi2) const;
 
   template <typename T>
   static float pairmass(const std::array<unsigned int, 2> &t, const T *cands, const std::array<float, 2> &massD);
-
-  template <typename T>
-  static float quadrupletmass(const std::array<unsigned int, 4> &t, const T *cands, const std::array<float, 4> &massD);
 
   unsigned long countStruct_;
   unsigned long passStruct_;
@@ -96,33 +91,25 @@ ScPhase2RecMeson::ScPhase2RecMeson(const edm::ParameterSet &iConfig)
 
 ScPhase2RecMeson::~ScPhase2RecMeson() {};
 
-void ScPhase2RecMeson::beginStream(edm::StreamID) {
-  countStruct_ = 0;
-  passStruct_ = 0;
-}
+void ScPhase2RecMeson::beginStream(edm::StreamID) {}
 
 void ScPhase2RecMeson::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
   if (doStruct_) {
     edm::Handle<OrbitCollection<l1Scouting::Puppi>> src;
     iEvent.getByToken(structToken_, src);
 
-    runObj(*src, iEvent, countStruct_, passStruct_, "");
+    runObj(*src, iEvent, "");
   }
 }
 
-void ScPhase2RecMeson::endStream() {
-  if (doStruct_)
-    edm::LogImportant("ScPhase2AnalysisSummary") << "RecMeson Struct analysis: " << countStruct_ << " -> " << passStruct_;
-}
+void ScPhase2RecMeson::endStream() {}
 
 template <typename T>
 void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
                                     edm::Event &iEvent,
-                                    unsigned long &nTry,
-                                    unsigned long &nPass,
                                     const std::string &label) {
-  l1ScoutingRun3::BxOffsetsFillter bxOffsetsFiller;
-  bxOffsetsFiller.start();
+  // l1ScoutingRun3::BxOffsetsFillter bxOffsetsFiller;
+  // bxOffsetsFiller.start();
   auto ret = std::make_unique<std::vector<unsigned>>();
   auto selectedBx = std::make_unique<std::vector<unsigned>>();
 
@@ -130,11 +117,10 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
   std::vector<std::vector<l1Scouting::RecMeson>> mesonVec;
   unsigned int ntotRecMeson = 0, nbx = 0;
 
-  for (unsigned int bx = 1; bx <= OrbitCollection<T>::NBX; ++bx) {
+  for (unsigned int bx = 0; bx <= OrbitCollection<T>::NBX; ++bx) {
     nbx++;
     std::vector<l1Scouting::RecMeson> mesonVec_thisBx;
 
-    nTry++;
     auto range = src.bxIterator(bx);
     const T *cands = &range.front();
     auto size = range.size();
@@ -148,19 +134,11 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
     }
     unsigned int ndaus = ix.size();
     //std::cout << "BX = " << bx << " ; number of daugthers = " << ndaus << std::endl;
-    
+
     std::set<unsigned int> usedIndices;
 
     for (unsigned int i1 = 0; i1 < ndaus; ++i1) {
-      if (usedIndices.count(ix[i1])) continue;
-      if (cands[ix[i1]].pt() < cuts.minptD)
-        continue;  // D1 pt cut
-
-      for (unsigned int i2 = 0; i2 < ndaus; ++i2) {
-        if (usedIndices.count(ix[i2])) continue;
-        if (i2 == i1 || cands[ix[i2]].pt() < cuts.minptD)
-          continue;  // D2 pt cut
-
+      for (unsigned int i2 = i1 + 1; i2 < ndaus; ++i2) {
         if (!(cands[ix[i1]].charge() * cands[ix[i2]].charge() < 0))
           continue;
 
@@ -175,15 +153,18 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
         //std::array<unsigned int, 2> pair{{ix[i1], ix[i2]}};  // pair of indices
         //std::cout << "found a meson!!" << std::endl;
 
-        auto p4_1 = cands[ix[i1]].p4();
-        auto p4_2 = cands[ix[i2]].p4();
-        auto recMeson_quad = p4_1 + p4_2;  
-        
-        auto recMeson = l1Scouting::RecMeson(recMeson_quad.pt(), recMeson_quad.eta(), recMeson_quad.phi(), dmass1_, dmass2_, 211, ix[i1], ix[i2]);
-        mesonVec_thisBx.push_back(recMeson);
+        auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[ix[i1]].pt(), cands[ix[i1]].eta(), cands[ix[i1]].phi(), dmass1_);
+        auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[ix[i2]].pt(), cands[ix[i2]].eta(), cands[ix[i2]].phi(), dmass2_);
+        auto recMeson_quad = p4_1 + p4_2;
+        // Do we want to put isolation computation here or outside?
+        float isoDR0p25 = isolationQ(ix[i1], ix[i2], cands, size);
 
-        usedIndices.insert(ix[i1]);
-        usedIndices.insert(ix[i2]);
+        // charge set to 0 because of opposite sign condition
+        auto recMeson = l1Scouting::RecMeson(recMeson_quad.pt(), recMeson_quad.eta(),
+                                             recMeson_quad.phi(), recMeson_quad.mass(),
+                                             0, dmass1_, dmass2_, 211, ix[i1], ix[i2],
+                                             isoDR0p25);
+        mesonVec_thisBx.push_back(recMeson);
 
         ntotRecMeson++;
         break;
@@ -197,14 +178,14 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
     // }
 
     mesonVec.push_back(mesonVec_thisBx);
-    if(bx == 1) mesonVec.push_back(mesonVec_thisBx);
-    bxOffsetsFiller.addBx(bx, 1);
+    // if(bx == 1) mesonVec.push_back(mesonVec_thisBx);
+    // bxOffsetsFiller.addBx(bx, 1);
   }  // loop on BXs
 
   // std::cout << "Rec Meson - mesonVec.size() - " << mesonVec.size() << std::endl;
   // std::cout << "Rec Meson - nbx - " << nbx << std::endl;
 
-  auto bxOffsets = bxOffsetsFiller.done();
+  // auto bxOffsets = bxOffsetsFiller.done();
 
   // Put flat table into event
   auto outRecMeson = std::make_unique<OrbitCollection<l1Scouting::RecMeson>>(mesonVec, ntotRecMeson);
@@ -215,11 +196,10 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
 
 //TEST functions
 template <typename T>
-bool ScPhase2RecMeson::isolationQ(unsigned int pidex1,
-                                        unsigned int pidex2,
-                                        const T *cands,
-                                        unsigned int size) const {
-  bool passed = false;
+float ScPhase2RecMeson::isolationQ(unsigned int pidex1,
+                                   unsigned int pidex2,
+                                   const T *cands,
+                                   unsigned int size) const {
   float psum = 0;
   float eta = cands[pidex1].eta();  //center cone around leading track
   float phi = cands[pidex1].phi();
@@ -231,9 +211,8 @@ bool ScPhase2RecMeson::isolationQ(unsigned int pidex1,
     if (dr2 >= cuts.mindr2 && dr2 <= cuts.maxdr2)
       psum += cands[j].pt();
   }
-  if (psum <= cuts.maxiso * (cands[pidex1].pt() + cands[pidex2].pt()))
-    passed = true;
-  return passed;
+  // protect from 0 division?
+  return psum / (cands[pidex1].pt() + cands[pidex2].pt());
 }
 
 std::tuple<bool, float> ScPhase2RecMeson::deltar(float eta1, float eta2, float phi1, float phi2) const {
@@ -243,7 +222,6 @@ std::tuple<bool, float> ScPhase2RecMeson::deltar(float eta1, float eta2, float p
   float dr2 = deta * deta + dphi * dphi;
   if (dr2 > cuts.maxdeltarD2) {
     passed = false;
-    return std::tuple(passed, dr2);
   }
   return std::tuple(passed, dr2);
 }
@@ -255,18 +233,6 @@ float ScPhase2RecMeson::pairmass(const std::array<unsigned int, 2> &t,
   ROOT::Math::PtEtaPhiMVector p1(cands[t[0]].pt(), cands[t[0]].eta(), cands[t[0]].phi(), massD[0]);
   ROOT::Math::PtEtaPhiMVector p2(cands[t[1]].pt(), cands[t[1]].eta(), cands[t[1]].phi(), massD[1]);
   float mass = (p1 + p2).M();
-  return mass;
-}
-
-template <typename T>
-float ScPhase2RecMeson::quadrupletmass(const std::array<unsigned int, 4> &t,
-                                             const T *cands,
-                                             const std::array<float, 4> &massD) {
-  ROOT::Math::PtEtaPhiMVector p1(cands[t[0]].pt(), cands[t[0]].eta(), cands[t[0]].phi(), massD[0]);
-  ROOT::Math::PtEtaPhiMVector p2(cands[t[1]].pt(), cands[t[1]].eta(), cands[t[1]].phi(), massD[1]);
-  ROOT::Math::PtEtaPhiMVector p3(cands[t[2]].pt(), cands[t[2]].eta(), cands[t[2]].phi(), massD[2]);
-  ROOT::Math::PtEtaPhiMVector p4(cands[t[3]].pt(), cands[t[3]].eta(), cands[t[3]].phi(), massD[3]);
-  float mass = (p1 + p2 + p3 + p4).M();
   return mass;
 }
 

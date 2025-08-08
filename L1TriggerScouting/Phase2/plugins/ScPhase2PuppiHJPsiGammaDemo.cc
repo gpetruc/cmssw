@@ -182,7 +182,7 @@ void ScPhase2PuppiHJPsiGammaDemo::runObj(const OrbitCollection<T> &srcPuppi,
           continue;
 
         auto mass2 = pairmass({{ix[i1], ix[i2]}}, cands, {{0.1057, 0.1057}});
-        if (mass2 >= cuts.minmass2 and mass2 <= cuts.maxmass2)
+        if (!(mass2 >= cuts.minmass2 and mass2 <= cuts.maxmass2))
           continue;
 
         auto [drcond, drQ] = deltar(cands[ix[i1]].eta(), cands[ix[i2]].eta(), cands[ix[i1]].phi(), cands[ix[i2]].phi());
