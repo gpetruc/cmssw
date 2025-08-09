@@ -13,6 +13,11 @@ h2phiRecmesonStruct = cms.EDProducer("ScPhase2RecMesonH2Phi",
      src = cms.InputTag("phiRecmesonStruct"),
 )
 
+hphigammaRecmesonStruct = cms.EDProducer("ScPhase2RecMesonHPhiGamma",
+    srcMeson = cms.InputTag("phiRecmesonStruct"),
+    src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
+)
+
 rhoRecmesonStruct = cms.EDProducer("ScPhase2RecMeson",
     src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
     mesonType = cms.string("rho"),
@@ -21,6 +26,11 @@ rhoRecmesonStruct = cms.EDProducer("ScPhase2RecMeson",
 
 h2rhoRecmesonStruct = cms.EDProducer("ScPhase2RecMesonH2Rho",
      src = cms.InputTag("rhoRecmesonStruct"),
+)
+
+hrhogammaRecmesonStruct = cms.EDProducer("ScPhase2RecMesonHRhoGamma",
+    srcMeson = cms.InputTag("rhoRecmesonStruct"),
+    src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
 )
 
 w3piStruct = cms.EDProducer("ScPhase2PuppiW3PiDemo",
