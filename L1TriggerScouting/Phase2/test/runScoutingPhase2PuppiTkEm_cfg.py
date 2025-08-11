@@ -7,7 +7,7 @@ options.parseArguments()
 if options.buNumStreams == []:
     options.buNumStreams.append(2)
 # Declare analysis to run
-analyses = options.analyses if options.analyses else ["phiRecmeson", "rhoRecmeson", "h2phiRecmeson", "h2rhoRecmeson", "hphigammaRecmeson", "hrhogammaRecmeson", "h2phi", "h2rho", "hphig", "hrhog"]
+analyses = options.analyses if options.analyses else ["phiRecmeson", "rhoRecmeson", "jpsiRecmeson", "h2phiRecmeson", "h2rhoRecmeson", "hphijpsiRecmeson", "hphigammaRecmeson", "hrhogammaRecmeson", "hjpsigammaRecmeson", "h2phi", "h2rho", "hphijpsi", "hphig", "hrhog", "hjpsig"]
 print(f"Analyses set to {analyses}")
 
 process = cms.Process("SCPU")
@@ -126,7 +126,7 @@ process.scPhase2NanoAll.SelectEvents.SelectEvents = ['p_inclusive']
 process.scPhase2PuppiNanoSelected.fileName = options.outFile.replace(".root","")+".selected.root"
 process.scPhase2PuppiNanoSelected.SelectEvents.SelectEvents = ['p_selected']
 
-analyses_print = ["h2phiRecmeson", "h2rhoRecmeson", "hphigammaRecmeson", "hrhogammaRecmeson", "h2phi", "h2rho", "hphig", "hrhog"]
+analyses_print = ["h2phiRecmeson", "h2rhoRecmeson", "hphijpsiRecmeson", "hphigammaRecmeson", "hrhogammaRecmeson", "hjpsigammaRecmeson", "h2phi", "h2rho", "hphijpsi", "hphig", "hrhog", "hjpsig"]
 process.scPhase2PuppiNanoSelected.outputCommands += [ f"keep *_{a}Struct_*_*" for a in analyses_print ]
 
 process.o_nanoInclusive = cms.EndPath(process.scPhase2NanoAll)

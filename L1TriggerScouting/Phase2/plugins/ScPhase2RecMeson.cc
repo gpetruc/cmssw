@@ -81,6 +81,10 @@ ScPhase2RecMeson::ScPhase2RecMeson(const edm::ParameterSet &iConfig)
       mesonMassRange_ = {0.40, 1.30};
       dmass1_ = 0.1396;
       dmass2_ = 0.1396;
+    } else if (mesonType_ == "jpsi") {
+      mesonMassRange_ = {2.50, 3.50};
+      dmass1_ = 0.1057;
+      dmass2_ = 0.1057;
     }
 
     produces<OrbitCollection<l1Scouting::RecMeson>>();

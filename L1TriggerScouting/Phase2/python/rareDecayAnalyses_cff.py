@@ -3,6 +3,17 @@ import FWCore.ParameterSet.Config as cms
 #two modules here
 #recieves here the parameters to distiguish phi from rho
 
+jpsiRecmesonStruct = cms.EDProducer("ScPhase2RecMeson",
+    src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
+    mesonType = cms.string("jpsi"),
+    runStruct = cms.bool(True)
+)
+
+hjpsigammaRecmesonStruct = cms.EDProducer("ScPhase2RecMesonHJPsiGamma",
+    srcMeson = cms.InputTag("jpsiRecmesonStruct"),
+    src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
+)
+
 phiRecmesonStruct = cms.EDProducer("ScPhase2RecMeson",
     src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
     mesonType = cms.string("phi"),
@@ -16,6 +27,11 @@ h2phiRecmesonStruct = cms.EDProducer("ScPhase2RecMesonH2Phi",
 hphigammaRecmesonStruct = cms.EDProducer("ScPhase2RecMesonHPhiGamma",
     srcMeson = cms.InputTag("phiRecmesonStruct"),
     src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
+)
+
+hphijpsiRecmesonStruct = cms.EDProducer("ScPhase2RecMesonHPhiJPsi",
+    srcPhi = cms.InputTag("phiRecmesonStruct"),
+    srcJPsi = cms.InputTag("jpsiRecmesonStruct"),
 )
 
 rhoRecmesonStruct = cms.EDProducer("ScPhase2RecMeson",
