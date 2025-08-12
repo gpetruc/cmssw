@@ -3,6 +3,12 @@ import FWCore.ParameterSet.Config as cms
 #two modules here
 #recieves here the parameters to distiguish phi from rho
 
+photonIsolationStruct = cms.EDProducer("ScPhase2PhotonIsolation",
+    src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
+    srcTkEm = cms.InputTag("scPhase2TkEmRawToDigiStruct"),
+    runStruct = cms.bool(True)
+)
+
 jpsiRecmesonStruct = cms.EDProducer("ScPhase2RecMeson",
     src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
     mesonType = cms.string("jpsi"),
@@ -11,7 +17,7 @@ jpsiRecmesonStruct = cms.EDProducer("ScPhase2RecMeson",
 
 hjpsigammaRecmesonStruct = cms.EDProducer("ScPhase2RecMesonHJPsiGamma",
     srcMeson = cms.InputTag("jpsiRecmesonStruct"),
-    src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
+    srcGamma = cms.InputTag("photonIsolationStruct"),
 )
 
 phiRecmesonStruct = cms.EDProducer("ScPhase2RecMeson",
@@ -26,7 +32,7 @@ h2phiRecmesonStruct = cms.EDProducer("ScPhase2RecMesonH2Phi",
 
 hphigammaRecmesonStruct = cms.EDProducer("ScPhase2RecMesonHPhiGamma",
     srcMeson = cms.InputTag("phiRecmesonStruct"),
-    src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
+    srcGamma = cms.InputTag("photonIsolationStruct"),
 )
 
 hphijpsiRecmesonStruct = cms.EDProducer("ScPhase2RecMesonHPhiJPsi",
@@ -46,7 +52,7 @@ h2rhoRecmesonStruct = cms.EDProducer("ScPhase2RecMesonH2Rho",
 
 hrhogammaRecmesonStruct = cms.EDProducer("ScPhase2RecMesonHRhoGamma",
     srcMeson = cms.InputTag("rhoRecmesonStruct"),
-    src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
+    srcGamma = cms.InputTag("photonIsolationStruct"),
 )
 
 w3piStruct = cms.EDProducer("ScPhase2PuppiW3PiDemo",

@@ -7,7 +7,7 @@ options.parseArguments()
 if options.buNumStreams == []:
     options.buNumStreams.append(2)
 # Declare analysis to run
-analyses = options.analyses if options.analyses else ["phiRecmeson", "rhoRecmeson", "jpsiRecmeson", "h2phiRecmeson", "h2rhoRecmeson", "hphijpsiRecmeson", "hphigammaRecmeson", "hrhogammaRecmeson", "hjpsigammaRecmeson", "h2phi", "h2rho", "hphijpsi", "hphig", "hrhog", "hjpsig"]
+analyses = options.analyses if options.analyses else ["photonIsolation", "phiRecmeson", "rhoRecmeson", "jpsiRecmeson", "h2phiRecmeson", "h2rhoRecmeson", "hphijpsiRecmeson", "hphigammaRecmeson", "hrhogammaRecmeson", "hjpsigammaRecmeson", "h2phi", "h2rho", "hphijpsi", "hphig", "hrhog", "hjpsig"]
 print(f"Analyses set to {analyses}")
 
 process = cms.Process("SCPU")

@@ -22,6 +22,12 @@ scPhase2RhoRecMesonStructToTable = cms.EDProducer("ScRecMesonToOrbitFlatTable",
     doc = cms.string("Reconstructed Rho Meson candidates"),
 )
 
+scPhase2JPsiRecMesonStructToTable = cms.EDProducer("ScRecMesonToOrbitFlatTable",
+    src = cms.InputTag("jpsiRecmesonStruct"),
+    name = cms.string("jpsiRecMeson"),
+    doc = cms.string("Reconstructed J/Psi Meson candidates"),
+)
+
 scPhase2TkEmStructToTable = cms.EDProducer("ScTkEmToOrbitFlatTable",
     src = cms.InputTag("scPhase2TkEmRawToDigiStruct"),
     name = cms.string("L1TkEm"),
@@ -60,6 +66,7 @@ tableProducersTkEmTask = cms.Task(
 tableProducersTask = cms.Task(
     scPhase2PhiRecMesonStructToTable,
     scPhase2RhoRecMesonStructToTable,
+    scPhase2JPsiRecMesonStructToTable,
     scPhase2PuppiStructToTable,
     tableProducersTkEmTask,
     scPhase2TrackerMuonStructToTable,
@@ -73,6 +80,7 @@ maskedTableProducersTkEmTask = cms.Task(
 maskedTableProducersTask = cms.Task(
     scPhase2PhiRecMesonStructToTable,
     scPhase2RhoRecMesonStructToTable,
+    scPhase2JPsiRecMesonStructToTable,
     scPhase2PuppiMaskedStructToTable,
     maskedTableProducersTkEmTask,
     scPhase2TrackerMuonMaskedStructToTable,
@@ -84,6 +92,7 @@ scPhase2NanoAll = cms.OutputModule("OrbitNanoAODOutputModule",
     outputCommands = cms.untracked.vstring("drop *", 
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2PhiRecMesonStructToTable_*_*",
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2RhoRecMesonStructToTable_*_*",
+        "keep l1ScoutingRun3OrbitFlatTable_scPhase2JPsiRecMesonStructToTable_*_*",
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2PuppiStructToTable_*_*", 
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2TkEmStructToTable_*_*", 
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2TkEleStructToTable_*_*",
