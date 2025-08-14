@@ -6,8 +6,7 @@ from L1TriggerScouting.Phase2.options_cff import options
 options.parseArguments()
 if options.buNumStreams == []:
     options.buNumStreams.append(2)
-# Declare analysis to run
-analyses = options.analyses if options.analyses else ["photonIsolation", "phiRecmeson", "rhoRecmeson", "jpsiRecmeson", "h2phiRecmeson", "h2rhoRecmeson", "hphijpsiRecmeson", "hphigammaRecmeson", "hrhogammaRecmeson", "hjpsigammaRecmeson", "h2phi", "h2rho", "hphijpsi", "hphig", "hrhog", "hjpsig"]
+analyses = options.analyses if options.analyses else ["photonIsolation", "phiRecmeson", "rhoRecmeson", "jpsiRecmeson", "h2phiRecmeson", "h2rhoRecmeson", "hphijpsiRecmeson", "hphigammaRecmeson", "hrhogammaRecmeson", "hjpsigammaRecmeson"] #"h2phi", "h2rho", "hphijpsi", "hphig", "hrhog", "hjpsig"
 print(f"Analyses set to {analyses}")
 
 process = cms.Process("SCPU")
@@ -23,6 +22,8 @@ process.options = cms.untracked.PSet(
 )
 process.load("FWCore.MessageService.MessageLogger_cfi")
 process.MessageLogger.cerr.FwkReport.reportEvery = 100
+
+#process.Timing = cms.Service("Timing")
 
 if len(options.buNumStreams) != len(options.buBaseDir):
     raise RuntimeError("Mismatch between buNumStreams (%d) and buBaseDirs (%d)" % (len(options.buNumStreams), len(options.buBaseDir)))
@@ -53,6 +54,9 @@ process.load( "HLTrigger.Timer.FastTimerService_cfi" )
 process.FastTimerService.writeJSONSummary = cms.untracked.bool(True)
 process.FastTimerService.jsonFileName = cms.untracked.string(f'resources.{os.uname()[1]}.{options.task}.json')
 #process.MessageLogger.cerr.FastReport = cms.untracked.PSet( limit = cms.untracked.int32( 10000000 ) )
+process.FastTimerService.enableTimingPaths = cms.untracked.bool(True)
+process.FastTimerService.enableTimingModules = cms.untracked.bool(True)
+process.FastTimerService.useRealTimeClock = cms.untracked.bool(True)
 
 fuDir = options.fuBaseDir+("/run%06d" % options.runNumber)
 buDirs = [b+("/run%06d" % options.runNumber) for b in options.buBaseDir]
@@ -126,7 +130,7 @@ process.scPhase2NanoAll.SelectEvents.SelectEvents = ['p_inclusive']
 process.scPhase2PuppiNanoSelected.fileName = options.outFile.replace(".root","")+".selected.root"
 process.scPhase2PuppiNanoSelected.SelectEvents.SelectEvents = ['p_selected']
 
-analyses_print = ["h2phiRecmeson", "h2rhoRecmeson", "hphijpsiRecmeson", "hphigammaRecmeson", "hrhogammaRecmeson", "hjpsigammaRecmeson", "h2phi", "h2rho", "hphijpsi", "hphig", "hrhog", "hjpsig"]
+analyses_print = ["h2phiRecmeson", "h2rhoRecmeson", "hphijpsiRecmeson", "hphigammaRecmeson", "hrhogammaRecmeson", "hjpsigammaRecmeson"] # "h2phi", "h2rho", "hphijpsi", "hphig", "hrhog", "hjpsig"
 process.scPhase2PuppiNanoSelected.outputCommands += [ f"keep *_{a}Struct_*_*" for a in analyses_print ]
 
 process.o_nanoInclusive = cms.EndPath(process.scPhase2NanoAll)

@@ -64,6 +64,13 @@
   <class name="OrbitCollection<l1Scouting::TkEle>" />
   <class name="edm::Wrapper<OrbitCollection<l1Scouting::TkEle>>" />
 
+  <class name="l1Scouting::TkEmIsolated"  ClassVersion="5">
+	<version ClassVersion="5" checksum="3836721583"/>
+  </class>
+  <class name="std::vector<l1Scouting::TkEmIsolated>" />
+  <class name="OrbitCollection<l1Scouting::TkEmIsolated>" />
+  <class name="edm::Wrapper<OrbitCollection<l1Scouting::TkEmIsolated>>" />
+
   <class name="l1t::PFJet"  ClassVersion="6">
         <version ClassVersion="6" checksum="2599349078"/>
         <version ClassVersion="5" checksum="2270932343"/>
