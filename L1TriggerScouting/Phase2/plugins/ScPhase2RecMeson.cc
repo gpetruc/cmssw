@@ -46,13 +46,10 @@ private:
   float dmass1_ = 0;
   float dmass2_ = 0;
 
-  struct Cuts {
-    float minptD = 10;
-    float maxdeltarD2 = 0.40 * 0.40;
-    float mindr2 = 0.05 * 0.05;
-    float maxdr2 = 0.25 * 0.25;
-    float maxiso = 0.25;
-  } cuts;
+  double minPtDau_;
+  double maxDeltaRDaus_;
+  double minDeltaR_;
+  double maxDeltaR_;
 
   template <typename T>
   float isolationQ(unsigned int pidex1, unsigned int pidex2, const T *cands, unsigned int size) const;
@@ -68,7 +65,12 @@ private:
 
 ScPhase2RecMeson::ScPhase2RecMeson(const edm::ParameterSet &iConfig)
     : doStruct_(iConfig.getParameter<bool>("runStruct")),
-      mesonType_(iConfig.getParameter<std::string>("mesonType")) {
+      mesonType_(iConfig.getParameter<std::string>("mesonType")),
+      minPtDau_(iConfig.getParameter<double>("minPtDau")),
+      maxDeltaRDaus_(iConfig.getParameter<double>("maxDeltaRDaus")),
+      minDeltaR_(iConfig.getParameter<double>("minDeltaR")),
+      maxDeltaR_(iConfig.getParameter<double>("maxDeltaR"))
+  {
   if (doStruct_) {
     //PUPPI input being given here
     structToken_ = consumes<OrbitCollection<l1Scouting::Puppi>>(iConfig.getParameter<edm::InputTag>("src"));
@@ -132,7 +134,7 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
     ix.clear();
     for (unsigned int i = 0; i < size; ++i) {  //make list of all hadrons
       if ((std::abs(cands[i].pdgId()) == 211 or std::abs(cands[i].pdgId()) == 11)) {
-        if (cands[i].pt() >= cuts.minptD)
+        if (cands[i].pt() >= minPtDau_)
           ix.push_back(i);
       }
     }
@@ -212,7 +214,7 @@ float ScPhase2RecMeson::isolationQ(unsigned int pidex1,
       continue;
     float deta = eta - cands[j].eta(), dphi = ROOT::VecOps::DeltaPhi<float>(phi, cands[j].phi());
     float dr2 = deta * deta + dphi * dphi;
-    if (dr2 >= cuts.mindr2 && dr2 <= cuts.maxdr2)
+    if (dr2 >= minDeltaR_ && dr2 <= maxDeltaR_)
       psum += cands[j].pt();
   }
   // protect from 0 division?
@@ -224,7 +226,7 @@ std::tuple<bool, float> ScPhase2RecMeson::deltar(float eta1, float eta2, float p
   float deta = eta1 - eta2;
   float dphi = ROOT::VecOps::DeltaPhi<float>(phi1, phi2);
   float dr2 = deta * deta + dphi * dphi;
-  if (dr2 > cuts.maxdeltarD2) {
+  if (dr2 > maxDeltaRDaus_) {
     passed = false;
   }
   return std::tuple(passed, dr2);
@@ -245,6 +247,11 @@ void ScPhase2RecMeson::fillDescriptions(edm::ConfigurationDescriptions &descript
   desc.add<edm::InputTag>("src");
   desc.add<bool>("runStruct", true);
   desc.add<std::string>("mesonType");
+  desc.add<double>("minPtDau");
+  desc.add<double>("maxDeltaRDaus");
+  desc.add<double>("minDeltaR");
+  desc.add<double>("maxDeltaR");
+
   descriptions.addDefault(desc);
 }
 

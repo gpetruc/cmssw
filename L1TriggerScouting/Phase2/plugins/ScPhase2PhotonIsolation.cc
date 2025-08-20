@@ -43,16 +43,10 @@ private:
   edm::EDGetTokenT<OrbitCollection<l1Scouting::Puppi>> structToken_;
   edm::EDGetTokenT<OrbitCollection<l1Scouting::TkEm>> structTkEmToken_;
 
-  struct Cuts {
-    float minpt3 = 1;
-    float mindr2 = 1;
-    float maxdr2 = 2;
-    float maxdeltar2 = 1;
-    float mindr2tkem = 1;
-    float maxdr2tkem = 1;
-    float maxiso = 1;
-    float maxisotkem = 1;
-  } cuts;
+  double minPtGamma_;
+  double minDeltaR_;
+  double maxDeltaR_;
+  double maxIsol_;
 
   template <typename T>
   bool isolationTkEm(float pt, float eta, float phi, const T *cands, unsigned int size) const;
@@ -62,7 +56,12 @@ private:
 };
 
 ScPhase2PhotonIsolation::ScPhase2PhotonIsolation(const edm::ParameterSet &iConfig)
-    : doStruct_(iConfig.getParameter<bool>("runStruct")) {
+    : doStruct_(iConfig.getParameter<bool>("runStruct")),
+      minPtGamma_(iConfig.getParameter<double>("minPtGamma")),
+      minDeltaR_(iConfig.getParameter<double>("minDeltaR")),
+      maxDeltaR_(iConfig.getParameter<double>("maxDeltaR")),
+      maxIsol_(iConfig.getParameter<double>("maxIsol"))
+    {
   if (doStruct_) {
     //PUPPI input being given here
     structToken_ = consumes<OrbitCollection<l1Scouting::Puppi>>(iConfig.getParameter<edm::InputTag>("src"));
@@ -120,7 +119,7 @@ void ScPhase2PhotonIsolation::runObj(const OrbitCollection<T> &src,
     ig.clear();
     photon_thisBx.clear();
     for (unsigned int i = 0; i < sizeTkEm; ++i) {  // make list of all photons
-      if (candsTkEm[i].pt() >= cuts.minpt3) {
+      if (candsTkEm[i].pt() >= minPtGamma_) {
 
         // photon isolation
         bool isop = isolationTkEm(
@@ -160,10 +159,10 @@ bool ScPhase2PhotonIsolation::isolationTkEm(
   for (unsigned int j = 0u; j < size; ++j) {  //loop over other particles
     float deta = eta - cands[j].eta(), dphi = ROOT::VecOps::DeltaPhi<float>(phi, cands[j].phi());
     float dr2 = deta * deta + dphi * dphi;
-    if (dr2 >= cuts.mindr2tkem && dr2 <= cuts.maxdr2tkem)
+    if (dr2 >= minDeltaR_ && dr2 <= maxDeltaR_)
       psum += cands[j].pt();
   }
-  if (psum <= cuts.maxisotkem * pt)
+  if (psum <= maxIsol_ * pt)
     passed = true;
   return passed;
 }
@@ -173,6 +172,10 @@ void ScPhase2PhotonIsolation::fillDescriptions(edm::ConfigurationDescriptions &d
   desc.add<edm::InputTag>("src");
   desc.add<edm::InputTag>("srcTkEm");
   desc.add<bool>("runStruct", true);
+  desc.add<double>("minPtGamma");
+  desc.add<double>("maxIsol");
+  desc.add<double>("minDeltaR");
+  desc.add<double>("maxDeltaR");
   descriptions.addDefault(desc);
 }
 
