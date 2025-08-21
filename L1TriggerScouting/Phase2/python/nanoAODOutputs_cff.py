@@ -11,22 +11,40 @@ scPhase2PuppiMaskedStructToTable = scPhase2PuppiStructToTable.clone(
 )
 
 scPhase2PhiRecMesonStructToTable = cms.EDProducer("ScRecMesonToOrbitFlatTable",
-    src = cms.InputTag("phiRecmesonStruct"),
+    src = cms.InputTag("allRecmesonStruct", "recMeson_phi"),
     name = cms.string("phiRecMeson"),
     doc = cms.string("Reconstructed Phi Meson candidates"),
 )
 
 scPhase2RhoRecMesonStructToTable = cms.EDProducer("ScRecMesonToOrbitFlatTable",
-    src = cms.InputTag("rhoRecmesonStruct"),
+    src = cms.InputTag("allRecmesonStruct", "recMeson_rho"),
     name = cms.string("rhoRecMeson"),
     doc = cms.string("Reconstructed Rho Meson candidates"),
 )
 
 scPhase2JPsiRecMesonStructToTable = cms.EDProducer("ScRecMesonToOrbitFlatTable",
-    src = cms.InputTag("jpsiRecmesonStruct"),
+    src = cms.InputTag("allRecmesonStruct", "recMeson_jpsi"),
     name = cms.string("jpsiRecMeson"),
     doc = cms.string("Reconstructed J/Psi Meson candidates"),
 )
+
+# scPhase2PhiRecMesonStructToTable = cms.EDProducer("ScRecMesonToOrbitFlatTable",
+#     src = cms.InputTag("phiRecmesonStruct"),
+#     name = cms.string("phiRecMeson"),
+#     doc = cms.string("Reconstructed Phi Meson candidates"),
+# )
+
+# scPhase2RhoRecMesonStructToTable = cms.EDProducer("ScRecMesonToOrbitFlatTable",
+#     src = cms.InputTag("rhoRecmesonStruct"),
+#     name = cms.string("rhoRecMeson"),
+#     doc = cms.string("Reconstructed Rho Meson candidates"),
+# )
+
+# scPhase2JPsiRecMesonStructToTable = cms.EDProducer("ScRecMesonToOrbitFlatTable",
+#     src = cms.InputTag("jpsiRecmesonStruct"),
+#     name = cms.string("jpsiRecMeson"),
+#     doc = cms.string("Reconstructed J/Psi Meson candidates"),
+# )
 
 scPhase2TkEmStructToTable = cms.EDProducer("ScTkEmToOrbitFlatTable",
     src = cms.InputTag("scPhase2TkEmRawToDigiStruct"),

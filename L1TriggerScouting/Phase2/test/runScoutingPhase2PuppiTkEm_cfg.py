@@ -6,8 +6,8 @@ from L1TriggerScouting.Phase2.options_cff import options
 options.parseArguments()
 if options.buNumStreams == []:
     options.buNumStreams.append(2)
-#analyses = options.analyses if options.analyses else ["photonIsolation", "phiRecmeson", "rhoRecmeson", "jpsiRecmeson", "z2phiRecmeson", "z2rhoRecmeson", "h2phiRecmeson", "h2rhoRecmeson", "hphijpsiRecmeson", "hphigammaRecmeson", "hrhogammaRecmeson", "hjpsigammaRecmeson"] 
-analyses = options.analyses if options.analyses else ["h2phi", "h2rho", "hphijpsi", "hphig", "hrhog", "hjpsig"]
+analyses = options.analyses if options.analyses else ["photonIsolation", "phiRecmeson", "rhoRecmeson", "jpsiRecmeson", "z2phiRecmeson", "z2rhoRecmeson", "h2phiRecmeson", "h2rhoRecmeson", "hphijpsiRecmeson", "hphigammaRecmeson", "hrhogammaRecmeson", "hjpsigammaRecmeson"] 
+#analyses = options.analyses if options.analyses else ["h2phi", "h2rho", "hphijpsi", "hphig", "hrhog", "hjpsig"]
 print(f"Analyses set to {analyses}")
 
 process = cms.Process("SCPU")
@@ -99,11 +99,27 @@ process.goodOrbitsByNBX.nbxMin = 3564 * options.timeslices // options.tmuxPeriod
 process.goodOrbitsByNBX.unpackers = [ "scPhase2PuppiRawToDigiStruct", "scPhase2TkEmRawToDigiStruct"] 
 
 ## Configure analyses
-analysisModules = [getattr(process,f"{a}Struct") for a in analyses]
+# analysisModules = [getattr(process,f"{a}Struct") for a in analyses]
+analysisModules = []
+if any(a in ["phiRecmeson","rhoRecmeson","jpsiRecmeson"] for a in analyses):
+    analysisModules.append(process.allRecmesonStruct)
+
+# keep photonIsolation, z2phiRecmeson, etc. unchanged
+for a in analyses:
+    if a not in ["phiRecmeson","rhoRecmeson","jpsiRecmeson"]:
+        analysisModules.append(getattr(process,f"{a}Struct"))
+
 process.s_analyses = cms.Sequence(sum(analysisModules[1:], analysisModules[0]))
 
 ## Configure selected outputs
-process.scPhase2SelectedBXs.analysisLabels = [cms.InputTag(f"{a}Struct", "selectedBx") for a in analyses]
+# process.scPhase2SelectedBXs.analysisLabels = [cms.InputTag(f"{a}Struct", "selectedBx") for a in analyses]
+
+process.scPhase2SelectedBXs.analysisLabels = []
+for a in analyses:
+    if a in ["phiRecmeson","rhoRecmeson","jpsiRecmeson"]:
+        process.scPhase2SelectedBXs.analysisLabels.append(cms.InputTag("allRecmesonStruct","selectedBx"))
+    else:
+        process.scPhase2SelectedBXs.analysisLabels.append(cms.InputTag(f"{a}Struct","selectedBx"))
 
 ## Define inclusive processing (ZeroBias)
 from FWCore.Modules.preScaler_cfi import preScaler
@@ -131,8 +147,8 @@ process.scPhase2NanoAll.SelectEvents.SelectEvents = ['p_inclusive']
 process.scPhase2PuppiNanoSelected.fileName = options.outFile.replace(".root","")+".selected.root"
 process.scPhase2PuppiNanoSelected.SelectEvents.SelectEvents = ['p_selected']
 
-# analyses_print = ["z2phiRecmeson", "z2rhoRecmeson", "h2phiRecmeson", "h2rhoRecmeson", "hphijpsiRecmeson", "hphigammaRecmeson", "hrhogammaRecmeson", "hjpsigammaRecmeson"] 
-analyses_print = ["h2phi", "h2rho", "hphijpsi", "hphig", "hrhog", "hjpsig"]
+analyses_print = ["z2phiRecmeson", "z2rhoRecmeson", "h2phiRecmeson", "h2rhoRecmeson", "hphijpsiRecmeson", "hphigammaRecmeson", "hrhogammaRecmeson", "hjpsigammaRecmeson"] 
+# analyses_print = ["h2phi", "h2rho", "hphijpsi", "hphig", "hrhog", "hjpsig"]
 process.scPhase2PuppiNanoSelected.outputCommands += [ f"keep *_{a}Struct_*_*" for a in analyses_print ]
 
 process.o_nanoInclusive = cms.EndPath(process.scPhase2NanoAll)
