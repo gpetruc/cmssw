@@ -43,10 +43,11 @@ private:
   edm::EDGetTokenT<OrbitCollection<l1Scouting::Puppi>> structToken_;
   std::vector<std::string> mesonTypes_;
 
-  std::vector<float> minDeltaR_;
-  std::vector<float> maxDeltaR_;
-  std::vector<float> maxDeltaRDaus_;
+  float minDeltaR_ = 0.05 * 0.05;
+  float maxDeltaR_ = 0.25 * 0.25;
+  float maxDeltaRDaus_ = 0.40 * 0.40;
   float minPtDau_ = 5.0;
+  
   std::vector<std::array<float, 2>> massRange_;
   std::vector<float> dmass1_;
   std::vector<float> dmass2_;
@@ -74,23 +75,14 @@ ScPhase2RecMesonAll::ScPhase2RecMesonAll(const edm::ParameterSet &iConfig)
     for (const auto &mt : mesonTypes_) {
     
       if (mt == "phi") {
-        minDeltaR_.push_back(0.05 * 0.05);
-        maxDeltaR_.push_back(0.25 * 0.25);
-        maxDeltaRDaus_.push_back(0.40 * 0.40);
         massRange_.push_back({{0.95, 1.25}});
         dmass1_.push_back(0.4937);
         dmass2_.push_back(0.4937);
       } else if (mt == "rho") {
-        minDeltaR_.push_back(0.05 * 0.05);
-        maxDeltaR_.push_back(0.25 * 0.25);
-        maxDeltaRDaus_.push_back(0.40 * 0.40);
         massRange_.push_back({{0.40, 1.30}});
         dmass1_.push_back(0.1396);
         dmass2_.push_back(0.1396);
       } else if (mt == "jpsi") {
-        minDeltaR_.push_back(0.05 * 0.05);
-        maxDeltaR_.push_back(0.25 * 0.25);
-        maxDeltaRDaus_.push_back(0.40 * 0.40);
         massRange_.push_back({{2.50, 3.50}});
         dmass1_.push_back(0.1057);
         dmass2_.push_back(0.1057);
@@ -159,18 +151,18 @@ void ScPhase2RecMesonAll::runObj(const OrbitCollection<T> &src,
         if (!(cands[ix[i1]].charge() * cands[ix[i2]].charge() < 0))
           continue;
 
+        float drQ = deltar(cands[ix[i1]].eta(), cands[ix[i2]].eta(), cands[ix[i1]].phi(), cands[ix[i2]].phi());
+        if (drQ > maxDeltaRDaus_) 
+          continue;
+
+        float isoDR0p25 = isolationQ(0, ix[i1], ix[i2], cands, size);
+
         for (unsigned int itype = 0; itype < mesonTypes_.size(); ++itype) {
 
           auto mass2 = pairmass({{ix[i1], ix[i2]}}, cands, {{dmass1_[itype], dmass2_[itype]}});
           if (!(mass2 >= massRange_[itype][0] and mass2 <= massRange_[itype][1]))
             continue;
 
-          float drQ = deltar(cands[ix[i1]].eta(), cands[ix[i2]].eta(), cands[ix[i1]].phi(), cands[ix[i2]].phi());
-          if (drQ > maxDeltaRDaus_[itype]) 
-            continue;
-  
-          float isoDR0p25 = isolationQ(itype, ix[i1], ix[i2], cands, size);
-  
           auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[ix[i1]].pt(), cands[ix[i1]].eta(), cands[ix[i1]].phi(), dmass1_[itype]);
           auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[ix[i2]].pt(), cands[ix[i2]].eta(), cands[ix[i2]].phi(), dmass2_[itype]);
           auto recMeson_quad = p4_1 + p4_2;
@@ -218,7 +210,7 @@ float ScPhase2RecMesonAll::isolationQ(int itype, unsigned int pidex1,
       continue;
     float deta = eta - cands[j].eta(), dphi = ROOT::VecOps::DeltaPhi<float>(phi, cands[j].phi());
     float dr2 = deta * deta + dphi * dphi;
-    if (dr2 >= minDeltaR_[0] && dr2 <= maxDeltaR_[0])
+    if (dr2 >= minDeltaR_ && dr2 <= maxDeltaR_)
       psum += cands[j].pt();
   }
   // protect from 0 division?
