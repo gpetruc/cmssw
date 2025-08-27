@@ -46,6 +46,7 @@ private:
   float minDeltaR_ = 0.05 * 0.05;
   float maxDeltaR_ = 0.25 * 0.25;
   float maxDeltaRDaus_ = 0.40 * 0.40;
+  float maxDeltaZ_ = 1;
   float minPtDau_ = 5.0;
   
   std::vector<std::array<float, 2>> massRange_;
@@ -153,6 +154,12 @@ void ScPhase2RecMesonAll::runObj(const OrbitCollection<T> &src,
 
         float drQ = deltar(cands[ix[i1]].eta(), cands[ix[i2]].eta(), cands[ix[i1]].phi(), cands[ix[i2]].phi());
         if (drQ > maxDeltaRDaus_) 
+          continue;
+
+        // std::cout << "Z = " << cands[ix[i1]].z0() << " ; " << cands[ix[i2]].z0() << std::endl;
+
+        float dZ = abs(cands[ix[i1]].z0() - cands[ix[i2]].z0());
+        if (dZ > maxDeltaZ_) 
           continue;
 
         float isoDR0p25 = isolationQ(0, ix[i1], ix[i2], cands, size);
