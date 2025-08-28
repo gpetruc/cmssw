@@ -12,4 +12,5 @@
 #include "DataFormats/L1TParticleFlow/interface/L1ScoutingPuppi.h"
 // #include "DataFormats/L1TParticleFlow/interface/L1ScoutingPF.h"
 #include "DataFormats/L1TParticleFlow/interface/L1ScoutingTkEm.h"
+#include "DataFormats/L1TParticleFlow/interface/L1ScoutingTTrack.h"
 #include "DataFormats/L1Scouting/interface/OrbitCollection.h"
