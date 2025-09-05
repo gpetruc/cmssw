@@ -104,12 +104,12 @@ void ScPhase2TrackerRawToDigi::unpackFromRaw(uint64_t datalow,
                                             std::vector<l1Scouting::TTrack> &outBuffer) {
   
   //TODO - check types, is it all supposed to be double?                                            
-  double rinv, chi2RPhi, tanl, z0, chi2Rz, d0, bendChi2, mvaQuality, MVAOther;
+  double rinv, chi2RPhi, tanl, phi0, z0, chi2Rz, d0, bendChi2, mvaQuality, MVAOther;
   int16_t hitPattern;
 
-  l1tkemUnpack::read(datalow, datahigh, rinv, phi, chi2RPhi, tanl, z0, chi2Rz, d0, bendChi2, hitPattern, mvaQuality, MVAOther);
+  l1tkemUnpack::read(datalow, datahigh, rinv, phi0, chi2RPhi, tanl, z0, chi2Rz, d0, bendChi2, hitPattern, mvaQuality, MVAOther);
   
-  outBuffer.emplace_back(rinv, phi, chi2RPhi, tanl, z0, chi2Rz, d0, bendChi2, hitPattern, mvaQuality, MVAOther);
+  outBuffer.emplace_back(rinv, phi0, chi2RPhi, tanl, z0, chi2Rz, d0, bendChi2, hitPattern, mvaQuality, MVAOther);
 }
 
 void ScPhase2TrackerRawToDigi::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {

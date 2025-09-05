@@ -55,7 +55,7 @@ namespace l1Scouting {
     TTrack() {}
     TTrack(bool valid,
       double rInv,
-      double phi, 
+      double phi0, 
       double chi2RPhi,
       double tanl,
       double z0,

@@ -21,7 +21,7 @@ namespace l1tkemUnpack {
   inline void read(const uint64_t datalow,
                          const uint32_t datahigh,
                          double &rinv,
-                         double &phi,
+                         double &phi0,
                          double &chi2RPhi,
                          double &tanl,
                          double &z0,
