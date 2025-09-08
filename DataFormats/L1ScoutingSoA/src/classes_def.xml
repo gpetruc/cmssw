@@ -1,0 +1,14 @@
+<lcgdict>
+  <!-- OrbitEventIndexMapHostCollection -->
+  <class name="l1sc::OrbitEventIndexMapSoA"/>
+  <class name="l1sc::OrbitEventIndexMapSoA::View"/>
+  <class name="l1sc::OrbitEventIndexMapSoA::ConstView"/>
+  <class name="l1sc::OrbitEventIndexMapHostCollection"/>
+  <class name="edm::Wrapper<l1sc::OrbitEventIndexMapHostCollection>" splitLevel="0"/>
+  <!-- PuppiHostCollection -->
+  <class name="l1sc::PuppiSoA"/>
+  <class name="l1sc::PuppiSoA::View"/>
+  <class name="l1sc::PuppiSoA::ConstView"/>
+  <class name="l1sc::PuppiHostCollection"/>
+  <class name="edm::Wrapper<l1sc::PuppiHostCollection>" splitLevel="0"/>
+</lcgdict>

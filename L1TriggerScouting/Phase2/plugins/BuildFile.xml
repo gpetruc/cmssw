@@ -7,3 +7,13 @@
 <use name="L1TriggerScouting/Utilities"/>
 <use name="L1TriggerScouting/Phase2"/>
 <flags EDM_PLUGIN="1"/>
+
+<library file="alpaka/*.cc" name="L1ScoutingPhase2Alpaka">
+  <use name="alpaka"/>
+  <use name="DataFormats/L1ScoutingSoA"/>
+  <use name="FWCore/Utilities"/>
+  <use name="HeterogeneousCore/AlpakaCore"/>
+  <use name="HeterogeneousCore/AlpakaInterface"/>
+  <flags ALPAKA_BACKENDS="serial cuda rocm"/>
+  <flags EDM_PLUGIN="1"/>
+</library>

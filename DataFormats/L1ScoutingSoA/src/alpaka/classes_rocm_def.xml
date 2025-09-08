@@ -1,0 +1,12 @@
+<lcgdict>
+  <!-- OrbitEventIndexMapDeviceCollection -->
+  <class name="alpaka_rocm_async::PortableCollection<l1sc::OrbitEventIndexMapSoA>" persistent="false"/>
+  <class name="alpaka_rocm_async::l1sc::OrbitEventIndexMapDeviceCollection" persistent="false"/>
+  <class name="edm::DeviceProduct<alpaka_rocm_async::l1sc::OrbitEventIndexMapDeviceCollection>" persistent="false"/>
+  <class name="edm::Wrapper<edm::DeviceProduct<alpaka_rocm_async::l1sc::OrbitEventIndexMapDeviceCollection>>" persistent="false"/>
+  <!-- PuppiDeviceCollection -->
+  <class name="alpaka_rocm_async::PortableCollection<l1sc::PuppiSoA>" persistent="false"/>
+  <class name="alpaka_rocm_async::l1sc::PuppiDeviceCollection" persistent="false"/>
+  <class name="edm::DeviceProduct<alpaka_rocm_async::l1sc::PuppiDeviceCollection>" persistent="false"/>
+  <class name="edm::Wrapper<edm::DeviceProduct<alpaka_rocm_async::l1sc::PuppiDeviceCollection>>" persistent="false"/>
+</lcgdict>
