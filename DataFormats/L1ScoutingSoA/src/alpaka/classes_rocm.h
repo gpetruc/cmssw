@@ -7,5 +7,6 @@
 #include "DataFormats/L1ScoutingSoA/interface/PuppiSoA.h"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/OrbitEventIndexMapDeviceCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/PuppiDeviceCollection.h"
+#include "DataFormats/L1ScoutingSoA/interface/alpaka/CounterDevice.h"
 
 #endif  // DataFormats_L1ScoutingSoA_src_alpaka_classes_rocm_h

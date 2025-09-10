@@ -11,4 +11,7 @@
   <class name="l1sc::PuppiSoA::ConstView"/>
   <class name="l1sc::PuppiHostCollection"/>
   <class name="edm::Wrapper<l1sc::PuppiHostCollection>" splitLevel="0"/>
+  <!-- CounterHost -->
+  <class name="l1sc::CounterHost"/>
+  <class name="edm::Wrapper<l1sc::CounterHost>" splitLevel="0"/>  
 </lcgdict>

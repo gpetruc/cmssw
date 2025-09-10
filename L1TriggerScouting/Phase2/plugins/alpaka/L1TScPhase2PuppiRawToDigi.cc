@@ -1,5 +1,6 @@
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/OrbitEventIndexMapDeviceCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/PuppiDeviceCollection.h"
+#include "DataFormats/L1ScoutingSoA/interface/CounterHost.h"
 #include "DataFormats/L1ScoutingRawData/interface/SDSRawDataCollection.h"
 #include "FWCore/ParameterSet/interface/ConfigurationDescriptions.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
@@ -32,6 +33,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
     const edm::EDGetTokenT<SDSRawDataCollection> raw_data_token_;                               // raw data
     const device::EDPutToken<PuppiDeviceCollection> puppi_token_;                               // PUPPI candidates
     const device::EDPutToken<OrbitEventIndexMapDeviceCollection> orbit_association_map_token_;  // orbit association map
+    const edm::EDPutTokenT<CounterHost> nbx_token_;                                   // number of bunch crossings
     const std::vector<uint32_t> links_ids_;                                           // front-end devices stream links
     std::array<data_t, kOrbitSize> h_data_{};                                         // headers 64-bit words
     std::vector<data_t> p_data_{};                                                    // payload 64-bit words
@@ -39,7 +41,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
     const bool verbose_;                                                              // verbose output
     const int verbose_level_;                                                         // verbose level
 
-    void collectBuffers(const SDSRawDataCollection &raw_data);
+    unsigned int collectBuffers(const SDSRawDataCollection &raw_data);
     void logDebugMessage(int event_id, const PuppiHostCollection &puppi_host) const;
   };
 
@@ -51,6 +53,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
         raw_data_token_{consumes(params.getParameter<edm::InputTag>("src"))},
         puppi_token_{produces()},
         orbit_association_map_token_{produces()},
+        nbx_token_{produces("nbx")},
         links_ids_(params.getParameter<std::vector<uint32_t>>("linksIds")),
         raw_to_digi_kernels_(std::make_unique<kernels::L1TScPhase2PuppiRawToDigiKernels>()),
         verbose_(params.getUntrackedParameter<bool>("verbose")),
@@ -64,16 +67,18 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
     auto raw_data = event.getHandle(raw_data_token_);
 
     // preprocess header -> payload
-    collectBuffers(*raw_data);
+    auto nbx = collectBuffers(*raw_data);
 
     // orbit event index association map
-    auto map_size = links_ids_.size() * kOrbitSize + 1;
+    auto map_size = nbx + 1;
     auto orbit_association_map = OrbitEventIndexMapDeviceCollection(map_size, event.queue());
     kernels::associateOrbitEventIndex(event.queue(), h_data_.data(), orbit_association_map);
 
     // pf candidates data
     auto puppi = PuppiDeviceCollection(p_data_.size(), event.queue());
     kernels::rawToDigi(event.queue(), p_data_.data(), puppi);
+
+    auto nbxProd = CounterHost(event.queue(), nbx);
 
     // debug log to stdout
     if (verbose_) {
@@ -86,6 +91,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
     // store data in the event
     event.emplace(orbit_association_map_token_, std::move(orbit_association_map));
     event.emplace(puppi_token_, std::move(puppi));
+    event.emplace(nbx_token_, std::move(nbxProd));
   }
 
   void L1TScPhase2PuppiRawToDigi::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
@@ -97,9 +103,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
     descriptions.addWithDefaultLabel(desc);
   }
 
-  void L1TScPhase2PuppiRawToDigi::collectBuffers(const SDSRawDataCollection &raw_data) {
+  unsigned int L1TScPhase2PuppiRawToDigi::collectBuffers(const SDSRawDataCollection &raw_data) {
     p_data_.clear();  // reset payload buffer
-
     size_t h_idx = 0;
     for (auto &link_id : links_ids_) {
       const auto &link = raw_data.FEDData(link_id);
@@ -128,6 +133,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
         ptr += copy_count;                                     // move to the next word
       }
     }
+    return h_idx;
   }
 
   /**

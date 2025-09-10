@@ -6,7 +6,9 @@
 <use name="DataFormats/L1TParticleFlow"/>
 <use name="L1TriggerScouting/Utilities"/>
 <use name="L1TriggerScouting/Phase2"/>
-<flags EDM_PLUGIN="1"/>
+<library file="*.cc" name="L1ScoutingPhase2Classical">
+  <flags EDM_PLUGIN="1"/>
+</library>
 
 <library file="alpaka/*.cc" name="L1ScoutingPhase2Alpaka">
   <use name="alpaka"/>

@@ -6,5 +6,6 @@
 #include "DataFormats/L1ScoutingSoA/interface/OrbitEventIndexMapSoA.h"
 #include "DataFormats/L1ScoutingSoA/interface/PuppiHostCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/PuppiSoA.h"
+#include "DataFormats/L1ScoutingSoA/interface/CounterHost.h"
 
 #endif  // DataFormats_L1ScoutingSoA_src_classes_h

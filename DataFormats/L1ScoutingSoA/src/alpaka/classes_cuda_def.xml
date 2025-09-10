@@ -9,4 +9,9 @@
   <class name="alpaka_cuda_async::l1sc::PuppiDeviceCollection" persistent="false"/>
   <class name="edm::DeviceProduct<alpaka_cuda_async::l1sc::PuppiDeviceCollection>" persistent="false"/>
   <class name="edm::Wrapper<edm::DeviceProduct<alpaka_cuda_async::l1sc::PuppiDeviceCollection>>" persistent="false"/>
+  <!-- CounterDevice -->
+  <class name="alpaka_cuda_async::PortableObject<unsigned int>" persistent="false"/>
+  <class name="alpaka_cuda_async::l1sc::CounterDevice" persistent="false"/>
+  <class name="edm::DeviceProduct<alpaka_cuda_async::l1sc::CounterDevice>" persistent="false"/>
+  <class name="edm::Wrapper<edm::DeviceProduct<alpaka_cuda_async::l1sc::CounterDevice>>" persistent="false"/>  
 </lcgdict>
