@@ -19,6 +19,11 @@ scPhase2TkEleMasked = cms.EDProducer("MaskOrbitBxScoutingTkEle",
     selectBxs = cms.InputTag("scPhase2SelectedBXs","SelBx"),
 )
 
+scPhase2TrackerMasked = scPhase2PuppiMasked.clone(
+    dataTag = cms.InputTag("scPhase2TrackerRawToDigiStruct"),
+    selectBxs = cms.InputTag("scPhase2SelectedBXs","SelBx"),
+)
+
 scPhase2TrackerMuonMasked = cms.EDProducer("MaskOrbitBxScoutingTrackerMuon",
     dataTag = cms.InputTag("scPhase2TrackerMuonRawToDigiStruct"),
     selectBxs = cms.InputTag("scPhase2SelectedBXs","SelBx"),

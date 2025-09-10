@@ -10,6 +10,11 @@ scPhase2TkEmRawToDigiStruct = cms.EDProducer('ScPhase2TkEmRawToDigi',
   fedIDs = cms.vuint32(),
 )
 
+scPhase2TrackerRawToDigiStruct = cms.EDProducer('ScPhase2TrackerRawToDigi',
+  src = cms.InputTag('rawDataCollector'),
+  fedIDs = cms.vuint32(),
+)
+
 scPhase2TrackerMuonRawToDigiStruct = cms.EDProducer('ScPhase2TrackerMuonRawToDigi',
   src = cms.InputTag('rawDataCollector'),
   fedIDs = cms.vuint32(),

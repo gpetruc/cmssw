@@ -53,7 +53,7 @@ namespace l1Scouting {
   class TTrack {
   public:
     TTrack() {}
-    TTrack(bool valid,
+    TTrack(
       double rInv,
       double phi0, 
       double chi2RPhi,
@@ -65,7 +65,6 @@ namespace l1Scouting {
       unsigned int hitPattern,
       double mvaQuality,
       double mvaOther) : 
-        valid_(valid),
         rInv_(rInv),
         phi0_(phi0), 
         tanl_(tanl),
@@ -82,7 +81,9 @@ namespace l1Scouting {
 
         }
 
-  double valid() const { return valid_; }
+
+
+
   double rInv() const { return rInv_; }
   double phi0() const { return phi0_; }
   double tanl() const { return tanl_; }
@@ -97,16 +98,16 @@ namespace l1Scouting {
   double pt() const { return pt_; }
 
   private:
-    double valid_, rInv_, phi0_, tanl_, z0_, d0_, pt_;
+    double rInv_, phi0_, tanl_, z0_, d0_, pt_;
     double chi2RPhi_, chi2RZ_, bendChi2_, hitPattern_, mvaQuality_, mvaOther_;
   };
 
   struct TTrackSOA {
     std::vector<uint16_t> bx;
     std::vector<uint32_t> offsets;
-    std::vector<double> valid, rInv, phi0, tanl, z0, d0, pt;
+    std::vector<double> rInv, phi0, tanl, z0, d0, pt;
     std::vector<double> chi2RPhi, chi2RZ, bendChi2, hitPattern, mvaQuality, mvaOther;
-    TTrackSOA() : bx(), offsets(), valid(), rInv(), phi0(), tanl(), z0(), d0(), chi2RPhi(), chi2RZ(), bendChi2(), hitPattern() {}
+    TTrackSOA() : bx(), offsets(), rInv(), phi0(), tanl(), z0(), d0(), chi2RPhi(), chi2RZ(), bendChi2(), hitPattern() {}
     TTrackSOA(const TTrackSOA& other) = default;
     TTrackSOA(TTrackSOA&& other) = default;
     TTrackSOA& operator=(const TTrackSOA& other) = default;

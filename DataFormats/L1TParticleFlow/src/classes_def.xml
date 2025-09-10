@@ -42,8 +42,8 @@
   <class name="OrbitCollection<l1t::PFCandidate>" />
   <class name="edm::Wrapper<OrbitCollection<l1t::PFCandidate>>" />
 
-  <class name="l1Scouting::TTrack"  ClassVersion="4">
-        <version ClassVersion="4" checksum="2198217715"/>
+  <class name="l1Scouting::TTrack"  ClassVersion="5">
+        <version ClassVersion="5" checksum="2659641705"/>
   </class>
   <class name="std::vector<l1Scouting::TTrack>" />
   <class name="OrbitCollection<l1Scouting::TTrack>" />

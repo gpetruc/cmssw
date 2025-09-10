@@ -48,6 +48,16 @@ scPhase2TkEleMaskedStructToTable = scPhase2TkEleStructToTable.clone(
     src = "scPhase2TkEleMasked"
 )
 
+scPhase2TrackerStructToTable = cms.EDProducer("ScTrackerToOrbitFlatTable",
+    src = cms.InputTag("scPhase2TrackerRawToDigiStruct"),
+    name = cms.string("L1Tracker"),
+    doc = cms.string("L1Tracker candidates from GMT"),
+)
+
+scPhase2TrackerMaskedStructToTable = scPhase2TrackerStructToTable.clone(
+    src = "scPhase2TrackerMasked"
+)
+
 scPhase2TrackerMuonStructToTable = cms.EDProducer("ScTrackerMuonToOrbitFlatTable",
     src = cms.InputTag("scPhase2TrackerMuonRawToDigiStruct"),
     name = cms.string("L1TrackerMuon"),
@@ -61,6 +71,10 @@ scPhase2TrackerMuonMaskedStructToTable = scPhase2TrackerMuonStructToTable.clone(
 tableProducersTkEmTask = cms.Task(
     scPhase2TkEmStructToTable,
     scPhase2TkEleStructToTable,
+)
+
+tableProducersTrackerTask = cms.Task(
+    scPhase2TrackerStructToTable,
 )
 
 tableProducersTask = cms.Task(
@@ -77,12 +91,17 @@ maskedTableProducersTkEmTask = cms.Task(
     scPhase2TkEleMaskedStructToTable,
 )
 
+maskedTableProducersTrackerTask = cms.Task(
+    scPhase2TrackerMaskedStructToTable,
+)
+
 maskedTableProducersTask = cms.Task(
     scPhase2PhiRecMesonStructToTable,
     scPhase2RhoRecMesonStructToTable,
     scPhase2JPsiRecMesonStructToTable,
     scPhase2PuppiMaskedStructToTable,
     maskedTableProducersTkEmTask,
+    maskedTableProducersTrackerTask,
     scPhase2TrackerMuonMaskedStructToTable,
 )
 
@@ -96,6 +115,7 @@ scPhase2NanoAll = cms.OutputModule("OrbitNanoAODOutputModule",
         # "keep l1ScoutingRun3OrbitFlatTable_scPhase2PuppiStructToTable_*_*", 
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2TkEmStructToTable_*_*", 
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2TkEleStructToTable_*_*",
+        "keep l1ScoutingRun3OrbitFlatTable_scPhase2TrackerStructToTable_*_*",
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2TrackerMuonStructToTable_*_*"),
     compressionLevel = cms.untracked.int32(4),
     compressionAlgorithm = cms.untracked.string("LZ4"),

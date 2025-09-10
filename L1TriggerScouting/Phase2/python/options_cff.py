@@ -61,6 +61,12 @@ options.register ('tkEmStreamIDs',
                   VarParsing.VarParsing.varType.int,          # string, int, or float
                   "Stream IDs for the TkEm inputs")
 
+options.register ('trackerStreamIDs',
+                  [], # default value
+                  VarParsing.VarParsing.multiplicity.list,
+                  VarParsing.VarParsing.varType.int,          # string, int, or float
+                  "Stream IDs for the Tracker inputs")
+
 options.register ('tkMuStreamIDs',
                   [], # default value
                   VarParsing.VarParsing.multiplicity.list,
