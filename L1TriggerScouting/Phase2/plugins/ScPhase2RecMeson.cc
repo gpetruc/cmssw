@@ -177,21 +177,8 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
       }
     }
 
-    // if ( mesonVec_thisBx.size() >= 2) {
-    //   std::cout << "BX = " << bx << " ; number of mesons = " << mesonVec_thisBx.size() << std::endl;
-    //   std::cout << "cand 0 - ids = " << mesonVec_thisBx[0].id1() << " and " << mesonVec_thisBx[0].id2() << std::endl ;
-    //   std::cout << "cand 1 - ids = " << mesonVec_thisBx[1].id1() << " and " << mesonVec_thisBx[1].id2() << std::endl << std::endl;
-    // }
-
     mesonVec.push_back(mesonVec_thisBx);
-    // if(bx == 1) mesonVec.push_back(mesonVec_thisBx);
-    // bxOffsetsFiller.addBx(bx, 1);
   }  // loop on BXs
-
-  // std::cout << "Rec Meson - mesonVec.size() - " << mesonVec.size() << std::endl;
-  // std::cout << "Rec Meson - nbx - " << nbx << std::endl;
-
-  // auto bxOffsets = bxOffsetsFiller.done();
 
   // Put flat table into event
   auto outRecMeson = std::make_unique<OrbitCollection<l1Scouting::RecMeson>>(mesonVec, ntotRecMeson);

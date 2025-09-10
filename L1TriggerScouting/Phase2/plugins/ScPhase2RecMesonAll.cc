@@ -251,10 +251,3 @@ void ScPhase2RecMesonAll::fillDescriptions(edm::ConfigurationDescriptions &descr
 }
 
 DEFINE_FWK_MODULE(ScPhase2RecMesonAll);
-
-
-// process.scoutingMesons = cms.EDProducer("ScPhase2RecMesonAll",
-//   src = cms.InputTag("l1tPuppi"),
-//   runStruct = cms.bool(True),
-//   mesonTypes = cms.vstring("phi", "rho", "jpsi")
-// )
