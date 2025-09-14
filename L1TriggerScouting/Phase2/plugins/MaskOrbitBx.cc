@@ -10,10 +10,10 @@ typedef MaskOrbitBx<l1Scouting::Puppi> MaskOrbitBxScoutingPuppi;
 typedef MaskOrbitBx<l1Scouting::TkEm> MaskOrbitBxScoutingTkEm;
 typedef MaskOrbitBx<l1Scouting::TkEle> MaskOrbitBxScoutingTkEle;
 typedef MaskOrbitBx<l1Scouting::TrackerMuon> MaskOrbitBxScoutingTrackerMuon;
-typedef MaskOrbitBx<l1Scouting::TTrack> MaskOrbitBxScoutingTracker;
+typedef MaskOrbitBx<l1Scouting::TTrack> MaskOrbitBxScoutingTrackerTrack;
 
 DEFINE_FWK_MODULE(MaskOrbitBxScoutingPuppi);
 DEFINE_FWK_MODULE(MaskOrbitBxScoutingTkEm);
 DEFINE_FWK_MODULE(MaskOrbitBxScoutingTkEle);
 DEFINE_FWK_MODULE(MaskOrbitBxScoutingTrackerMuon);
-DEFINE_FWK_MODULE(MaskOrbitBxScoutingTracker);
+DEFINE_FWK_MODULE(MaskOrbitBxScoutingTrackerTrack);

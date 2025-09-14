@@ -11,12 +11,12 @@
 #include "DataFormats/L1ScoutingRawData/interface/SDSRawDataCollection.h"
 #include "DataFormats/L1Scouting/interface/OrbitCollection.h"
 #include "DataFormats/L1TParticleFlow/interface/L1ScoutingTTrack.h"
-#include "L1TriggerScouting/Phase2/interface/l1trackerUnpack.h"
+#include "L1TriggerScouting/Phase2/interface/l1trkUnpack.h"
 
-class ScPhase2TrackerRawToDigi : public edm::stream::EDProducer<> {
+class ScPhase2TrackerTrackRawToDigi : public edm::stream::EDProducer<> {
 public:
-  explicit ScPhase2TrackerRawToDigi(const edm::ParameterSet &);
-  ~ScPhase2TrackerRawToDigi() override;
+  explicit ScPhase2TrackerTrackRawToDigi(const edm::ParameterSet &);
+  ~ScPhase2TrackerTrackRawToDigi() override;
   static void fillDescriptions(edm::ConfigurationDescriptions &descriptions);
 
 private:
@@ -27,6 +27,7 @@ private:
 
   edm::EDGetTokenT<SDSRawDataCollection> rawToken_;
   std::vector<unsigned int> fedIDs_;
+  unsigned int nFitPars_;
 
   // temporary storage
   std::vector<std::vector<l1Scouting::TTrack>> structBuffer_;
@@ -34,17 +35,18 @@ private:
   void unpackFromRaw(uint64_t datalow, uint32_t datahigh, std::vector<l1Scouting::TTrack> &outBuffer);
 };
 
-ScPhase2TrackerRawToDigi::ScPhase2TrackerRawToDigi(const edm::ParameterSet &iConfig)
+ScPhase2TrackerTrackRawToDigi::ScPhase2TrackerTrackRawToDigi(const edm::ParameterSet &iConfig)
     : rawToken_(consumes<SDSRawDataCollection>(iConfig.getParameter<edm::InputTag>("src"))),
-      fedIDs_(iConfig.getParameter<std::vector<unsigned int>>("fedIDs")) {
+      fedIDs_(iConfig.getParameter<std::vector<unsigned int>>("fedIDs")),
+      nFitPars_(iConfig.getParameter<unsigned int>("nFitPars")) {
   structBuffer_.resize(OrbitCollection<l1Scouting::TTrack>::NBX + 1);
   produces<OrbitCollection<l1Scouting::TTrack>>();
   produces<unsigned int>("nbx");
 }
 
-ScPhase2TrackerRawToDigi::~ScPhase2TrackerRawToDigi() {};
+ScPhase2TrackerTrackRawToDigi::~ScPhase2TrackerTrackRawToDigi() {};
 
-void ScPhase2TrackerRawToDigi::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
+void ScPhase2TrackerTrackRawToDigi::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
   edm::Handle<SDSRawDataCollection> feds;
   iEvent.getByToken(rawToken_, feds);
 
@@ -79,7 +81,7 @@ void ScPhase2TrackerRawToDigi::produce(edm::Event &iEvent, const edm::EventSetup
       const uint32_t *ptr32 = reinterpret_cast<const uint32_t *>(p);
 
       for (unsigned int i = 0; i < nTrackers; ++i, ptr32 += 3 /* jumping 96bits*/) {
-        if ((i & 1) == 1)  // ODD Trackers
+        if ((i & 1) == 1)  // ODD tracks
         {
           datalow = *reinterpret_cast<const uint64_t *>(ptr32 + 1);
           datahigh = *ptr32;
@@ -99,24 +101,61 @@ void ScPhase2TrackerRawToDigi::produce(edm::Event &iEvent, const edm::EventSetup
   iEvent.put(std::make_unique<unsigned int>(nbx), "nbx");
 }
 
-void ScPhase2TrackerRawToDigi::unpackFromRaw(uint64_t datalow,
-                                            uint32_t datahigh,
-                                            std::vector<l1Scouting::TTrack> &outBuffer) {
-  
-  //TODO - check types, is it all supposed to be double?                                            
-  double rinv, chi2RPhi, tanl, phi0, z0, chi2Rz, d0, bendChi2, mvaQuality, MVAOther;
-  int16_t hitPattern;
+void ScPhase2TrackerTrackRawToDigi::unpackFromRaw(uint64_t datalow,
+                                                  uint32_t datahigh,
+                                                  std::vector<l1Scouting::TTrack> &outBuffer) {
 
-  l1tkemUnpack::read(datalow, datahigh, rinv, phi0, chi2RPhi, tanl, z0, chi2Rz, d0, bendChi2, hitPattern, mvaQuality, MVAOther);
-  
-  outBuffer.emplace_back(rinv, phi0, chi2RPhi, tanl, z0, chi2Rz, d0, bendChi2, hitPattern, mvaQuality, MVAOther);
+  unsigned int rInv, phi0, chi2RPhi, tanl, z0, chi2RZ, d0, bendChi2, hitPattern, mvaQuality, MVAOther;
+  l1trkUnpack::read(datalow, datahigh, rInv, phi0, chi2RPhi, tanl, z0, chi2RZ, d0, bendChi2, hitPattern, mvaQuality, MVAOther);
+
+  float ptF = l1trkUnpack::getPt(rInv);
+  float phi0F = l1trkUnpack::getPhi0(phi0);
+  float tanlF = l1trkUnpack::getTanl(tanl);
+  float d0F = l1trkUnpack::getD0(d0);
+  float z0F = l1trkUnpack::getZ0(z0);
+  float chi2RPhiF = l1trkUnpack::getChi2RPhi(chi2RPhi);
+  float chi2RZF = l1trkUnpack::getChi2RZ(chi2RZ);
+  float bendChi2F = l1trkUnpack::getBendChi2(bendChi2);
+  int8_t charge = rInv > 0? +1 : -1;
+  GlobalVector momentum = l1trkUnpack::getMomentum(ptF, phi0F, tanlF);
+  GlobalPoint poca = l1trkUnpack::getPOCA(d0F, phi0F, z0F);
+  float dxyF = poca.perp();
+  uint8_t nStub = l1trkUnpack::getNStubs(hitPattern);
+  float chi2 = chi2RPhiF + chi2RZF; // TODO: not fully sure about the chi2 sum
+  float chi2Red = chi2 / (2 * nStub - nFitPars_);
+  float mvaQualityF = l1trkUnpack::getMVAQuality(mvaQuality);
+  float etaF = momentum.eta();
+  float phiF = momentum.phi();
+
+  // compute quality bits
+  uint8_t quality = 0;
+  if (nFitPars_ == 4) {
+    if (ptF > 2 && nStub >= 4 && chi2Red < 15)
+      quality += (1<<0);
+    if (ptF > 2 && nStub >= 6 && chi2Red < 15 && chi2 < 50)
+      quality += (1<<1);
+    if (ptF > 5 && nStub >= 4)
+      quality += (1<<2);
+  }
+  else if (nFitPars_ == 5) {
+    bool pocaCond = poca.x() < 1.0 && poca.x() > -1.0 && poca.y() < 1.0 && poca.y() > -1.0;
+    if (ptF > 2 && nStub >= 4 && chi2Red < 15 && pocaCond)
+      quality += (1<<0);
+    if (ptF > 2 && nStub >= 6 && chi2Red < 15 && chi2 < 50 && pocaCond)
+      quality += (1<<1);
+    if (ptF > 5 && nStub >= 4 && pocaCond)
+      quality |= (1<<2);
+  }
+
+  outBuffer.emplace_back(ptF, etaF, phiF, z0F, dxyF, mvaQualityF, nStub, quality, charge);
 }
 
-void ScPhase2TrackerRawToDigi::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
+void ScPhase2TrackerTrackRawToDigi::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
   edm::ParameterSetDescription desc;
   desc.add<edm::InputTag>("src", edm::InputTag("rawDataCollector"));
   desc.add<std::vector<unsigned int>>("fedIDs");
+  desc.add<unsigned int>("nFitPars");
   descriptions.addDefault(desc);
 }
 
-DEFINE_FWK_MODULE(ScPhase2TrackerRawToDigi);
+DEFINE_FWK_MODULE(ScPhase2TrackerTrackRawToDigi);
