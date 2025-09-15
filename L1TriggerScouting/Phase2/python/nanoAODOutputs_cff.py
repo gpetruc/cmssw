@@ -48,14 +48,14 @@ scPhase2TkEleMaskedStructToTable = scPhase2TkEleStructToTable.clone(
     src = "scPhase2TkEleMasked"
 )
 
-scPhase2TrackerStructToTable = cms.EDProducer("ScTrackerToOrbitFlatTable",
-    src = cms.InputTag("scPhase2TrackerRawToDigiStruct"),
-    name = cms.string("L1Tracker"),
-    doc = cms.string("L1Tracker candidates from GMT"),
+scPhase2TrackerTrackStructToTable = cms.EDProducer("ScTrackerTrackToOrbitFlatTable",
+    src = cms.InputTag("scPhase2TrackerTrackRawToDigiStruct"),
+    name = cms.string("L1TTrack"),
+    doc = cms.string("L1TrackerTrack candidates from GTT"),
 )
 
-scPhase2TrackerMaskedStructToTable = scPhase2TrackerStructToTable.clone(
-    src = "scPhase2TrackerMasked"
+scPhase2TrackerTrackMaskedStructToTable = scPhase2TrackerTrackStructToTable.clone(
+    src = "scPhase2TrackerTrackMasked"
 )
 
 scPhase2TrackerMuonStructToTable = cms.EDProducer("ScTrackerMuonToOrbitFlatTable",
@@ -73,8 +73,8 @@ tableProducersTkEmTask = cms.Task(
     scPhase2TkEleStructToTable,
 )
 
-tableProducersTrackerTask = cms.Task(
-    scPhase2TrackerStructToTable,
+tableProducersTrackerTrackTask = cms.Task(
+    scPhase2TrackerTrackStructToTable,
 )
 
 tableProducersTask = cms.Task(
@@ -84,6 +84,7 @@ tableProducersTask = cms.Task(
     scPhase2PuppiStructToTable,
     tableProducersTkEmTask,
     scPhase2TrackerMuonStructToTable,
+    tableProducersTrackerTrackTask,
 )
 
 maskedTableProducersTkEmTask = cms.Task(
@@ -91,8 +92,8 @@ maskedTableProducersTkEmTask = cms.Task(
     scPhase2TkEleMaskedStructToTable,
 )
 
-maskedTableProducersTrackerTask = cms.Task(
-    scPhase2TrackerMaskedStructToTable,
+maskedTableProducersTrackerTrackTask = cms.Task(
+    scPhase2TrackerTrackMaskedStructToTable,
 )
 
 maskedTableProducersTask = cms.Task(
@@ -101,22 +102,22 @@ maskedTableProducersTask = cms.Task(
     scPhase2JPsiRecMesonStructToTable,
     scPhase2PuppiMaskedStructToTable,
     maskedTableProducersTkEmTask,
-    maskedTableProducersTrackerTask,
     scPhase2TrackerMuonMaskedStructToTable,
+    maskedTableProducersTrackerTrackTask,
 )
 
 scPhase2NanoAll = cms.OutputModule("OrbitNanoAODOutputModule",
     fileName = cms.untracked.string("all.root"),
     SelectEvents = cms.untracked.PSet(SelectEvents = cms.vstring()),
-    outputCommands = cms.untracked.vstring("drop *", 
+    outputCommands = cms.untracked.vstring("drop *",
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2PhiRecMesonStructToTable_*_*",
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2RhoRecMesonStructToTable_*_*",
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2JPsiRecMesonStructToTable_*_*",
-        # "keep l1ScoutingRun3OrbitFlatTable_scPhase2PuppiStructToTable_*_*", 
-        "keep l1ScoutingRun3OrbitFlatTable_scPhase2TkEmStructToTable_*_*", 
+        "keep l1ScoutingRun3OrbitFlatTable_scPhase2PuppiStructToTable_*_*",
+        "keep l1ScoutingRun3OrbitFlatTable_scPhase2TkEmStructToTable_*_*",
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2TkEleStructToTable_*_*",
-        "keep l1ScoutingRun3OrbitFlatTable_scPhase2TrackerStructToTable_*_*",
-        "keep l1ScoutingRun3OrbitFlatTable_scPhase2TrackerMuonStructToTable_*_*"),
+        "keep l1ScoutingRun3OrbitFlatTable_scPhase2TrackerMuonStructToTable_*_*",
+        "keep l1ScoutingRun3OrbitFlatTable_scPhase2TrackerTrackStructToTable_*_*"),
     compressionLevel = cms.untracked.int32(4),
     compressionAlgorithm = cms.untracked.string("LZ4"),
 )
@@ -126,10 +127,11 @@ scPhase2PuppiNanoSelected = cms.OutputModule("OrbitNanoAODOutputModule",
     SelectEvents = cms.untracked.PSet(SelectEvents = cms.vstring()),
     selectedBx = cms.InputTag("scPhase2SelectedBXs","SelBx"),
     outputCommands = cms.untracked.vstring("drop *",
-        # "keep l1ScoutingRun3OrbitFlatTable_scPhase2PuppiMaskedStructToTable_*_*",
+        "keep l1ScoutingRun3OrbitFlatTable_scPhase2PuppiMaskedStructToTable_*_*",
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2TkEmMaskedStructToTable_*_*",
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2TkEleMaskedStructToTable_*_*",
         "keep l1ScoutingRun3OrbitFlatTable_scPhase2TrackerMuonMaskedStructToTable_*_*",
+        "keep l1ScoutingRun3OrbitFlatTable_scPhase2TrackerTrackMaskedStructToTable_*_*",
         "keep *_scPhase2SelectedBXs_*_*"),
     compressionLevel = cms.untracked.int32(4),
     compressionAlgorithm = cms.untracked.string("LZ4"),
