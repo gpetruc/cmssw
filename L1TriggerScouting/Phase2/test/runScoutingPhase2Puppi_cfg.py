@@ -173,33 +173,34 @@ process.p_soa = cms.Path(
   process.w3piSOA
 )
 
-process.p_all = cms.Path(
-  process.scPhase2PuppiRawToDigiCandidate +
-  process.scPhase2PuppiRawToDigiStruct +
-  process.scPhase2PuppiRawToDigiSOA +
-  process.scPhase2PuppiRawToDigiAlpaka +
-  process.goodOrbitsByNBX +
-  process.w3piCandidate +
-  process.w3piStruct +
-  process.w3piSOA +
-  process.w3piAlpaka
-)
+if options.run in ("all","fast","alpaka"):
+  process.p_all = cms.Path(
+    process.scPhase2PuppiRawToDigiCandidate +
+    process.scPhase2PuppiRawToDigiStruct +
+    process.scPhase2PuppiRawToDigiSOA +
+    process.scPhase2PuppiRawToDigiAlpaka +
+    process.goodOrbitsByNBX +
+    process.w3piCandidate +
+    process.w3piStruct +
+    process.w3piSOA +
+    process.w3piAlpaka
+  )
 
-process.p_fast = cms.Path(
-  process.scPhase2PuppiRawToDigiStruct +
-  process.scPhase2PuppiRawToDigiSOA +
-  process.scPhase2PuppiRawToDigiAlpaka +
-  process.goodOrbitsByNBX +
-  process.w3piStruct +
-  process.w3piSOA +
-  process.w3piAlpaka
-)
+  process.p_fast = cms.Path(
+    process.scPhase2PuppiRawToDigiStruct +
+    process.scPhase2PuppiRawToDigiSOA +
+    process.scPhase2PuppiRawToDigiAlpaka +
+    process.goodOrbitsByNBX +
+    process.w3piStruct +
+    process.w3piSOA +
+    process.w3piAlpaka
+  )
 
-process.p_alpaka = cms.Path(
-  process.scPhase2PuppiRawToDigiAlpaka +
-  process.goodOrbitsByNBX +
-  process.w3piAlpaka
-)
+  process.p_alpaka = cms.Path(
+    process.scPhase2PuppiRawToDigiAlpaka +
+    process.goodOrbitsByNBX +
+    process.w3piAlpaka
+  )
 
 process.scPhase2NanoAll.fileName = options.outFile.replace(".root","")+".inclusive.root"
 process.scPhase2NanoAll.SelectEvents.SelectEvents = ['p_inclusive']
