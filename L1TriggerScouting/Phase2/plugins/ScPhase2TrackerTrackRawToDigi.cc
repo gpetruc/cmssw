@@ -105,49 +105,52 @@ void ScPhase2TrackerTrackRawToDigi::unpackFromRaw(uint64_t datalow,
                                                   uint32_t datahigh,
                                                   std::vector<l1Scouting::TTrack> &outBuffer) {
 
-  unsigned int rInv, phi0, chi2RPhi, tanl, z0, chi2RZ, d0, bendChi2, hitPattern, mvaQuality, MVAOther;
-  l1trkUnpack::read(datalow, datahigh, rInv, phi0, chi2RPhi, tanl, z0, chi2RZ, d0, bendChi2, hitPattern, mvaQuality, MVAOther);
+  unsigned int valid, rInv, phi0, chi2RPhi, tanl, z0, chi2RZ, d0, bendChi2, hitPattern, mvaQuality, MVAOther;
+  l1trkUnpack::read(datalow, datahigh, valid, rInv, phi0, chi2RPhi, tanl, z0, chi2RZ, d0, bendChi2, hitPattern, mvaQuality, MVAOther);
 
-  float ptF = l1trkUnpack::getPt(rInv);
-  float phi0F = l1trkUnpack::getPhi0(phi0);
-  float tanlF = l1trkUnpack::getTanl(tanl);
-  float d0F = l1trkUnpack::getD0(d0);
-  float z0F = l1trkUnpack::getZ0(z0);
-  float chi2RPhiF = l1trkUnpack::getChi2RPhi(chi2RPhi);
-  float chi2RZF = l1trkUnpack::getChi2RZ(chi2RZ);
-  float bendChi2F = l1trkUnpack::getBendChi2(bendChi2);
-  int8_t charge = rInv > 0? +1 : -1;
-  GlobalVector momentum = l1trkUnpack::getMomentum(ptF, phi0F, tanlF);
-  GlobalPoint poca = l1trkUnpack::getPOCA(d0F, phi0F, z0F);
-  float dxyF = poca.perp();
-  uint8_t nStub = l1trkUnpack::getNStubs(hitPattern);
-  float chi2 = chi2RPhiF + chi2RZF; // TODO: not fully sure about the chi2 sum
-  float chi2Red = chi2 / (2 * nStub - nFitPars_);
-  float mvaQualityF = l1trkUnpack::getMVAQuality(mvaQuality);
-  float etaF = momentum.eta();
-  float phiF = momentum.phi();
+  if (valid) {
+    float ptF = l1trkUnpack::getPt(rInv);
+    float rInvF = l1trkUnpack::getRinv(rInv);
+    float phi0F = l1trkUnpack::getPhi0(phi0);
+    float tanlF = l1trkUnpack::getTanl(tanl);
+    float d0F = l1trkUnpack::getD0(d0);
+    float z0F = l1trkUnpack::getZ0(z0);
+    float chi2RPhiF = l1trkUnpack::getChi2RPhi(chi2RPhi);
+    float chi2RZF = l1trkUnpack::getChi2RZ(chi2RZ);
+    float bendChi2F = l1trkUnpack::getBendChi2(bendChi2);
+    int8_t charge = rInvF > 0? +1 : -1;
+    GlobalVector momentum = l1trkUnpack::getMomentum(ptF, phi0F, tanlF);
+    GlobalPoint poca = l1trkUnpack::getPOCA(d0F, phi0F, z0F);
+    float dxyF = poca.perp();
+    uint8_t nStub = l1trkUnpack::getNStubs(hitPattern);
+    float chi2 = chi2RPhiF + chi2RZF; // TODO: not fully sure about the chi2 sum
+    float chi2Red = chi2 / (2 * nStub - nFitPars_);
+    float mvaQualityF = l1trkUnpack::getMVAQuality(mvaQuality);
+    float etaF = momentum.eta();
+    float phiF = momentum.phi();
 
-  // compute quality bits
-  uint8_t quality = 0;
-  if (nFitPars_ == 4) {
-    if (ptF > 2 && nStub >= 4 && chi2Red < 15)
-      quality += (1<<0);
-    if (ptF > 2 && nStub >= 6 && chi2Red < 15 && chi2 < 50)
-      quality += (1<<1);
-    if (ptF > 5 && nStub >= 4)
-      quality += (1<<2);
+    // compute quality bits
+    uint8_t quality = 0;
+    if (nFitPars_ == 4) {
+      if (ptF > 2 && nStub >= 4 && chi2Red < 15)
+        quality += (1<<0);
+      if (ptF > 2 && nStub >= 6 && chi2Red < 15 && chi2 < 50)
+        quality += (1<<1);
+      if (ptF > 5 && nStub >= 4)
+        quality += (1<<2);
+    }
+    else if (nFitPars_ == 5) {
+      bool pocaCond = poca.x() < 1.0 && poca.x() > -1.0 && poca.y() < 1.0 && poca.y() > -1.0;
+      if (ptF > 2 && nStub >= 4 && chi2Red < 15 && pocaCond)
+        quality += (1<<0);
+      if (ptF > 2 && nStub >= 6 && chi2Red < 15 && chi2 < 50 && pocaCond)
+        quality += (1<<1);
+      if (ptF > 5 && nStub >= 4 && pocaCond)
+        quality |= (1<<2);
+    }
+
+    outBuffer.emplace_back(ptF, etaF, phiF, z0F, dxyF, mvaQualityF, nStub, quality, charge);
   }
-  else if (nFitPars_ == 5) {
-    bool pocaCond = poca.x() < 1.0 && poca.x() > -1.0 && poca.y() < 1.0 && poca.y() > -1.0;
-    if (ptF > 2 && nStub >= 4 && chi2Red < 15 && pocaCond)
-      quality += (1<<0);
-    if (ptF > 2 && nStub >= 6 && chi2Red < 15 && chi2 < 50 && pocaCond)
-      quality += (1<<1);
-    if (ptF > 5 && nStub >= 4 && pocaCond)
-      quality |= (1<<2);
-  }
-
-  outBuffer.emplace_back(ptF, etaF, phiF, z0F, dxyF, mvaQualityF, nStub, quality, charge);
 }
 
 void ScPhase2TrackerTrackRawToDigi::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
