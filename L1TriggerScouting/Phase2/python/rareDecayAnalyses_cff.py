@@ -3,8 +3,14 @@ import FWCore.ParameterSet.Config as cms
 #two modules here
 #recieves here the parameters to distiguish phi from rho
 
-allRecmesonStruct = cms.EDProducer("ScPhase2RecMesonAll",
-    src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
+# allRecmesonStruct = cms.EDProducer("ScPhase2RecMesonAll",
+#     src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
+#     mesonTypes = cms.vstring("phi", "rho", "jpsi"),
+#     runStruct = cms.bool(True)
+# )
+
+allRecmesonStruct = cms.EDProducer("ScPhase2TkrRecMesonAll",
+    src = cms.InputTag("scPhase2TrackerTrackRawToDigiStruct"),
     mesonTypes = cms.vstring("phi", "rho", "jpsi"),
     runStruct = cms.bool(True)
 )
