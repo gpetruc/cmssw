@@ -6,7 +6,7 @@ from L1TriggerScouting.Phase2.options_cff import options
 options.parseArguments()
 if options.buNumStreams == []:
     options.buNumStreams.append(2)
-#analyses = options.analyses if options.analyses else ["photonIsolation", "phiRecmeson", "rhoRecmeson", "jpsiRecmeson", "z2phiRecmeson", "z2rhoRecmeson", "h2phiRecmeson", "h2rhoRecmeson", "hphijpsiRecmeson", "hphigammaRecmeson", "hrhogammaRecmeson", "hjpsigammaRecmeson"] 
+#analyses = options.analyses if options.analyses else ["photonIsolation", "phiRecmeson", "rhoRecmeson", "jpsiRecmeson", "z2phiRecmeson", "z2rhoRecmeson", "h2phiRecmeson", "h2rhoRecmeson", "hphijpsiRecmeson", "hphigammaRecmeson", "hrhogammaRecmeson", "hjpsigammaRecmeson"]
 analyses = options.analyses if options.analyses else ["h2phi", "h2rho", "hphijpsi", "hphig", "hrhog", "hjpsig"]
 #analyses = options.analyses if options.analyses else ["phiRecmeson", "h2phiRecmeson"]
 print(f"Analyses set to {analyses}")
@@ -32,8 +32,8 @@ if len(options.buNumStreams) != len(options.buBaseDir):
 
 if options.puppiStreamIDs == [] and options.tkEmStreamIDs ==  []:
     nStreamsTot = sum(options.buNumStreams)
-    puppiStreamIDs = list(range(nStreamsTot//2)) # take first half 
-    tkEmStreamIDs = list(range(nStreamsTot//2, nStreamsTot)) # take second half 
+    puppiStreamIDs = list(range(nStreamsTot//2)) # take first half
+    tkEmStreamIDs = list(range(nStreamsTot//2, nStreamsTot)) # take second half
 else:
     puppiStreamIDs = options.puppiStreamIDs
     tkEmStreamIDs = options.tkEmStreamIDs
@@ -87,7 +87,7 @@ os.system("touch " + buDirs[0] + "/" + "fu.lock")
 process.load("L1TriggerScouting.Phase2.unpackers_cff")
 # Declare rare decay analyses to run
 process.load("L1TriggerScouting.Phase2.rareDecayAnalyses_cff")
-# Declare the filter of the data that keeps only data 
+# Declare the filter of the data that keeps only data
 # belonging to selected BXs
 process.load("L1TriggerScouting.Phase2.maskedCollections_cff")
 # Declare the flat table (ntuples) output
@@ -97,13 +97,13 @@ process.load("L1TriggerScouting.Phase2.nanoAODOutputs_cff")
 process.scPhase2PuppiRawToDigiStruct.fedIDs = [*puppiStreamIDs]
 process.scPhase2TkEmRawToDigiStruct.fedIDs = [*tkEmStreamIDs]
 process.goodOrbitsByNBX.nbxMin = 3564 * options.timeslices // options.tmuxPeriod
-process.goodOrbitsByNBX.unpackers = [ "scPhase2PuppiRawToDigiStruct", "scPhase2TkEmRawToDigiStruct"] 
+process.goodOrbitsByNBX.unpackers = [ "scPhase2PuppiRawToDigiStruct", "scPhase2TkEmRawToDigiStruct"]
 
 ## Configure analyses
 # analysisModules = [getattr(process,f"{a}Struct") for a in analyses]
 analysisModules = []
 if any(a in ["phiRecmeson","rhoRecmeson","jpsiRecmeson"] for a in analyses):
-    analysisModules.append(process.allRecmesonStruct)
+    analysisModules.append(process.recMesonStruct)
 
 # keep photonIsolation, z2phiRecmeson, etc. unchanged
 for a in analyses:
@@ -118,7 +118,7 @@ process.s_analyses = cms.Sequence(sum(analysisModules[1:], analysisModules[0]))
 process.scPhase2SelectedBXs.analysisLabels = []
 for a in analyses:
     if a in ["phiRecmeson","rhoRecmeson","jpsiRecmeson"]:
-        process.scPhase2SelectedBXs.analysisLabels.append(cms.InputTag("allRecmesonStruct","selectedBx"))
+        process.scPhase2SelectedBXs.analysisLabels.append(cms.InputTag("recMesonStruct","selectedBx"))
     else:
         process.scPhase2SelectedBXs.analysisLabels.append(cms.InputTag(f"{a}Struct","selectedBx"))
 
@@ -133,7 +133,7 @@ process.p_inclusive.associate(cms.Task(process.scPhase2PuppiStructToTable, proce
 
 ## Define selected processing (Physics streams)
 process.p_selected = cms.Path(
-  process.s_unpackers + 
+  process.s_unpackers +
   process.s_analyses +
   process.scPhase2SelectedBXs +
   process.scPhase2PuppiMasked +
@@ -144,11 +144,11 @@ process.p_selected.associate(cms.Task(process.scPhase2PuppiMaskedStructToTable, 
 
 process.scPhase2NanoAll.fileName = options.outFile.replace(".root","")+".inclusive.root"
 process.scPhase2NanoAll.SelectEvents.SelectEvents = ['p_inclusive']
- 
+
 process.scPhase2PuppiNanoSelected.fileName = options.outFile.replace(".root","")+".selected.root"
 process.scPhase2PuppiNanoSelected.SelectEvents.SelectEvents = ['p_selected']
 
-#analyses_print = ["z2phiRecmeson", "z2rhoRecmeson", "h2phiRecmeson", "h2rhoRecmeson", "hphijpsiRecmeson", "hphigammaRecmeson", "hrhogammaRecmeson", "hjpsigammaRecmeson"] 
+#analyses_print = ["z2phiRecmeson", "z2rhoRecmeson", "h2phiRecmeson", "h2rhoRecmeson", "hphijpsiRecmeson", "hphigammaRecmeson", "hrhogammaRecmeson", "hjpsigammaRecmeson"]
 analyses_print = ["h2phi", "h2rho", "hphijpsi", "hphig", "hrhog", "hjpsig"]
 #analyses_print = ["phiRecmeson", "h2phiRecmeson"] #"h2phi"]
 process.scPhase2PuppiNanoSelected.outputCommands += [ f"keep *_{a}Struct_*_*" for a in analyses_print ]

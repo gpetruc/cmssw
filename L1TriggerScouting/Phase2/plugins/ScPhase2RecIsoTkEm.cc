@@ -23,10 +23,10 @@
 //CHANGES TO IMPLEMENT
 //- RETURN THE FULL 4 particles ?
 
-class ScPhase2PhotonIsolation : public edm::stream::EDProducer<> {
+class ScPhase2RecIsoTkEm : public edm::stream::EDProducer<> {
 public:
-  explicit ScPhase2PhotonIsolation(const edm::ParameterSet &);
-  ~ScPhase2PhotonIsolation() override;
+  explicit ScPhase2RecIsoTkEm(const edm::ParameterSet &);
+  ~ScPhase2RecIsoTkEm() override;
   static void fillDescriptions(edm::ConfigurationDescriptions &descriptions);
 
 private:
@@ -46,7 +46,7 @@ private:
   double minPtGamma_;
   double minDeltaR_;
   double maxDeltaR_;
-  double maxIsol_;
+  double maxIso_;
 
   template <typename T>
   bool isolationTkEm(float pt, float eta, float phi, const T *cands, unsigned int size) const;
@@ -55,29 +55,28 @@ private:
   unsigned long passStruct_;
 };
 
-ScPhase2PhotonIsolation::ScPhase2PhotonIsolation(const edm::ParameterSet &iConfig)
+ScPhase2RecIsoTkEm::ScPhase2RecIsoTkEm(const edm::ParameterSet &iConfig)
     : doStruct_(iConfig.getParameter<bool>("runStruct")),
       minPtGamma_(iConfig.getParameter<double>("minPtGamma")),
       minDeltaR_(iConfig.getParameter<double>("minDeltaR")),
       maxDeltaR_(iConfig.getParameter<double>("maxDeltaR")),
-      maxIsol_(iConfig.getParameter<double>("maxIsol"))
+      maxIso_(iConfig.getParameter<double>("maxIso"))
     {
   if (doStruct_) {
     //PUPPI input being given here
     structToken_ = consumes<OrbitCollection<l1Scouting::Puppi>>(iConfig.getParameter<edm::InputTag>("src"));
     structTkEmToken_ = consumes<OrbitCollection<l1Scouting::TkEm>>(iConfig.getParameter<edm::InputTag>("srcTkEm"));
 
-    produces<OrbitCollection<l1Scouting::TkEmIsolated>>();
-    produces<std::vector<unsigned>>("selectedBx");
+    produces<OrbitCollection<l1Scouting::IsoTkEm>>();
     produces<unsigned int>("nbx");
   }
 }
 
-ScPhase2PhotonIsolation::~ScPhase2PhotonIsolation() {};
+ScPhase2RecIsoTkEm::~ScPhase2RecIsoTkEm() {};
 
-void ScPhase2PhotonIsolation::beginStream(edm::StreamID) {}
+void ScPhase2RecIsoTkEm::beginStream(edm::StreamID) {}
 
-void ScPhase2PhotonIsolation::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
+void ScPhase2RecIsoTkEm::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
   if (doStruct_) {
     edm::Handle<OrbitCollection<l1Scouting::TkEm>> srcTkEm;
     iEvent.getByToken(structTkEmToken_, srcTkEm);
@@ -89,24 +88,23 @@ void ScPhase2PhotonIsolation::produce(edm::Event &iEvent, const edm::EventSetup 
   }
 }
 
-void ScPhase2PhotonIsolation::endStream() {}
+void ScPhase2RecIsoTkEm::endStream() {}
 
 template <typename T, typename U>
-void ScPhase2PhotonIsolation::runObj(const OrbitCollection<T> &src,
-                                    const OrbitCollection<U> &srcTkEm,
-                                    edm::Event &iEvent,
-                                    const std::string &label) {
+void ScPhase2RecIsoTkEm::runObj(const OrbitCollection<T> &src,
+                                const OrbitCollection<U> &srcTkEm,
+                                edm::Event &iEvent,
+                                const std::string &label) {
   auto ret = std::make_unique<std::vector<unsigned>>();
-  auto selectedBx = std::make_unique<std::vector<unsigned>>();
 
-  std::vector<std::vector<l1Scouting::TkEmIsolated>> photons_vec;
+  std::vector<std::vector<l1Scouting::IsoTkEm>> photons_vec;
 
   ROOT::RVec<unsigned int> ig;
   unsigned int nbx = 0, ntotIsoPhoton = 0;
 
   for (unsigned int bx = 0; bx <= OrbitCollection<T>::NBX; ++bx) {
     nbx++;
-    std::vector<l1Scouting::TkEmIsolated> photon_thisBx;
+    std::vector<l1Scouting::IsoTkEm> photon_thisBx;
 
     auto rangeTkEm = srcTkEm.bxIterator(bx);
     const U *candsTkEm = &rangeTkEm.front();
@@ -125,9 +123,9 @@ void ScPhase2PhotonIsolation::runObj(const OrbitCollection<T> &src,
         bool isop = isolationTkEm(
           candsTkEm[i].pt(), candsTkEm[i].eta(), candsTkEm[i].phi(), cands, size);
         if (!isop)
-          continue;    
+          continue;
 
-        l1Scouting::TkEmIsolated isolatedPhoton(
+        l1Scouting::IsoTkEm isolatedPhoton(
           candsTkEm[i].pt(),
           candsTkEm[i].eta(),
           candsTkEm[i].phi(),
@@ -143,17 +141,15 @@ void ScPhase2PhotonIsolation::runObj(const OrbitCollection<T> &src,
 
     photons_vec.push_back(photon_thisBx);
     ntotIsoPhoton++;
-  } 
+  }
 
-  auto outIsoPhoton = std::make_unique<OrbitCollection<l1Scouting::TkEmIsolated>>(photons_vec, ntotIsoPhoton);
+  auto outIsoPhoton = std::make_unique<OrbitCollection<l1Scouting::IsoTkEm>>(photons_vec, ntotIsoPhoton);
   iEvent.put(std::move(outIsoPhoton));
   iEvent.put(std::make_unique<unsigned int>(nbx), "nbx");
-  iEvent.put(std::move(selectedBx), "selectedBx");
 }
 
 template <typename T>
-bool ScPhase2PhotonIsolation::isolationTkEm(
-    float pt, float eta, float phi, const T *cands, unsigned int size) const {
+bool ScPhase2RecIsoTkEm::isolationTkEm(float pt, float eta, float phi, const T *cands, unsigned int size) const {
   bool passed = false;
   float psum = 0;
   for (unsigned int j = 0u; j < size; ++j) {  //loop over other particles
@@ -162,21 +158,21 @@ bool ScPhase2PhotonIsolation::isolationTkEm(
     if (dr2 >= minDeltaR_ && dr2 <= maxDeltaR_)
       psum += cands[j].pt();
   }
-  if (psum <= maxIsol_ * pt)
+  if (psum <= maxIso_ * pt)
     passed = true;
   return passed;
 }
 
-void ScPhase2PhotonIsolation::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
+void ScPhase2RecIsoTkEm::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
   edm::ParameterSetDescription desc;
   desc.add<edm::InputTag>("src");
   desc.add<edm::InputTag>("srcTkEm");
   desc.add<bool>("runStruct", true);
   desc.add<double>("minPtGamma");
-  desc.add<double>("maxIsol");
+  desc.add<double>("maxIso");
   desc.add<double>("minDeltaR");
   desc.add<double>("maxDeltaR");
   descriptions.addDefault(desc);
 }
 
-DEFINE_FWK_MODULE(ScPhase2PhotonIsolation);
+DEFINE_FWK_MODULE(ScPhase2RecIsoTkEm);

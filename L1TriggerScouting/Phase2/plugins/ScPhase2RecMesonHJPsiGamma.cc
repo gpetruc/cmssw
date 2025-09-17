@@ -40,7 +40,7 @@ private:
 
   bool doStruct_;
   edm::EDGetTokenT<OrbitCollection<l1Scouting::RecMeson>> structMesonToken_;
-  edm::EDGetTokenT<OrbitCollection<l1Scouting::TkEmIsolated>> structGammaToken_;
+  edm::EDGetTokenT<OrbitCollection<l1Scouting::IsoTkEm>> structGammaToken_;
 
   struct Cuts {
     float minmassH = 100;
@@ -78,7 +78,7 @@ private:
 ScPhase2RecMesonHJPsiGamma::ScPhase2RecMesonHJPsiGamma(const edm::ParameterSet &iConfig)
     : doStruct_(iConfig.getParameter<bool>("runStruct")) {
   if (doStruct_) {
-    structGammaToken_ = consumes<OrbitCollection<l1Scouting::TkEmIsolated>>(iConfig.getParameter<edm::InputTag>("srcGamma"));
+    structGammaToken_ = consumes<OrbitCollection<l1Scouting::IsoTkEm>>(iConfig.getParameter<edm::InputTag>("srcGamma"));
     structMesonToken_ = consumes<OrbitCollection<l1Scouting::RecMeson>>(iConfig.getParameter<edm::InputTag>("srcMeson"));
     produces<std::vector<unsigned>>("selectedBx");
     produces<l1ScoutingRun3::OrbitFlatTable>("recMesonHjpsigamma");
@@ -94,7 +94,7 @@ void ScPhase2RecMesonHJPsiGamma::beginStream(edm::StreamID) {
 
 void ScPhase2RecMesonHJPsiGamma::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
   if (doStruct_) {
-    edm::Handle<OrbitCollection<l1Scouting::TkEmIsolated>> srcGamma;
+    edm::Handle<OrbitCollection<l1Scouting::IsoTkEm>> srcGamma;
     edm::Handle<OrbitCollection<l1Scouting::RecMeson>> srcMeson;
     iEvent.getByToken(structGammaToken_, srcGamma);
     iEvent.getByToken(structMesonToken_, srcMeson);
@@ -141,7 +141,7 @@ void ScPhase2RecMesonHJPsiGamma::runObj(const OrbitCollection<T> &srcGamma,
     for (unsigned int i1 = 0; i1 < nMesons; ++i1) {
       if (candsMeson[i1].pt() < cuts.minptQ)
         continue;
-                
+
       for (unsigned int i2 = 0; i2 < nGamma; ++i2) {
         if (candsGamma[i2].pt() < cuts.minptGamma)
         continue;
@@ -160,7 +160,7 @@ void ScPhase2RecMesonHJPsiGamma::runObj(const OrbitCollection<T> &srcGamma,
         }
       }
     }
-    
+
     if (!bestTripletFound)
       continue;
 

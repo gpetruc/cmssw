@@ -48,7 +48,7 @@ private:
   float maxDeltaRDaus_ = 0.40 * 0.40;
   float maxDeltaZ_ = 1;
   float minPtDau_ = 5.0;
-  
+
   std::vector<std::array<float, 2>> massRange_;
   std::vector<float> dmass1_;
   std::vector<float> dmass2_;
@@ -72,9 +72,9 @@ ScPhase2RecMesonAll::ScPhase2RecMesonAll(const edm::ParameterSet &iConfig)
   if (doStruct_) {
     //PUPPI input being given here
     structToken_ = consumes<OrbitCollection<l1Scouting::Puppi>>(iConfig.getParameter<edm::InputTag>("src"));
-    
+
     for (const auto &mt : mesonTypes_) {
-    
+
       if (mt == "phi") {
         massRange_.push_back({{0.95, 1.25}});
         dmass1_.push_back(0.4937);
@@ -88,11 +88,10 @@ ScPhase2RecMesonAll::ScPhase2RecMesonAll(const edm::ParameterSet &iConfig)
         dmass1_.push_back(0.1057);
         dmass2_.push_back(0.1057);
       }
-    
-      produces<OrbitCollection<l1Scouting::RecMeson>>("recMeson" + mt);
+
+      produces<OrbitCollection<l1Scouting::RecMeson>>(mt);
     }
 
-    produces<std::vector<unsigned>>("selectedBx");
     produces<unsigned int>("nbx");
   }
 }
@@ -119,7 +118,6 @@ void ScPhase2RecMesonAll::runObj(const OrbitCollection<T> &src,
   // l1ScoutingRun3::BxOffsetsFillter bxOffsetsFiller;
   // bxOffsetsFiller.start();
   auto ret = std::make_unique<std::vector<unsigned>>();
-  auto selectedBx = std::make_unique<std::vector<unsigned>>();
 
   ROOT::RVec<unsigned int> ix;
 
@@ -143,23 +141,20 @@ void ScPhase2RecMesonAll::runObj(const OrbitCollection<T> &src,
       }
     }
     unsigned int ndaus = ix.size();
-    //std::cout << "BX = " << bx << " ; number of daugthers = " << ndaus << std::endl;
 
     std::set<unsigned int> usedIndices;
-    
+
     for (unsigned int i1 = 0; i1 < ndaus; ++i1) {
       for (unsigned int i2 = i1 + 1; i2 < ndaus; ++i2) {
         if (!(cands[ix[i1]].charge() * cands[ix[i2]].charge() < 0))
           continue;
 
         float drQ = deltar(cands[ix[i1]].eta(), cands[ix[i2]].eta(), cands[ix[i1]].phi(), cands[ix[i2]].phi());
-        if (drQ > maxDeltaRDaus_) 
+        if (drQ > maxDeltaRDaus_)
           continue;
 
-        // std::cout << "Z = " << cands[ix[i1]].z0() << " ; " << cands[ix[i2]].z0() << std::endl;
-
         float dZ = abs(cands[ix[i1]].z0() - cands[ix[i2]].z0());
-        if (dZ > maxDeltaZ_) 
+        if (dZ > maxDeltaZ_)
           continue;
 
         float isoDR0p25 = isolationQ(0, ix[i1], ix[i2], cands, size);
@@ -187,7 +182,7 @@ void ScPhase2RecMesonAll::runObj(const OrbitCollection<T> &src,
       }
     }
     all_mesonVec.push_back(all_mesonVec_thisBx);
-  }  
+  }
 
   for (unsigned int itype = 0; itype < mesonTypes_.size(); ++itype) {
     std::vector<std::vector<l1Scouting::RecMeson>> mesonVec_perType;
@@ -197,18 +192,16 @@ void ScPhase2RecMesonAll::runObj(const OrbitCollection<T> &src,
     auto outRecMeson = std::make_unique<OrbitCollection<l1Scouting::RecMeson>>(
         mesonVec_perType, all_ntotRecMeson[itype]
     );
-    iEvent.put(std::move(outRecMeson), "recMeson" + mesonTypes_[itype]);
+    iEvent.put(std::move(outRecMeson), mesonTypes_[itype]);
   }
   iEvent.put(std::make_unique<unsigned int>(nbx), "nbx");
-  iEvent.put(std::move(selectedBx), "selectedBx");
 }
 
-//TEST functions
 template <typename T>
 float ScPhase2RecMesonAll::isolationQ(int itype, unsigned int pidex1,
-                                   unsigned int pidex2,
-                                   const T *cands,
-                                   unsigned int size) const {
+                                      unsigned int pidex2,
+                                      const T *cands,
+                                      unsigned int size) const {
   float psum = 0;
   float eta = cands[pidex1].eta();  //center cone around leading track
   float phi = cands[pidex1].phi();
@@ -234,8 +227,8 @@ float ScPhase2RecMesonAll::deltar(float eta1, float eta2, float phi1, float phi2
 
 template <typename T>
 float ScPhase2RecMesonAll::pairmass(const std::array<unsigned int, 2> &t,
-                                       const T *cands,
-                                       const std::array<float, 2> &massD) {
+                                    const T *cands,
+                                    const std::array<float, 2> &massD) {
   ROOT::Math::PtEtaPhiMVector p1(cands[t[0]].pt(), cands[t[0]].eta(), cands[t[0]].phi(), massD[0]);
   ROOT::Math::PtEtaPhiMVector p2(cands[t[1]].pt(), cands[t[1]].eta(), cands[t[1]].phi(), massD[1]);
   float mass = (p1 + p2).M();
