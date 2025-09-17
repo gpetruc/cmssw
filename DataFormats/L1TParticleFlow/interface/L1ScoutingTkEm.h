@@ -50,16 +50,16 @@ namespace l1Scouting {
     float z0_;
   };
 
-  class TkEmIsolated : public TkEm {
+  class IsoTkEm : public TkEm {
     public:
-      TkEmIsolated() {}
-      TkEmIsolated(float pt, float eta, float phi, uint8_t quality, float isolation, int8_t id)
+      IsoTkEm() {}
+      IsoTkEm(float pt, float eta, float phi, uint8_t quality, float isolation, int8_t id)
           : TkEm(pt, eta, phi, quality, isolation), id_(id){}
-  
+
       int8_t id() const { return id_; }
-  
+
       void setId(int8_t id) { id_ = id; }
-  
+
     private:
       int8_t id_;
     };

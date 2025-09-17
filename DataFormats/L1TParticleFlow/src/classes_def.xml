@@ -65,12 +65,12 @@
   <class name="OrbitCollection<l1Scouting::TkEle>" />
   <class name="edm::Wrapper<OrbitCollection<l1Scouting::TkEle>>" />
 
-  <class name="l1Scouting::TkEmIsolated"  ClassVersion="5">
-	<version ClassVersion="5" checksum="3836721583"/>
+  <class name="l1Scouting::IsoTkEm"  ClassVersion="3">
+	<version ClassVersion="3" checksum="39808717"/>
   </class>
-  <class name="std::vector<l1Scouting::TkEmIsolated>" />
-  <class name="OrbitCollection<l1Scouting::TkEmIsolated>" />
-  <class name="edm::Wrapper<OrbitCollection<l1Scouting::TkEmIsolated>>" />
+  <class name="std::vector<l1Scouting::IsoTkEm>" />
+  <class name="OrbitCollection<l1Scouting::IsoTkEm>" />
+  <class name="edm::Wrapper<OrbitCollection<l1Scouting::IsoTkEm>>" />
 
   <class name="l1Scouting::TTrack"  ClassVersion="3">
         <version ClassVersion="3" checksum="2404234549"/>

@@ -90,7 +90,6 @@ ScPhase2RecMeson::ScPhase2RecMeson(const edm::ParameterSet &iConfig)
     }
 
     produces<OrbitCollection<l1Scouting::RecMeson>>();
-    produces<std::vector<unsigned>>("selectedBx");
     produces<unsigned int>("nbx");
   }
 }
@@ -114,10 +113,7 @@ template <typename T>
 void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
                                     edm::Event &iEvent,
                                     const std::string &label) {
-  // l1ScoutingRun3::BxOffsetsFillter bxOffsetsFiller;
-  // bxOffsetsFiller.start();
   auto ret = std::make_unique<std::vector<unsigned>>();
-  auto selectedBx = std::make_unique<std::vector<unsigned>>();
 
   ROOT::RVec<unsigned int> ix;
   std::vector<std::vector<l1Scouting::RecMeson>> mesonVec;
@@ -184,7 +180,6 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
   auto outRecMeson = std::make_unique<OrbitCollection<l1Scouting::RecMeson>>(mesonVec, ntotRecMeson);
   iEvent.put(std::move(outRecMeson));
   iEvent.put(std::make_unique<unsigned int>(nbx), "nbx");
-  iEvent.put(std::move(selectedBx), "selectedBx");
 }
 
 //TEST functions

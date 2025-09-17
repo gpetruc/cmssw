@@ -18,8 +18,10 @@ scPhase2TrackerMuonRawToDigiStruct = cms.EDProducer('ScPhase2TrackerMuonRawToDig
 scPhase2TrackerTrackRawToDigiStruct = cms.EDProducer('ScPhase2TrackerTrackRawToDigi',
   src = cms.InputTag('rawDataCollector'),
   fedIDs = cms.vuint32(),
-  nFitPars = cms.uint32(4)
+  nFitPars = cms.uint32(4) # 4 = standard tracking, 5 = extended tracking
 )
+
+scPhase2PFRawToDigiStruct = scPhase2PuppiRawToDigiStruct.clone()
 
 goodOrbitsByNBX = cms.EDFilter("GoodOrbitNBxSelector",
     unpackers = cms.VInputTag(
@@ -27,6 +29,7 @@ goodOrbitsByNBX = cms.EDFilter("GoodOrbitNBxSelector",
                     cms.InputTag("scPhase2TkEmRawToDigiStruct"),
                     cms.InputTag("scPhase2TrackerMuonRawToDigiStruct"),
                     cms.InputTag("scPhase2TrackerTrackRawToDigiStruct"),
+                    cms.InputTag("scPhase2PFRawToDigiStruct"),
                 ),
     nbxMin = cms.uint32(3564)
 )
@@ -36,5 +39,6 @@ s_unpackers = cms.Sequence(
    scPhase2TkEmRawToDigiStruct +
    scPhase2TrackerMuonRawToDigiStruct +
    scPhase2TrackerTrackRawToDigiStruct +
+   scPhase2PFRawToDigiStruct +
    goodOrbitsByNBX
 )

@@ -1,103 +1,49 @@
 import FWCore.ParameterSet.Config as cms
 
-#two modules here
-#recieves here the parameters to distiguish phi from rho
 
-# allRecmesonStruct = cms.EDProducer("ScPhase2RecMesonAll",
-#     src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
-#     mesonTypes = cms.vstring("phi", "rho", "jpsi"),
-#     runStruct = cms.bool(True)
-# )
-
-allRecmesonStruct = cms.EDProducer("ScPhase2TkrRecMesonAll",
-    src = cms.InputTag("scPhase2TrackerTrackRawToDigiStruct"),
-    mesonTypes = cms.vstring("phi", "rho", "jpsi"),
-    runStruct = cms.bool(True)
-)
-
-photonIsolationStruct = cms.EDProducer("ScPhase2PhotonIsolation",
-    src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
-    srcTkEm = cms.InputTag("scPhase2TkEmRawToDigiStruct"),
-    runStruct = cms.bool(True),
-    minPtGamma = cms.double(20),
-    minDeltaR = cms.double(0.05 * 0.05),
-    maxDeltaR = cms.double(0.25 * 0.25),
-    maxIsol = cms.double(0.25)
-)
-
-# jpsiRecmesonStruct = cms.EDProducer("ScPhase2RecMeson",
-#     src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
-#     minPtDau = cms.double(5.0),
-#     maxDeltaRDaus = cms.double(0.40 * 0.40),
-#     minDeltaR = cms.double(0.05 * 0.05),
-#     maxDeltaR = cms.double(0.25 * 0.25),    
-#     mesonType = cms.string("jpsi"),
-#     runStruct = cms.bool(True)
-# )
-
-hjpsigammaRecmesonStruct = cms.EDProducer("ScPhase2RecMesonHJPsiGamma",
+hjpsigammaRecMesonStruct = cms.EDProducer("ScPhase2RecMesonHJPsiGamma",
     # srcMeson = cms.InputTag("jpsiRecmesonStruct"),
-    srcMeson = cms.InputTag("allRecmesonStruct", "recMesonjpsi"),
-    srcGamma = cms.InputTag("photonIsolationStruct"),
+    srcMeson = cms.InputTag("recMesonStruct", "jpsi"),
+    srcGamma = cms.InputTag("recIsoTkEmStruct"),
 )
 
-# phiRecmesonStruct = cms.EDProducer("ScPhase2RecMeson",
-#     src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
-#     minPtDau = cms.double(5.0),
-#     maxDeltaRDaus = cms.double(0.40 * 0.40),
-#     minDeltaR = cms.double(0.05 * 0.05),
-#     maxDeltaR = cms.double(0.25 * 0.25),
-#     mesonType = cms.string("phi"),
-#     runStruct = cms.bool(True)
-# )
-
-h2phiRecmesonStruct = cms.EDProducer("ScPhase2RecMesonH2Phi",
-    #  src = cms.InputTag("phiRecmesonStruct"),
-    src = cms.InputTag("allRecmesonStruct", "recMesonphi"),
+h2phiRecMesonStruct = cms.EDProducer("ScPhase2RecMesonH2Phi",
+    #  src = cms.InputTag("phiRecMesonStruct"),
+    src = cms.InputTag("recMesonStruct", "phi"),
 )
 
-hphigammaRecmesonStruct = cms.EDProducer("ScPhase2RecMesonHPhiGamma",
-    # srcMeson = cms.InputTag("phiRecmesonStruct"),
-    srcMeson = cms.InputTag("allRecmesonStruct", "recMesonphi"),
-    srcGamma = cms.InputTag("photonIsolationStruct"),
+hphigammaRecMesonStruct = cms.EDProducer("ScPhase2RecMesonHPhiGamma",
+    # srcMeson = cms.InputTag("phiRecMesonStruct"),
+    srcMeson = cms.InputTag("recMesonStruct", "phi"),
+    srcGamma = cms.InputTag("recIsoTkEmStruct"),
 )
 
-hphijpsiRecmesonStruct = cms.EDProducer("ScPhase2RecMesonHPhiJPsi",
-    # srcPhi = cms.InputTag("phiRecmesonStruct"),
-    srcPhi = cms.InputTag("allRecmesonStruct", "recMesonphi"),
+hphijpsiRecMesonStruct = cms.EDProducer("ScPhase2RecMesonHPhiJPsi",
+    # srcPhi = cms.InputTag("phiRecMesonStruct"),
+    srcPhi = cms.InputTag("recMesonStruct", "phi"),
     # srcJPsi = cms.InputTag("jpsiRecmesonStruct"),
-    srcJPsi = cms.InputTag("allRecmesonStruct", "recMesonjpsi"),
+    srcJPsi = cms.InputTag("recMesonStruct", "jpsi"),
 )
 
-# rhoRecmesonStruct = cms.EDProducer("ScPhase2RecMeson",
-#     src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
-#     minPtDau = cms.double(5.0),
-#     maxDeltaRDaus = cms.double(0.40 * 0.40),
-#     minDeltaR = cms.double(0.05 * 0.05),
-#     maxDeltaR = cms.double(0.25 * 0.25),
-#     mesonType = cms.string("rho"),
-#     runStruct = cms.bool(True)
-# )
-
-h2rhoRecmesonStruct = cms.EDProducer("ScPhase2RecMesonH2Rho",
+h2rhoRecMesonStruct = cms.EDProducer("ScPhase2RecMesonH2Rho",
     #  src = cms.InputTag("rhoRecmesonStruct"),
-    src = cms.InputTag("allRecmesonStruct", "recMesonrho"),
+    src = cms.InputTag("recMesonStruct", "rho"),
 )
 
-hrhogammaRecmesonStruct = cms.EDProducer("ScPhase2RecMesonHRhoGamma",
+hrhogammaRecMesonStruct = cms.EDProducer("ScPhase2RecMesonHRhoGamma",
     # srcMeson = cms.InputTag("rhoRecmesonStruct"),
-    srcMeson = cms.InputTag("allRecmesonStruct", "recMesonrho"),
-    srcGamma = cms.InputTag("photonIsolationStruct"),
+    srcMeson = cms.InputTag("recMesonStruct", "rho"),
+    srcGamma = cms.InputTag("recIsoTkEmStruct"),
 )
 
-z2phiRecmesonStruct = cms.EDProducer("ScPhase2RecMesonZ2Phi",
-    #  src = cms.InputTag("phiRecmesonStruct"),
-    src = cms.InputTag("allRecmesonStruct", "recMesonphi"),
+z2phiRecMesonStruct = cms.EDProducer("ScPhase2RecMesonZ2Phi",
+    #  src = cms.InputTag("phiRecMesonStruct"),
+    src = cms.InputTag("recMesonStruct", "phi"),
 )
 
-z2rhoRecmesonStruct = cms.EDProducer("ScPhase2RecMesonZ2Rho",
+z2rhoRecMesonStruct = cms.EDProducer("ScPhase2RecMesonZ2Rho",
     #  src = cms.InputTag("rhoRecmesonStruct"),
-    src = cms.InputTag("allRecmesonStruct", "recMesonrho"),
+    src = cms.InputTag("recMesonStruct", "rho"),
 )
 
 w3piStruct = cms.EDProducer("ScPhase2PuppiW3PiDemo",
