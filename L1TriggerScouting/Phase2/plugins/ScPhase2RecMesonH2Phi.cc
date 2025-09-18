@@ -131,8 +131,12 @@ void ScPhase2RecMesonH2Phi::runObj(const OrbitCollection<T> &src,
         if ((cands[i1].id2() == cands[i2].id1()) || (cands[i1].id2() == cands[i2].id2()))
           continue;
 
+        auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[i1].pt(), cands[i1].eta(), cands[i1].phi(), cands[i1].mass());
+        auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[i2].pt(), cands[i2].eta(), cands[i2].phi(), cands[i2].mass());
+
         // Choose best pair of mesons based on score (e.g. max pt)
-        float ptsum = cands[i1].pt() + cands[i2].pt();
+        float ptsum = (p4_1 + p4_2).pt();
+
         if (ptsum > bestMesonPairScore) {
           bestMesonPairScore = ptsum;
           bestMesonPair = {{i1, i2}};

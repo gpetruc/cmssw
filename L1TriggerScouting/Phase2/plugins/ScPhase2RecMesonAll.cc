@@ -203,18 +203,21 @@ float ScPhase2RecMesonAll::isolationQ(int itype, unsigned int pidex1,
                                       const T *cands,
                                       unsigned int size) const {
   float psum = 0;
-  float eta = cands[pidex1].eta();  //center cone around leading track
-  float phi = cands[pidex1].phi();
+  auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[pidex1].pt(), cands[pidex1].eta(), cands[pidex1].phi(), dmass1_[itype]);
+  auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[pidex2].pt(), cands[pidex2].eta(), cands[pidex2].phi(), dmass2_[itype]);
+  float ptQ = (p4_1 + p4_2).pt();
+  float etaQ = (p4_1 + p4_2).eta();
+  float phiQ = (p4_1 + p4_2).phi();
   for (unsigned int j = 0u; j < size; ++j) {  //loop over other particles
     if (pidex1 == j or pidex2 == j)
       continue;
-    float deta = eta - cands[j].eta(), dphi = ROOT::VecOps::DeltaPhi<float>(phi, cands[j].phi());
+    float deta = etaQ - cands[j].eta(), dphi = ROOT::VecOps::DeltaPhi<float>(phiQ, cands[j].phi());
     float dr2 = deta * deta + dphi * dphi;
     if (dr2 >= minDeltaR_ && dr2 <= maxDeltaR_)
       psum += cands[j].pt();
   }
   // protect from 0 division?
-  return psum / (cands[pidex1].pt() + cands[pidex2].pt());
+  return psum / ptQ;
 }
 
 float ScPhase2RecMesonAll::deltar(float eta1, float eta2, float phi1, float phi2) const {
