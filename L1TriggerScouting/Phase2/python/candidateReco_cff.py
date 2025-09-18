@@ -16,6 +16,12 @@ recMesonStruct = cms.EDProducer("ScPhase2RecMesonAll",
     runStruct = cms.bool(True)
 )
 
+# recMesonStruct = cms.EDProducer("ScPhase2TkrRecMesonAll",
+#     src = cms.InputTag("scPhase2TrackerTrackRawToDigiStruct"),
+#     mesonTypes = cms.vstring("phi", "rho", "jpsi"),
+#     runStruct = cms.bool(True)
+# )
+
 recMesonPhiStruct = cms.EDProducer("ScPhase2RecMeson",
     src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
     minPtDau = cms.double(5.0),

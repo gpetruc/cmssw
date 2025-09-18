@@ -8,8 +8,7 @@
 
 #include "DataFormats/L1Scouting/interface/OrbitCollection.h"
 #include "DataFormats/L1Scouting/interface/OrbitFlatTable.h"
-#include "DataFormats/L1TParticleFlow/interface/L1ScoutingPuppi.h"
-#include "DataFormats/L1TParticleFlow/interface/L1ScoutingTkEm.h"
+#include "DataFormats/L1TParticleFlow/interface/L1ScoutingTTrack.h"
 #include "DataFormats/L1TParticleFlow/interface/RecMeson.h"
 #include "L1TriggerScouting/Utilities/interface/BxOffsetsFiller.h"
 
@@ -24,10 +23,10 @@
 //CHANGES TO IMPLEMENT
 //- RETURN THE FULL 4 particles ?
 
-class ScPhase2RecMesonAll : public edm::stream::EDProducer<> {
+class ScPhase2TkrRecMesonAll : public edm::stream::EDProducer<> {
 public:
-  explicit ScPhase2RecMesonAll(const edm::ParameterSet &);
-  ~ScPhase2RecMesonAll() override;
+  explicit ScPhase2TkrRecMesonAll(const edm::ParameterSet &);
+  ~ScPhase2TkrRecMesonAll() override;
   static void fillDescriptions(edm::ConfigurationDescriptions &descriptions);
 
 private:
@@ -40,7 +39,7 @@ private:
               const std::string &bxLabel);
 
   bool doStruct_;
-  edm::EDGetTokenT<OrbitCollection<l1Scouting::Puppi>> structToken_;
+  edm::EDGetTokenT<OrbitCollection<l1Scouting::TTrack>> structToken_;
   std::vector<std::string> mesonTypes_;
 
   float minDeltaR_ = 0.05 * 0.05;
@@ -48,7 +47,7 @@ private:
   float maxDeltaRDaus_ = 0.40 * 0.40;
   float maxDeltaZ_ = 1;
   float minPtDau_ = 5.0;
-
+  
   std::vector<std::array<float, 2>> massRange_;
   std::vector<float> dmass1_;
   std::vector<float> dmass2_;
@@ -65,16 +64,16 @@ private:
   unsigned long passStruct_;
 };
 
-ScPhase2RecMesonAll::ScPhase2RecMesonAll(const edm::ParameterSet &iConfig)
+ScPhase2TkrRecMesonAll::ScPhase2TkrRecMesonAll(const edm::ParameterSet &iConfig)
     : doStruct_(iConfig.getParameter<bool>("runStruct")),
       mesonTypes_(iConfig.getParameter<std::vector<std::string>>("mesonTypes"))
   {
   if (doStruct_) {
-    //PUPPI input being given here
-    structToken_ = consumes<OrbitCollection<l1Scouting::Puppi>>(iConfig.getParameter<edm::InputTag>("src"));
-
+    //TTrack input being given here
+    structToken_ = consumes<OrbitCollection<l1Scouting::TTrack>>(iConfig.getParameter<edm::InputTag>("src"));
+    
     for (const auto &mt : mesonTypes_) {
-
+    
       if (mt == "phi") {
         massRange_.push_back({{0.95, 1.25}});
         dmass1_.push_back(0.4937);
@@ -96,23 +95,23 @@ ScPhase2RecMesonAll::ScPhase2RecMesonAll(const edm::ParameterSet &iConfig)
   }
 }
 
-ScPhase2RecMesonAll::~ScPhase2RecMesonAll() {};
+ScPhase2TkrRecMesonAll::~ScPhase2TkrRecMesonAll() {};
 
-void ScPhase2RecMesonAll::beginStream(edm::StreamID) {}
+void ScPhase2TkrRecMesonAll::beginStream(edm::StreamID) {}
 
-void ScPhase2RecMesonAll::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
+void ScPhase2TkrRecMesonAll::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
   if (doStruct_) {
-    edm::Handle<OrbitCollection<l1Scouting::Puppi>> src;
+    edm::Handle<OrbitCollection<l1Scouting::TTrack>> src;
     iEvent.getByToken(structToken_, src);
 
     runObj(*src, iEvent, "");
   }
 }
 
-void ScPhase2RecMesonAll::endStream() {}
+void ScPhase2TkrRecMesonAll::endStream() {}
 
 template <typename T>
-void ScPhase2RecMesonAll::runObj(const OrbitCollection<T> &src,
+void ScPhase2TkrRecMesonAll::runObj(const OrbitCollection<T> &src,
                                     edm::Event &iEvent,
                                     const std::string &label) {
   // l1ScoutingRun3::BxOffsetsFillter bxOffsetsFiller;
@@ -134,27 +133,25 @@ void ScPhase2RecMesonAll::runObj(const OrbitCollection<T> &src,
     auto size = range.size();
 
     ix.clear();
-    for (unsigned int i = 0; i < size; ++i) {  //make list of all hadrons
-      if ((std::abs(cands[i].pdgId()) == 211 or std::abs(cands[i].pdgId()) == 11)) {
-        if (cands[i].pt() >= minPtDau_)
-          ix.push_back(i);
-      }
+    for (unsigned int i = 0; i < size; ++i) {  //make list of all tracks
+      if (cands[i].pt() >= minPtDau_)
+        ix.push_back(i);
     }
     unsigned int ndaus = ix.size();
 
     std::set<unsigned int> usedIndices;
-
+    
     for (unsigned int i1 = 0; i1 < ndaus; ++i1) {
       for (unsigned int i2 = i1 + 1; i2 < ndaus; ++i2) {
         if (!(cands[ix[i1]].charge() * cands[ix[i2]].charge() < 0))
           continue;
 
         float drQ = deltar(cands[ix[i1]].eta(), cands[ix[i2]].eta(), cands[ix[i1]].phi(), cands[ix[i2]].phi());
-        if (drQ > maxDeltaRDaus_)
+        if (drQ > maxDeltaRDaus_) 
           continue;
 
         float dZ = abs(cands[ix[i1]].z0() - cands[ix[i2]].z0());
-        if (dZ > maxDeltaZ_)
+        if (dZ > maxDeltaZ_) 
           continue;
 
         float isoDR0p25 = isolationQ(0, ix[i1], ix[i2], cands, size);
@@ -198,10 +195,10 @@ void ScPhase2RecMesonAll::runObj(const OrbitCollection<T> &src,
 }
 
 template <typename T>
-float ScPhase2RecMesonAll::isolationQ(int itype, unsigned int pidex1,
-                                      unsigned int pidex2,
-                                      const T *cands,
-                                      unsigned int size) const {
+float ScPhase2TkrRecMesonAll::isolationQ(int itype, unsigned int pidex1,
+                                   unsigned int pidex2,
+                                   const T *cands,
+                                   unsigned int size) const {
   float psum = 0;
   auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[pidex1].pt(), cands[pidex1].eta(), cands[pidex1].phi(), dmass1_[itype]);
   auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[pidex2].pt(), cands[pidex2].eta(), cands[pidex2].phi(), dmass2_[itype]);
@@ -220,7 +217,7 @@ float ScPhase2RecMesonAll::isolationQ(int itype, unsigned int pidex1,
   return psum / ptQ;
 }
 
-float ScPhase2RecMesonAll::deltar(float eta1, float eta2, float phi1, float phi2) const {
+float ScPhase2TkrRecMesonAll::deltar(float eta1, float eta2, float phi1, float phi2) const {
   float deta = eta1 - eta2;
   float dphi = ROOT::VecOps::DeltaPhi<float>(phi1, phi2);
   float dr2 = deta * deta + dphi * dphi;
@@ -229,7 +226,7 @@ float ScPhase2RecMesonAll::deltar(float eta1, float eta2, float phi1, float phi2
 }
 
 template <typename T>
-float ScPhase2RecMesonAll::pairmass(const std::array<unsigned int, 2> &t,
+float ScPhase2TkrRecMesonAll::pairmass(const std::array<unsigned int, 2> &t,
                                     const T *cands,
                                     const std::array<float, 2> &massD) {
   ROOT::Math::PtEtaPhiMVector p1(cands[t[0]].pt(), cands[t[0]].eta(), cands[t[0]].phi(), massD[0]);
@@ -238,7 +235,7 @@ float ScPhase2RecMesonAll::pairmass(const std::array<unsigned int, 2> &t,
   return mass;
 }
 
-void ScPhase2RecMesonAll::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
+void ScPhase2TkrRecMesonAll::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
   edm::ParameterSetDescription desc;
   desc.add<edm::InputTag>("src");
   desc.add<bool>("runStruct", true);
@@ -246,4 +243,4 @@ void ScPhase2RecMesonAll::fillDescriptions(edm::ConfigurationDescriptions &descr
   descriptions.addDefault(desc);
 }
 
-DEFINE_FWK_MODULE(ScPhase2RecMesonAll);
+DEFINE_FWK_MODULE(ScPhase2TkrRecMesonAll);
