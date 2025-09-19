@@ -42,7 +42,7 @@ private:
   bool doStruct_;
   edm::EDGetTokenT<OrbitCollection<l1Scouting::Puppi>> structToken_;
   std::string mesonType_;
-  std::vector<float> mesonMassRange_ = {0.0f, 0.0f};
+  std::vector<float,2> mesonMassRange_ = {0.0f, 0.0f};
   float dmass1_ = 0;
   float dmass2_ = 0;
 
@@ -136,8 +136,6 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
     }
     unsigned int ndaus = ix.size();
     //std::cout << "BX = " << bx << " ; number of daugthers = " << ndaus << std::endl;
-
-    std::set<unsigned int> usedIndices;
 
     for (unsigned int i1 = 0; i1 < ndaus; ++i1) {
       for (unsigned int i2 = i1 + 1; i2 < ndaus; ++i2) {

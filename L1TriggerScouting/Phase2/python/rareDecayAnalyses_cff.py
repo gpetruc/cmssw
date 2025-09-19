@@ -2,47 +2,38 @@ import FWCore.ParameterSet.Config as cms
 
 
 hjpsigammaRecMesonStruct = cms.EDProducer("ScPhase2RecMesonHJPsiGamma",
-    # srcMeson = cms.InputTag("jpsiRecmesonStruct"),
     srcMeson = cms.InputTag("recMesonStruct", "jpsi"),
     srcGamma = cms.InputTag("recIsoTkEmStruct"),
 )
 
 h2phiRecMesonStruct = cms.EDProducer("ScPhase2RecMesonH2Phi",
-    #  src = cms.InputTag("phiRecMesonStruct"),
     src = cms.InputTag("recMesonStruct", "phi"),
 )
 
 hphigammaRecMesonStruct = cms.EDProducer("ScPhase2RecMesonHPhiGamma",
-    # srcMeson = cms.InputTag("phiRecMesonStruct"),
     srcMeson = cms.InputTag("recMesonStruct", "phi"),
     srcGamma = cms.InputTag("recIsoTkEmStruct"),
 )
 
 hphijpsiRecMesonStruct = cms.EDProducer("ScPhase2RecMesonHPhiJPsi",
-    # srcPhi = cms.InputTag("phiRecMesonStruct"),
     srcPhi = cms.InputTag("recMesonStruct", "phi"),
-    # srcJPsi = cms.InputTag("jpsiRecmesonStruct"),
     srcJPsi = cms.InputTag("recMesonStruct", "jpsi"),
 )
 
 h2rhoRecMesonStruct = cms.EDProducer("ScPhase2RecMesonH2Rho",
-    #  src = cms.InputTag("rhoRecmesonStruct"),
     src = cms.InputTag("recMesonStruct", "rho"),
 )
 
 hrhogammaRecMesonStruct = cms.EDProducer("ScPhase2RecMesonHRhoGamma",
-    # srcMeson = cms.InputTag("rhoRecmesonStruct"),
     srcMeson = cms.InputTag("recMesonStruct", "rho"),
     srcGamma = cms.InputTag("recIsoTkEmStruct"),
 )
 
 z2phiRecMesonStruct = cms.EDProducer("ScPhase2RecMesonZ2Phi",
-    #  src = cms.InputTag("phiRecMesonStruct"),
     src = cms.InputTag("recMesonStruct", "phi"),
 )
 
 z2rhoRecMesonStruct = cms.EDProducer("ScPhase2RecMesonZ2Rho",
-    #  src = cms.InputTag("rhoRecmesonStruct"),
     src = cms.InputTag("recMesonStruct", "rho"),
 )
 

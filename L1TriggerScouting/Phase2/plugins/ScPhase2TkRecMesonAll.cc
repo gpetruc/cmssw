@@ -86,6 +86,8 @@ ScPhase2TkRecMesonAll::ScPhase2TkRecMesonAll(const edm::ParameterSet &iConfig)
         massRange_.push_back({{2.50, 3.50}});
         dmass1_.push_back(0.1057);
         dmass2_.push_back(0.1057);
+      } else {
+        throw cms::Exception("Configuration") << "Unrecognized meson '" << mt << "'; supported ones are phi, rho, jpsi."
       }
 
       produces<OrbitCollection<l1Scouting::RecMeson>>(mt);
@@ -138,8 +140,6 @@ void ScPhase2TkRecMesonAll::runObj(const OrbitCollection<T> &src,
         ix.push_back(i);
     }
     unsigned int ndaus = ix.size();
-
-    std::set<unsigned int> usedIndices;
     
     for (unsigned int i1 = 0; i1 < ndaus; ++i1) {
       for (unsigned int i2 = i1 + 1; i2 < ndaus; ++i2) {

@@ -100,7 +100,7 @@ scPhase2TrackerMuonMaskedStructToTable = scPhase2TrackerMuonStructToTable.clone(
 scPhase2PFStructToTable = cms.EDProducer("ScPuppiToOrbitFlatTable",
     src = cms.InputTag("scPhase2PFRawToDigiStruct"),
     name = cms.string("L1PF"),
-    doc = cms.string("L1PF candidates from Correlator Layer 2"),
+    doc = cms.string("L1PF candidates from Correlator Layer 1"),
 )
 
 scPhase2PFMaskedStructToTable = scPhase2PFStructToTable.clone(
