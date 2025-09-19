@@ -56,7 +56,7 @@ void ScRecMesonToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm:
   iEvent.getByToken(src_, src);
   auto out = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(src->bxOffsets(), name_);
   out->setDoc(doc_);
-  std::vector<float> pt(out->size()), eta(out->size()), phi(out->size());
+  std::vector<float> pt(out->size()), eta(out->size()), phi(out->size()), mass(out->size());
   std::vector<int16_t> id1(out->size()), id2(out->size());
   unsigned int i = 0;
   for (const l1Scouting::RecMeson& RecMeson : *src) {
@@ -65,6 +65,7 @@ void ScRecMesonToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm:
     phi[i] = RecMeson.phi();
     id1[i] = RecMeson.id1();
     id2[i] = RecMeson.id2();
+    mass[i] = RecMeson.mass();
 
     ++i;
   }
@@ -73,6 +74,7 @@ void ScRecMesonToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm:
   out->addColumn<float>("phi", phi, "phi (natural units)");
   out->addColumn<float>("id1", id1, "index of 1st daughter");
   out->addColumn<float>("id2", id2, "index of 2st daughter");
+  out->addColumn<float>("mass", mass, "mass (natural units)");
   iEvent.put(std::move(out));
   
 }
