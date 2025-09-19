@@ -177,7 +177,6 @@ void ScPhase2RecMesonAll::runObj(const OrbitCollection<T> &src,
           all_mesonVec_thisBx[itype].push_back(recMeson);
 
           all_ntotRecMeson[itype]++;
-          break;
         }
       }
     }
