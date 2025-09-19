@@ -23,10 +23,10 @@
 //CHANGES TO IMPLEMENT
 //- RETURN THE FULL 4 particles ?
 
-class ScPhase2TkrRecMesonAll : public edm::stream::EDProducer<> {
+class ScPhase2TkRecMesonAll : public edm::stream::EDProducer<> {
 public:
-  explicit ScPhase2TkrRecMesonAll(const edm::ParameterSet &);
-  ~ScPhase2TkrRecMesonAll() override;
+  explicit ScPhase2TkRecMesonAll(const edm::ParameterSet &);
+  ~ScPhase2TkRecMesonAll() override;
   static void fillDescriptions(edm::ConfigurationDescriptions &descriptions);
 
 private:
@@ -64,7 +64,7 @@ private:
   unsigned long passStruct_;
 };
 
-ScPhase2TkrRecMesonAll::ScPhase2TkrRecMesonAll(const edm::ParameterSet &iConfig)
+ScPhase2TkRecMesonAll::ScPhase2TkRecMesonAll(const edm::ParameterSet &iConfig)
     : doStruct_(iConfig.getParameter<bool>("runStruct")),
       mesonTypes_(iConfig.getParameter<std::vector<std::string>>("mesonTypes"))
   {
@@ -95,11 +95,11 @@ ScPhase2TkrRecMesonAll::ScPhase2TkrRecMesonAll(const edm::ParameterSet &iConfig)
   }
 }
 
-ScPhase2TkrRecMesonAll::~ScPhase2TkrRecMesonAll() {};
+ScPhase2TkRecMesonAll::~ScPhase2TkRecMesonAll() {};
 
-void ScPhase2TkrRecMesonAll::beginStream(edm::StreamID) {}
+void ScPhase2TkRecMesonAll::beginStream(edm::StreamID) {}
 
-void ScPhase2TkrRecMesonAll::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
+void ScPhase2TkRecMesonAll::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
   if (doStruct_) {
     edm::Handle<OrbitCollection<l1Scouting::TTrack>> src;
     iEvent.getByToken(structToken_, src);
@@ -108,10 +108,10 @@ void ScPhase2TkrRecMesonAll::produce(edm::Event &iEvent, const edm::EventSetup &
   }
 }
 
-void ScPhase2TkrRecMesonAll::endStream() {}
+void ScPhase2TkRecMesonAll::endStream() {}
 
 template <typename T>
-void ScPhase2TkrRecMesonAll::runObj(const OrbitCollection<T> &src,
+void ScPhase2TkRecMesonAll::runObj(const OrbitCollection<T> &src,
                                     edm::Event &iEvent,
                                     const std::string &label) {
   // l1ScoutingRun3::BxOffsetsFillter bxOffsetsFiller;
@@ -195,7 +195,7 @@ void ScPhase2TkrRecMesonAll::runObj(const OrbitCollection<T> &src,
 }
 
 template <typename T>
-float ScPhase2TkrRecMesonAll::isolationQ(int itype, unsigned int pidex1,
+float ScPhase2TkRecMesonAll::isolationQ(int itype, unsigned int pidex1,
                                    unsigned int pidex2,
                                    const T *cands,
                                    unsigned int size) const {
@@ -217,7 +217,7 @@ float ScPhase2TkrRecMesonAll::isolationQ(int itype, unsigned int pidex1,
   return psum / ptQ;
 }
 
-float ScPhase2TkrRecMesonAll::deltar(float eta1, float eta2, float phi1, float phi2) const {
+float ScPhase2TkRecMesonAll::deltar(float eta1, float eta2, float phi1, float phi2) const {
   float deta = eta1 - eta2;
   float dphi = ROOT::VecOps::DeltaPhi<float>(phi1, phi2);
   float dr2 = deta * deta + dphi * dphi;
@@ -226,7 +226,7 @@ float ScPhase2TkrRecMesonAll::deltar(float eta1, float eta2, float phi1, float p
 }
 
 template <typename T>
-float ScPhase2TkrRecMesonAll::pairmass(const std::array<unsigned int, 2> &t,
+float ScPhase2TkRecMesonAll::pairmass(const std::array<unsigned int, 2> &t,
                                     const T *cands,
                                     const std::array<float, 2> &massD) {
   ROOT::Math::PtEtaPhiMVector p1(cands[t[0]].pt(), cands[t[0]].eta(), cands[t[0]].phi(), massD[0]);
@@ -235,7 +235,7 @@ float ScPhase2TkrRecMesonAll::pairmass(const std::array<unsigned int, 2> &t,
   return mass;
 }
 
-void ScPhase2TkrRecMesonAll::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
+void ScPhase2TkRecMesonAll::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
   edm::ParameterSetDescription desc;
   desc.add<edm::InputTag>("src");
   desc.add<bool>("runStruct", true);
@@ -243,4 +243,4 @@ void ScPhase2TkrRecMesonAll::fillDescriptions(edm::ConfigurationDescriptions &de
   descriptions.addDefault(desc);
 }
 
-DEFINE_FWK_MODULE(ScPhase2TkrRecMesonAll);
+DEFINE_FWK_MODULE(ScPhase2TkRecMesonAll);
