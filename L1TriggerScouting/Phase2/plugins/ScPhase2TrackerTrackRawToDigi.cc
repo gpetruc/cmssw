@@ -105,13 +105,14 @@ void ScPhase2TrackerTrackRawToDigi::unpackFromRaw(uint64_t datalow,
                                                   uint32_t datahigh,
                                                   std::vector<l1Scouting::TTrack> &outBuffer) {
 
-  unsigned int valid, rInv, phi0, chi2RPhi, tanl, z0, chi2RZ, d0, bendChi2, hitPattern, mvaQuality, MVAOther;
-  l1trkUnpack::read(datalow, datahigh, valid, rInv, phi0, chi2RPhi, tanl, z0, chi2RZ, d0, bendChi2, hitPattern, mvaQuality, MVAOther);
+  unsigned int valid, rInv, phi0, chi2RPhi, tanl, z0, chi2RZ, d0, bendChi2, hitPattern, mvaQuality, phiSector;
+  l1trkUnpack::read(datalow, datahigh, valid, rInv, phi0, chi2RPhi, tanl, z0, chi2RZ, d0, bendChi2, hitPattern, mvaQuality, phiSector);
 
   if (valid) {
     float ptF = l1trkUnpack::getPt(rInv);
     float rInvF = l1trkUnpack::getRinv(rInv);
     float phi0F = l1trkUnpack::getPhi0(phi0);
+    float phiF = l1trkUnpack::getGlobalPhi(phi0F, phiSector);
     float tanlF = l1trkUnpack::getTanl(tanl);
     float d0F = l1trkUnpack::getD0(d0);
     float z0F = l1trkUnpack::getZ0(z0);
@@ -119,15 +120,14 @@ void ScPhase2TrackerTrackRawToDigi::unpackFromRaw(uint64_t datalow,
     float chi2RZF = l1trkUnpack::getChi2RZ(chi2RZ);
     float bendChi2F = l1trkUnpack::getBendChi2(bendChi2);
     int8_t charge = rInvF > 0? +1 : -1;
-    GlobalVector momentum = l1trkUnpack::getMomentum(ptF, phi0F, tanlF);
-    GlobalPoint poca = l1trkUnpack::getPOCA(d0F, phi0F, z0F);
+    GlobalVector momentum = l1trkUnpack::getMomentum(ptF, phiF, tanlF);
+    GlobalPoint poca = l1trkUnpack::getPOCA(d0F, phiF, z0F);
     float dxyF = poca.perp();
     uint8_t nStub = l1trkUnpack::getNStubs(hitPattern);
     float chi2 = chi2RPhiF + chi2RZF; // TODO: not fully sure about the chi2 sum
     float chi2Red = chi2 / (2 * nStub - nFitPars_);
     float mvaQualityF = l1trkUnpack::getMVAQuality(mvaQuality);
     float etaF = momentum.eta();
-    float phiF = momentum.phi();
 
     // compute quality bits
     uint8_t quality = 0;

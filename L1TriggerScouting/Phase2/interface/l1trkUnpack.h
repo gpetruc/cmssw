@@ -5,6 +5,7 @@
 
 #include "CLHEP/Units/GlobalPhysicalConstants.h"
 #include "DataFormats/L1TrackTrigger/interface/TTTrack_TrackWord.h"
+#include "DataFormats/Math/interface/deltaPhi.h"
 
 namespace l1trkUnpack {
   // constant is 0.299792458; who knew c_light was in mm/ns?
@@ -24,8 +25,8 @@ namespace l1trkUnpack {
                    uint32_t &bendChi2,
                    uint32_t &hitPattern,
                    uint32_t &mvaQuality,
-                   uint32_t &mvaOther) {
-    mvaOther = datalow & 0x3F;          // 6 bits   (0)
+                   uint32_t &phiSector) {
+    phiSector = datalow & 0x3F;         // 6 bits   (0)
     mvaQuality = (datalow >> 6) & 0x7;  // 3 bits   (6)
     hitPattern = (datalow >> 9) & 0x7F; // 7 bits   (9)
     bendChi2 = (datalow >> 16) & 0x7;   // 3 bits   (16)
@@ -107,6 +108,11 @@ namespace l1trkUnpack {
 
   inline float getPt(uint32_t rInvInt) {
     return std::abs(MagConstant / getRinv(rInvInt) * BField / 100.0);  // Rinv is in cm-1
+  }
+
+  inline float getGlobalPhi(float localPhi, unsigned int sector) {
+    float phiCenter = sector * TTTrack_TrackWord::sectorWidth;
+    return reco::deltaPhi(localPhi + phiCenter, 0.0f);
   }
 
   inline GlobalVector getMomentum(float pt, float phi0, float tanl) {
