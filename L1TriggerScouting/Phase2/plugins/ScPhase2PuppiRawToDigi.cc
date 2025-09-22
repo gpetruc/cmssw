@@ -32,6 +32,7 @@ private:
 
   edm::EDGetTokenT<SDSRawDataCollection> rawToken_;
   std::vector<unsigned int> fedIDs_;
+  uint8_t splitFactor_; // number of fragments per BX
   bool doCandidate_, doStruct_, doSOA_;
 
   // temporary storage
@@ -46,6 +47,7 @@ private:
 ScPhase2PuppiRawToDigi::ScPhase2PuppiRawToDigi(const edm::ParameterSet &iConfig)
     : rawToken_(consumes<SDSRawDataCollection>(iConfig.getParameter<edm::InputTag>("src"))),
       fedIDs_(iConfig.getParameter<std::vector<unsigned int>>("fedIDs")),
+      splitFactor_(iConfig.getParameter<unsigned int>("splitFactor")),
       doCandidate_(iConfig.getParameter<bool>("runCandidateUnpacker")),
       doStruct_(iConfig.getParameter<bool>("runStructUnpacker")),
       doSOA_(iConfig.getParameter<bool>("runSOAUnpacker")) {
@@ -90,6 +92,8 @@ std::unique_ptr<OrbitCollection<T>> ScPhase2PuppiRawToDigi::unpackObj(unsigned i
                                                                       std::vector<std::vector<T>> &buffer) {
   unsigned int ntot = 0;
   nbx_ = 0;
+  std::array<uint8_t, OrbitCollection<T>::NBX> bxcount;
+  std::fill(bxcount.begin(), bxcount.end(), 0);
   for (auto &fedId : fedIDs_) {
     const FEDRawData &src = feds.FEDData(fedId);
     const uint64_t *begin = reinterpret_cast<const uint64_t *>(src.data());
@@ -106,9 +110,15 @@ std::unique_ptr<OrbitCollection<T>> ScPhase2PuppiRawToDigi::unpackObj(unsigned i
         throw cms::Exception("CorruptData") << "Data for orbit " << orbit << ", fedId " << fedId
                                             << " has header with mismatching orbit number " << orbitno << std::endl;
       }
-      nbx_++;
-      ++p;
       assert(bx < OrbitCollection<T>::NBX);
+      auto nfound = ++bxcount[bx];
+      if (nfound > splitFactor_) { 
+        throw cms::Exception("CorruptData") << "Data for orbit " << orbit 
+                                            << " has " << nfound << " blocks for bx " << bx << ", expected " << splitFactor_ << std::endl;
+      } else if (nfound == splitFactor_) {
+        nbx_++;
+      }
+      ++p;
       std::vector<T> &outputBuffer = buffer[bx + 1];
       outputBuffer.reserve(nwords);
       for (unsigned int i = 0; i < nwords; ++i, ++p) {
@@ -233,6 +243,7 @@ void ScPhase2PuppiRawToDigi::fillDescriptions(edm::ConfigurationDescriptions &de
   edm::ParameterSetDescription desc;
   desc.add<edm::InputTag>("src", edm::InputTag("rawDataCollector"));
   desc.add<std::vector<unsigned int>>("fedIDs");
+  desc.add<unsigned int>("splitFactor", 1)->setComment("Number of fragments per BX");
   desc.add<bool>("runCandidateUnpacker", false);
   desc.add<bool>("runStructUnpacker", true);
   desc.add<bool>("runSOAUnpacker", false);

@@ -9,7 +9,7 @@ if options.buNumStreams == []:
 analyses = options.analyses if options.analyses else ["w3pi", "hphijpsi", "h2rho", "h2phi"]
 print(f"Analyses set to {analyses}")
 
-if options.run not in ("both", "inclusive", "selected", "candidate", "soa", "all", "fast", "alpaka"):
+if options.run not in ("both", "inclusive", "selected", "candidate", "soa", "all", "fast", "alpaka", "unpack", "unpackAlpaka"):
     raise RuntimeError("Unsupported run mode %r" % options.run)
 
 process = cms.Process("SCPU")
@@ -80,7 +80,7 @@ process.load("L1TriggerScouting.Phase2.unpackers_cff")
 process.load("L1TriggerScouting.Phase2.rareDecayAnalyses_cff")
 process.load("L1TriggerScouting.Phase2.maskedCollections_cff")
 process.load("L1TriggerScouting.Phase2.nanoAODOutputs_cff")
-if options.run in ("all","fast","alpaka"): 
+if options.run in ("all", "fast", "alpaka", "unpackAlpaka"): 
   process.load("Configuration.StandardSequences.Accelerators_cff")
 
 ## Configure unpackers
@@ -119,7 +119,7 @@ process.p_selected = cms.Path(
 )
 
 # Alpaka modules
-if options.run in ("all","fast","alpaka"): 
+if options.run in ("all","fast","alpaka", "unpackAlpaka"): 
   from L1TriggerScouting.Phase2.modules import (
       l1sc_L1TScPhase2PuppiRawToDigi_alpaka,
       l1sc_L1TScPhase2W3Pi_alpaka
@@ -138,7 +138,7 @@ if options.run in ("all","fast","alpaka"):
       verboseLevel = cms.untracked.int32(options.verboseLevel)
   )
   process.goodOrbitsByNBX.unpackersAlpaka = [ "scPhase2PuppiRawToDigiAlpaka" ]
-  if options.run == "alpaka":
+  if options.run in ("alpaka", "unpackAlpaka"):
     process.goodOrbitsByNBX.unpackers = []
 
 # Additional modules and paths for benchmarking different data structures
@@ -173,7 +173,7 @@ process.p_soa = cms.Path(
   process.w3piSOA
 )
 
-if options.run in ("all","fast","alpaka"):
+if options.run in ("all", "fast", "alpaka", "unpackAlpaka"):
   process.p_all = cms.Path(
     process.scPhase2PuppiRawToDigiCandidate +
     process.scPhase2PuppiRawToDigiStruct +
@@ -201,6 +201,16 @@ if options.run in ("all","fast","alpaka"):
     process.goodOrbitsByNBX +
     process.w3piAlpaka
   )
+
+  process.p_unpackAlpaka = cms.Path(
+    process.scPhase2PuppiRawToDigiAlpaka +
+    process.goodOrbitsByNBX
+  )
+
+process.p_unpack = cms.Path(
+  process.scPhase2PuppiRawToDigiStruct +
+  process.goodOrbitsByNBX
+)
 
 process.scPhase2NanoAll.fileName = options.outFile.replace(".root","")+".inclusive.root"
 process.scPhase2NanoAll.SelectEvents.SelectEvents = ['p_inclusive']

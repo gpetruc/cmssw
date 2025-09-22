@@ -67,6 +67,18 @@ options.register ('tkMuStreamIDs',
                   VarParsing.VarParsing.varType.int,          # string, int, or float
                   "Stream IDs for the TkMu inputs")
 
+options.register ('pfBarrelStreamIDs',
+                  [], # default value
+                  VarParsing.VarParsing.multiplicity.list,
+                  VarParsing.VarParsing.varType.int,          # string, int, or float
+                  "Stream IDs for the PF Barrel inputs")
+
+options.register ('pfEndcapStreamIDs',
+                  [], # default value
+                  VarParsing.VarParsing.multiplicity.list,
+                  VarParsing.VarParsing.varType.int,          # string, int, or float
+                  "Stream IDs for the PF Endcap inputs")
+
 options.register ('fuBaseDir',
                   '/dev/shm/data', # default value
                   VarParsing.VarParsing.multiplicity.singleton,
