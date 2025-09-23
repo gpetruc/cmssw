@@ -20,10 +20,10 @@
 #include <array>
 #include <iostream>
 
-class ScPhase2RecMesonBosonMesonGamma : public edm::stream::EDProducer<> {
+class ScPhase2BosonToRecMesonGamma : public edm::stream::EDProducer<> {
 public:
-  explicit ScPhase2RecMesonBosonMesonGamma(const edm::ParameterSet &);
-  ~ScPhase2RecMesonBosonMesonGamma() override;
+  explicit ScPhase2BosonToRecMesonGamma(const edm::ParameterSet &);
+  ~ScPhase2BosonToRecMesonGamma() override;
   static void fillDescriptions(edm::ConfigurationDescriptions &descriptions);
 
 private:
@@ -64,7 +64,7 @@ private:
   unsigned long passStruct_;
 };
 
-ScPhase2RecMesonBosonMesonGamma::ScPhase2RecMesonBosonMesonGamma(const edm::ParameterSet &iConfig)
+ScPhase2BosonToRecMesonGamma::ScPhase2BosonToRecMesonGamma(const edm::ParameterSet &iConfig)
     : doStruct_(iConfig.getParameter<bool>("runStruct")),
       minmassBoson_(iConfig.getParameter<double>("minmassBoson")),
       maxmassBoson_(iConfig.getParameter<double>("maxmassBoson")),
@@ -80,14 +80,14 @@ ScPhase2RecMesonBosonMesonGamma::ScPhase2RecMesonBosonMesonGamma(const edm::Para
   }
 }
 
-ScPhase2RecMesonBosonMesonGamma::~ScPhase2RecMesonBosonMesonGamma() {};
+ScPhase2BosonToRecMesonGamma::~ScPhase2BosonToRecMesonGamma() {};
 
-void ScPhase2RecMesonBosonMesonGamma::beginStream(edm::StreamID) {
+void ScPhase2BosonToRecMesonGamma::beginStream(edm::StreamID) {
   countStruct_ = 0;
   passStruct_ = 0;
 }
 
-void ScPhase2RecMesonBosonMesonGamma::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
+void ScPhase2BosonToRecMesonGamma::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
   if (doStruct_) {
     edm::Handle<OrbitCollection<l1Scouting::IsoTkEm>> srcGamma;
     edm::Handle<OrbitCollection<l1Scouting::RecMeson>> srcMeson;
@@ -97,13 +97,13 @@ void ScPhase2RecMesonBosonMesonGamma::produce(edm::Event &iEvent, const edm::Eve
   }
 }
 
-void ScPhase2RecMesonBosonMesonGamma::endStream() {
+void ScPhase2BosonToRecMesonGamma::endStream() {
   if (doStruct_)
     edm::LogImportant("ScPhase2AnalysisSummary") << "Rec Meson BosonMesonGamma Struct analysis: " << countStruct_ << " -> " << passStruct_;
 }
 
 template <typename T, typename U>
-void ScPhase2RecMesonBosonMesonGamma::runObj(const OrbitCollection<T> &srcGamma,
+void ScPhase2BosonToRecMesonGamma::runObj(const OrbitCollection<T> &srcGamma,
                                     const OrbitCollection<U> &srcMeson,
                                     edm::Event &iEvent,
                                     unsigned long &nTry,
@@ -180,7 +180,7 @@ void ScPhase2RecMesonBosonMesonGamma::runObj(const OrbitCollection<T> &srcGamma,
 }
 
 template <typename T, typename U>
-float ScPhase2RecMesonBosonMesonGamma::tripletmass(const std::array<unsigned int, 2> &t,
+float ScPhase2BosonToRecMesonGamma::tripletmass(const std::array<unsigned int, 2> &t,
                                               const T *candsGamma,
                                               const U *candsMeson) {
   ROOT::Math::PtEtaPhiMVector p1(candsMeson[t[0]].pt(), candsMeson[t[0]].eta(), candsMeson[t[0]].phi(), candsMeson[t[0]].mass());
@@ -190,7 +190,7 @@ float ScPhase2RecMesonBosonMesonGamma::tripletmass(const std::array<unsigned int
 }
 
 template <typename T, typename U>
-float ScPhase2RecMesonBosonMesonGamma::tripletpt(const std::array<unsigned int, 2> &t,
+float ScPhase2BosonToRecMesonGamma::tripletpt(const std::array<unsigned int, 2> &t,
                                               const T *candsGamma,
                                               const U *candsMeson) {
   ROOT::Math::PtEtaPhiMVector p1(candsMeson[t[0]].pt(), candsMeson[t[0]].eta(), candsMeson[t[0]].phi(), candsMeson[t[0]].mass());
@@ -199,7 +199,7 @@ float ScPhase2RecMesonBosonMesonGamma::tripletpt(const std::array<unsigned int, 
   return pt;
 }
 
-void ScPhase2RecMesonBosonMesonGamma::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
+void ScPhase2BosonToRecMesonGamma::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
   edm::ParameterSetDescription desc;
   desc.add<edm::InputTag>("srcGamma");
   desc.add<edm::InputTag>("srcMeson");
@@ -212,4 +212,4 @@ void ScPhase2RecMesonBosonMesonGamma::fillDescriptions(edm::ConfigurationDescrip
   descriptions.addDefault(desc);
 }
 
-DEFINE_FWK_MODULE(ScPhase2RecMesonBosonMesonGamma);
+DEFINE_FWK_MODULE(ScPhase2BosonToRecMesonGamma);

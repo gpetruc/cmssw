@@ -20,10 +20,10 @@
 #include <array>
 #include <iostream>
 
-class ScPhase2RecMesonBoson2Meson : public edm::stream::EDProducer<> {
+class ScPhase2BosonTo2RecMeson : public edm::stream::EDProducer<> {
 public:
-  explicit ScPhase2RecMesonBoson2Meson(const edm::ParameterSet &);
-  ~ScPhase2RecMesonBoson2Meson() override;
+  explicit ScPhase2BosonTo2RecMeson(const edm::ParameterSet &);
+  ~ScPhase2BosonTo2RecMeson() override;
   static void fillDescriptions(edm::ConfigurationDescriptions &descriptions);
 
 private:
@@ -54,7 +54,7 @@ private:
   unsigned long passStruct_;
 };
 
-ScPhase2RecMesonBoson2Meson::ScPhase2RecMesonBoson2Meson(const edm::ParameterSet &iConfig)
+ScPhase2BosonTo2RecMeson::ScPhase2BosonTo2RecMeson(const edm::ParameterSet &iConfig)
     : doStruct_(iConfig.getParameter<bool>("runStruct")),
       minmassBoson_(iConfig.getParameter<double>("minmassBoson")),
       maxmassBoson_(iConfig.getParameter<double>("maxmassBoson")),
@@ -70,14 +70,14 @@ ScPhase2RecMesonBoson2Meson::ScPhase2RecMesonBoson2Meson(const edm::ParameterSet
   }
 }
 
-ScPhase2RecMesonBoson2Meson::~ScPhase2RecMesonBoson2Meson() {};
+ScPhase2BosonTo2RecMeson::~ScPhase2BosonTo2RecMeson() {};
 
-void ScPhase2RecMesonBoson2Meson::beginStream(edm::StreamID) {
+void ScPhase2BosonTo2RecMeson::beginStream(edm::StreamID) {
   countStruct_ = 0;
   passStruct_ = 0;
 }
 
-void ScPhase2RecMesonBoson2Meson::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
+void ScPhase2BosonTo2RecMeson::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
   if (doStruct_) {
     edm::Handle<OrbitCollection<l1Scouting::RecMeson>> srcMeson1;
     edm::Handle<OrbitCollection<l1Scouting::RecMeson>> srcMeson2;
@@ -87,13 +87,13 @@ void ScPhase2RecMesonBoson2Meson::produce(edm::Event &iEvent, const edm::EventSe
   }
 }
 
-void ScPhase2RecMesonBoson2Meson::endStream() {
+void ScPhase2BosonTo2RecMeson::endStream() {
   if (doStruct_)
     edm::LogImportant("ScPhase2AnalysisSummary") << "Rec Meson Boson to 2 Mesons Struct analysis: " << countStruct_ << " -> " << passStruct_;
 }
 
 template <typename T>
-void ScPhase2RecMesonBoson2Meson::runObj(const OrbitCollection<T> &srcMeson1,
+void ScPhase2BosonTo2RecMeson::runObj(const OrbitCollection<T> &srcMeson1,
                                     const OrbitCollection<T> &srcMeson2,
                                     edm::Event &iEvent,
                                     unsigned long &nTry,
@@ -179,14 +179,14 @@ void ScPhase2RecMesonBoson2Meson::runObj(const OrbitCollection<T> &srcMeson1,
   iEvent.put(std::move(tab), analysisName_ + label);
 }
 
-float ScPhase2RecMesonBoson2Meson::quadrimass(const l1Scouting::RecMeson *candsa, int a, const l1Scouting::RecMeson *candsb, int b) {
+float ScPhase2BosonTo2RecMeson::quadrimass(const l1Scouting::RecMeson *candsa, int a, const l1Scouting::RecMeson *candsb, int b) {
   ROOT::Math::PtEtaPhiMVector p1(candsa[a].pt(), candsa[a].eta(), candsa[a].phi(), candsa[a].mass());
   ROOT::Math::PtEtaPhiMVector p2(candsb[b].pt(), candsb[b].eta(), candsb[b].phi(), candsb[b].mass());
   float mass = (p1 + p2).M();
   return mass;
 }
 
-void ScPhase2RecMesonBoson2Meson::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
+void ScPhase2BosonTo2RecMeson::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
   edm::ParameterSetDescription desc;
   desc.add<edm::InputTag>("srcMeson1");
   desc.add<edm::InputTag>("srcMeson2");
@@ -199,4 +199,4 @@ void ScPhase2RecMesonBoson2Meson::fillDescriptions(edm::ConfigurationDescription
   descriptions.addDefault(desc);
 }
 
-DEFINE_FWK_MODULE(ScPhase2RecMesonBoson2Meson);
+DEFINE_FWK_MODULE(ScPhase2BosonTo2RecMeson);
