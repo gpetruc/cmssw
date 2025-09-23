@@ -43,11 +43,12 @@ private:
   edm::EDGetTokenT<OrbitCollection<l1Scouting::Puppi>> structToken_;
   std::vector<std::string> mesonTypes_;
 
-  float minDeltaR_ = 0.05 * 0.05;
-  float maxDeltaR_ = 0.25 * 0.25;
-  float maxDeltaRDaus_ = 0.40 * 0.40;
-  float maxDeltaZ_ = 1;
-  float minPtDau_ = 5.0;
+  double minDeltaR_;
+  double maxDeltaR_;
+  double maxDeltaRDaus_;
+  double maxDeltaZ_;
+  double minPtDau_;
+  double maxZIsolation_;
 
   std::vector<std::array<float, 2>> massRange_;
   std::vector<float> dmass1_;
@@ -67,7 +68,13 @@ private:
 
 ScPhase2RecMesonAll::ScPhase2RecMesonAll(const edm::ParameterSet &iConfig)
     : doStruct_(iConfig.getParameter<bool>("runStruct")),
-      mesonTypes_(iConfig.getParameter<std::vector<std::string>>("mesonTypes"))
+      mesonTypes_(iConfig.getParameter<std::vector<std::string>>("mesonTypes")),
+      minDeltaR_(iConfig.getParameter<double>("minDeltaR")),
+      maxDeltaR_(iConfig.getParameter<double>("maxDeltaR")),
+      maxDeltaRDaus_(iConfig.getParameter<double>("maxDeltaRDaus")),
+      maxDeltaZ_(iConfig.getParameter<double>("maxDeltaZ")),
+      minPtDau_(iConfig.getParameter<double>("minPtDau")),
+      maxZIsolation_(iConfig.getParameter<double>("maxZIsolation"))
   {
   if (doStruct_) {
     //PUPPI input being given here
@@ -212,7 +219,7 @@ float ScPhase2RecMesonAll::isolationQ(int itype, unsigned int pidex1,
 
     //only consider particles with a small distance in z from the candidates for the isolation calculation
     float z_boson = (cands[pidex1].z0()*cands[pidex1].pt() + cands[pidex2].z0()*cands[pidex2].pt())/(cands[pidex1].pt() + cands[pidex2].pt());
-    if (abs(z_boson - cands[j].z0()) > 1) 
+    if (abs(z_boson - cands[j].z0()) > maxZIsolation_) 
       continue;
 
 
@@ -248,6 +255,12 @@ void ScPhase2RecMesonAll::fillDescriptions(edm::ConfigurationDescriptions &descr
   desc.add<edm::InputTag>("src");
   desc.add<bool>("runStruct", true);
   desc.add<std::vector<std::string>>("mesonTypes");
+  desc.add<double>("minDeltaR");
+  desc.add<double>("maxDeltaR");
+  desc.add<double>("maxDeltaRDaus");
+  desc.add<double>("maxDeltaZ");
+  desc.add<double>("minPtDau");
+  desc.add<double>("maxZIsolation");
   descriptions.addDefault(desc);
 }
 

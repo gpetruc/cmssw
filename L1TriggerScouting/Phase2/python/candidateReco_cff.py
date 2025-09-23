@@ -13,12 +13,24 @@ recIsoTkEmStruct = cms.EDProducer("ScPhase2RecIsoTkEm",
 recMesonStruct = cms.EDProducer("ScPhase2RecMesonAll",
     src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
     mesonTypes = cms.vstring("phi", "rho", "jpsi"),
+    minDeltaR = cms.double(0.05 * 0.05),
+    maxDeltaR = cms.double(0.25 * 0.25),
+    maxDeltaRDaus = cms.double(0.40 * 0.40),
+    maxDeltaZ = cms.double(1),
+    minPtDau = cms.double(5.0),
+    maxZIsolation = cms.double(1),
     runStruct = cms.bool(True)
 )
 
 # recMesonStruct = cms.EDProducer("ScPhase2TkRecMesonAll",
 #     src = cms.InputTag("scPhase2TrackerTrackRawToDigiStruct"),
 #     mesonTypes = cms.vstring("phi", "rho", "jpsi"),
+    # minDeltaR = cms.double(0.05 * 0.05),
+    # maxDeltaR = cms.double(0.25 * 0.25),
+    # maxDeltaRDaus = cms.double(0.40 * 0.40),
+    # maxDeltaZ = cms.double(1),
+    # minPtDau = cms.double(5.0),
+    # maxZIsolation = cms.double(1),
 #     runStruct = cms.bool(True)
 # )
 

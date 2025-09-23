@@ -50,6 +50,7 @@ private:
   double maxDeltaRDaus_;
   double minDeltaR_;
   double maxDeltaR_;
+  double maxZIsolation_;
 
   template <typename T>
   float isolationQ(unsigned int pidex1, unsigned int pidex2, const T *cands, unsigned int size) const;
@@ -69,7 +70,8 @@ ScPhase2RecMeson::ScPhase2RecMeson(const edm::ParameterSet &iConfig)
       minPtDau_(iConfig.getParameter<double>("minPtDau")),
       maxDeltaRDaus_(iConfig.getParameter<double>("maxDeltaRDaus")),
       minDeltaR_(iConfig.getParameter<double>("minDeltaR")),
-      maxDeltaR_(iConfig.getParameter<double>("maxDeltaR"))
+      maxDeltaR_(iConfig.getParameter<double>("maxDeltaR")),
+      maxZIsolation_(iConfig.getParameter<double>("maxZIsolation"))
   {
   if (doStruct_) {
     //PUPPI input being given here
@@ -199,7 +201,7 @@ float ScPhase2RecMeson::isolationQ(unsigned int pidex1,
 
     //only consider particles with a small distance in z from the candidates for the isolation calculation
     float z_boson = (cands[pidex1].z0()*cands[pidex1].pt() + cands[pidex2].z0()*cands[pidex2].pt())/(cands[pidex1].pt() + cands[pidex2].pt());
-    if (abs(z_boson - cands[j].z0()) > 1) 
+    if (abs(z_boson - cands[j].z0()) > maxZIsolation_) 
       continue;
 
     float deta = etaQ - cands[j].eta(), dphi = ROOT::VecOps::DeltaPhi<float>(phiQ, cands[j].phi());
@@ -241,6 +243,7 @@ void ScPhase2RecMeson::fillDescriptions(edm::ConfigurationDescriptions &descript
   desc.add<double>("maxDeltaRDaus");
   desc.add<double>("minDeltaR");
   desc.add<double>("maxDeltaR");
+  desc.add<double>("maxZIsolation");
 
   descriptions.addDefault(desc);
 }
