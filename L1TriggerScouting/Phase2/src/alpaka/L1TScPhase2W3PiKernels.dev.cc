@@ -1,8 +1,10 @@
 #include "L1TriggerScouting/Phase2/interface/alpaka/L1TScPhase2W3PiKernels.h"
 
 #include "alpaka/alpaka.hpp"
+#include "DataFormats/L1ScoutingSoA/interface/alpaka/DeviceObject.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/host.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/workdivision.h"
+#include "L1TriggerScouting/Phase2/interface/L1TScPhase2Common.h"
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
 
@@ -109,13 +111,14 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
   // TODO: - move constants to accelerator device space constant memory
   //       - define traits for shared memory to be queried dynamically from hardware device
   //       - move cuts to portable struct and MoveToDeviceCache<> to persist in multi-gpu environments
-  //       - is it possible to vectorize innermost loops to reduce register pressure
+  //       - is it possible to vectorize innermost loops to reduce register pressure?
   class W3PiKernel {
   public:
     template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
     ALPAKA_FN_ACC void operator()(TAcc const& acc,
                                   PuppiDeviceCollection::View data,
-                                  OrbitEventIndexMapDeviceCollection::View map) const {
+                                  OffsetsSoA::View offsets,
+                                  NbxSoA::View nbx) const {
       const uint8_t SHARED_MEM_BLOCK = 128;
       const uint8_t min_threshold = 7;
       const uint8_t int_threshold = 12;
@@ -123,12 +126,14 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
       const float invariant_mass_upper_bound = 100.0;
       const float invariant_mass_lower_bound = 60.0;
 
+      auto& bit_field = alpaka::declareSharedVar<int, __COUNTER__>(acc);
       auto& size = alpaka::declareSharedVar<int, __COUNTER__>(acc);
       auto& mask = alpaka::declareSharedVar<int[SHARED_MEM_BLOCK], __COUNTER__>(acc);
       auto& best_score = alpaka::declareSharedVar<float, __COUNTER__>(acc);
 
       if (once_per_block(acc)) {
         size = 0;
+        bit_field = 0;
         best_score = 0.0f;
         for (auto idx = 0; idx < SHARED_MEM_BLOCK; idx++)
           mask[idx] = 0;
@@ -136,8 +141,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
 
       uint32_t grid_dim = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0];
       for (uint32_t block_idx : independent_groups(acc, grid_dim)) {
-        uint32_t begin = map.offsets()[block_idx];
-        uint32_t end = map.offsets()[block_idx + 1];
+        uint32_t begin = offsets.offsets()[block_idx];
+        uint32_t end = offsets.offsets()[block_idx + 1];
         if (end == 0xFFFFFFFF)
           continue;
         if (end - begin == 0)
@@ -208,9 +213,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
                   angularSeparation(acc, data, global_i_idx, global_j_idx)) {
                 if (coneIsolation(acc, data, global_i_idx, begin, end) &&
                     coneIsolation(acc, data, global_j_idx, begin, end)) {
-                  alpaka::atomicAdd(acc, &data.selection()[thread_idx], static_cast<uint32_t>(1));
-                  alpaka::atomicAdd(acc, &data.selection()[global_i_idx], static_cast<uint32_t>(1));
-                  alpaka::atomicAdd(acc, &data.selection()[global_j_idx], static_cast<uint32_t>(1));
+                  uint64_t bit_mask = 1u << bit_field;  // b-th bit
+                  alpaka::atomicAdd(acc, &bit_field, 1);
+                  alpaka::atomicOr(acc, &data.selection()[thread_idx], bit_mask);
+                  alpaka::atomicOr(acc, &data.selection()[global_i_idx], bit_mask);
+                  alpaka::atomicOr(acc, &data.selection()[global_j_idx], bit_mask);
+                  alpaka::atomicExch(acc, &nbx.selected()[tid], static_cast<uint32_t>(1));
                 }
               }
             }
@@ -220,12 +228,56 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
     }
   };
 
-  void runW3Pi(Queue& queue, PuppiDeviceCollection& puppi, OrbitEventIndexMapDeviceCollection& orbit_association_map) {
+  void runW3Pi(Queue& queue, PuppiDeviceCollection& puppi, NbxMapDeviceCollection& nbx_map) {
     uint32_t threads_per_block = threadsPerBlockUpperBound(128);  // particles per single processing block on hardware.
-    uint32_t blocks_per_grid = orbit_association_map.view().metadata().size() - 1;
+    uint32_t blocks_per_grid = nbx_map.view<NbxSoA>().metadata().size();
     auto grid = make_workdiv<Acc1D>(blocks_per_grid, threads_per_block);
 
-    alpaka::exec<Acc1D>(queue, grid, W3PiKernel{}, puppi.view(), orbit_association_map.view());
+    alpaka::exec<Acc1D>(queue, grid, W3PiKernel{}, puppi.view(), nbx_map.view<OffsetsSoA>(), nbx_map.view<NbxSoA>());
+  }
+
+  // TODO: should be alpaka kernel, might be a analysis bottleneck
+  W3PiPuppiTableHostCollection makeW3PiPuppiTable(Queue& queue, PuppiHostCollection& puppi_host, NbxMapHostCollection& nbx_map_host) {
+    // tmp storage needed since num of triplets is not known in advance
+    std::vector<W3PiTripletHostObject> w3pi_triplets;
+    auto offsets_view = nbx_map_host.view<OffsetsSoA>();
+    for (int32_t idx = 0; idx < offsets_view.metadata().size() - 1; ++idx) {
+      auto begin = offsets_view.offsets()[idx];
+      auto end = offsets_view.offsets()[idx+1];
+
+      // triplets are encoded into 64 bit field
+      // first triplet has 0th bit set, second triplet has 1st bit set, etc.
+      // conservtive assumption there will be no more than 64 triplets
+      // so only one memory buffer can be used.
+      for (uint32_t b = 0; b < kBitFieldSize; ++b) {
+        auto triplet = W3PiTripletHostObject(queue);
+        std::array<uint32_t, 3> indices;
+        uint32_t found = 0;
+
+        for (uint32_t idx = begin; idx < end; ++idx) {
+            uint64_t mask = puppi_host.view().selection()[idx];
+            if (mask & (1ull << b)) {
+                indices[found++] = idx;
+                if (found == 3) break;  // done for this bit
+            }
+        }
+
+        if (found == 3) {
+          triplet.data()->i = indices[0];
+          triplet.data()->j = indices[1];
+          triplet.data()->k = indices[2];
+          w3pi_triplets.push_back(std::move(triplet));
+        }
+      }
+    }
+
+    auto table_host = W3PiPuppiTableHostCollection(w3pi_triplets.size(), queue);
+    for (size_t idx = 0; idx < w3pi_triplets.size(); idx++) {
+      table_host.view().i()[idx] = w3pi_triplets[idx].data()->i;
+      table_host.view().j()[idx] = w3pi_triplets[idx].data()->j;
+      table_host.view().k()[idx] = w3pi_triplets[idx].data()->k;
+    }
+    return table_host;
   }
 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels

@@ -87,17 +87,17 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
     alpaka::exec<Acc1D>(queue, grid, RawToDigiKernel{}, p_data_device.data(), puppi.view());
   }
 
-  void associateOrbitEventIndex(Queue& queue,
-                                data_t* h_data,
-                                OrbitEventIndexMapDeviceCollection& orbit_association_map) {
+  void associateNbxEventIndex(Queue& queue,
+                              data_t* h_data,
+                              NbxMapDeviceCollection& nbx_map) {
     // move host residing data to device memory space
-    auto extent = Vec1D(orbit_association_map.const_view().metadata().size());
+    auto extent = Vec1D(nbx_map.const_view().metadata().size());
     auto h_data_device = alpaka::allocAsyncBuf<data_t, Idx>(queue, extent);
     alpaka::memcpy(queue, h_data_device, createView(cms::alpakatools::host(), h_data, extent));
 
     uint32_t threads_per_block = 1024;
     uint32_t blocks_per_grid =
-        cms::alpakatools::divide_up_by(orbit_association_map.const_view().metadata().size(), threads_per_block);
+        cms::alpakatools::divide_up_by(nbx_map.const_view().metadata().size(), threads_per_block);
     auto grid = cms::alpakatools::make_workdiv<Acc1D>(blocks_per_grid, threads_per_block);
 
     // accumulate buffer with events sizes
@@ -105,17 +105,19 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
         queue,
         grid,
         [] ALPAKA_FN_ACC(
-            Acc1D const& acc, data_t* data, OrbitEventIndexMapDeviceCollection::View orbit_association_map) {
+            Acc1D const& acc, data_t* data, NbxSoA::View nbx, OffsetsSoA::View offsets) {
           if (cms::alpakatools::once_per_grid(acc))
-            orbit_association_map.offsets()[0] = 0;
+            offsets.offsets()[0] = 0;
 
-          for (int32_t idx : cms::alpakatools::uniform_elements(acc, orbit_association_map.metadata().size() - 1)) {
+          for (int32_t idx : cms::alpakatools::uniform_elements(acc, offsets.metadata().size() - 1)) {
             auto range = decodeBits<uint32_t>(data[idx], 0, 12);
-            orbit_association_map.offsets()[idx + 1] = range;
+            offsets.offsets()[idx + 1] = range;
+            nbx.bx()[idx] = decodeBits<uint32_t>(data[idx], 12, 12);
           }
         },
         h_data_device.data(),
-        orbit_association_map.view());
+        nbx_map.view<NbxSoA>(),
+        nbx_map.view<OffsetsSoA>());
 
     // prefix sum to build association map used for span extraction and batching
     auto pc = alpaka::allocAsyncBuf<int32_t, Idx>(queue, Vec1D{1});
@@ -123,9 +125,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
     alpaka::exec<Acc1D>(queue,
                         grid,
                         cms::alpakatools::multiBlockPrefixScan<uint32_t>{},
-                        orbit_association_map.view().offsets() + 1,
-                        orbit_association_map.view().offsets() + 1,
-                        orbit_association_map.view().metadata().size(),
+                        nbx_map.view<OffsetsSoA>().offsets() + 1,
+                        nbx_map.view<OffsetsSoA>().offsets() + 1,
+                        nbx_map.view<OffsetsSoA>().metadata().size(),
                         blocks_per_grid,
                         pc.data(),
                         alpaka::getPreferredWarpSize(alpaka::getDev(queue)));

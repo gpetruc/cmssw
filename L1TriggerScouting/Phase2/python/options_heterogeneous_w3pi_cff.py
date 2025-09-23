@@ -37,7 +37,7 @@ args.register(
 
 args.register(
     "verbose",
-    True,
+    False,
     VarParsing.VarParsing.multiplicity.singleton,
     VarParsing.VarParsing.varType.bool,         
     "Log debug messages to stdout"

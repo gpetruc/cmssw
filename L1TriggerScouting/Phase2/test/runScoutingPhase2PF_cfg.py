@@ -98,7 +98,6 @@ if options.run in ("alpaka", "unpackAlpaka"):
       linksIds = process.scPhase2PFRawToDigiStruct.fedIDs,
       src = process.scPhase2PFRawToDigiStruct.src,
       verbose = cms.untracked.bool(options.verbose),
-      verboseLevel = cms.untracked.int32(options.verboseLevel)
   )
   process.goodOrbitsByNBX.unpackersAlpaka = [ "scPhase2PFRawToDigiAlpaka" ]
   if options.run in ("alpaka", "unpackAlpaka"):

@@ -19,10 +19,10 @@ fi
 
 if [ "${TARGET}" == "cpu" ]; then
   echo "Running CPU-only test"
-  cmsRun "${SCRIPT}" runNumber=$3 buBaseDir=${DATA} fuBaseDir=${DATA} buNumStreams=1 numberOfEvents=$2 backend=serial_sync
+  cmsRun "${SCRIPT}" runNumber=$3 buBaseDir=${DATA} fuBaseDir=${DATA} buNumStreams=6 numberOfEvents=$2 backend=serial_sync
 elif [ "${TARGET}" == "cuda" ]; then
   echo "Running CUDA test"
-  cmsRun "${SCRIPT}" runNumber=$3 buBaseDir=${DATA} fuBaseDir=${DATA} buNumStreams=1 numberOfEvents=$2 backend=cuda_async
+  cmsRun "${SCRIPT}" runNumber=$3 buBaseDir=${DATA} fuBaseDir=${DATA} buNumStreams=6 numberOfEvents=$2 backend=cuda_async
 elif [ "${TARGET}" == "rocm" ]; then
   echo "Running ROCm test"
   cmsRun "${SCRIPT}" runNumber=$3 buBaseDir=${DATA} fuBaseDir=${DATA} buNumStreams=1 numberOfEvents=$2 backend=rocm_async

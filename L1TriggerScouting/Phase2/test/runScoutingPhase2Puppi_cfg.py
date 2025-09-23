@@ -122,20 +122,27 @@ process.p_selected = cms.Path(
 if options.run in ("all","fast","alpaka", "unpackAlpaka"): 
   from L1TriggerScouting.Phase2.modules import (
       l1sc_L1TScPhase2PuppiRawToDigi_alpaka,
-      l1sc_L1TScPhase2W3Pi_alpaka
+      l1sc_L1TScPhase2W3Pi_alpaka,
+      l1sc_L1TScPhase2W3PiAnalyzer
   )
   process.scPhase2PuppiRawToDigiAlpaka = l1sc_L1TScPhase2PuppiRawToDigi_alpaka(
       alpaka = cms.untracked.PSet( backend = cms.untracked.string(options.backend) ),
       linksIds = process.scPhase2PuppiRawToDigiStruct.fedIDs,
       src = process.scPhase2PuppiRawToDigiStruct.src,
       verbose = cms.untracked.bool(options.verbose),
-      verboseLevel = cms.untracked.int32(options.verboseLevel)
   )
   process.w3piAlpaka = l1sc_L1TScPhase2W3Pi_alpaka(
       alpaka = cms.untracked.PSet( backend = cms.untracked.string(options.backend) ),
       src = 'scPhase2PuppiRawToDigiAlpaka',
       verbose = cms.untracked.bool(options.verbose),
-      verboseLevel = cms.untracked.int32(options.verboseLevel)
+  )
+  process.w3piAlpakaAnalyzer = l1sc_L1TScPhase2W3PiAnalyzer(
+    puppi = 'w3piAlpaka',
+    nbx_map = 'w3piAlpaka',
+    table = 'w3piAlpaka',
+    bx_ct = 'scPhase2PuppiRawToDigiAlpaka:nbx',
+    verbose = cms.untracked.bool(options.verbose),
+    verboseLevel = cms.untracked.int32(options.verboseLevel)
   )
   process.goodOrbitsByNBX.unpackersAlpaka = [ "scPhase2PuppiRawToDigiAlpaka" ]
   if options.run in ("alpaka", "unpackAlpaka"):

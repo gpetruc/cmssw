@@ -4,7 +4,8 @@ import FWCore.ParameterSet.Config as cms
 from L1TriggerScouting.Phase2.options_heterogeneous_w3pi_cff import args
 from L1TriggerScouting.Phase2.modules import (
     l1sc_L1TScPhase2PuppiRawToDigi_alpaka,
-    l1sc_L1TScPhase2W3Pi_alpaka
+    l1sc_L1TScPhase2W3Pi_alpaka,
+    l1sc_L1TScPhase2W3PiAnalyzer
 )
   
 
@@ -73,7 +74,6 @@ process.L1TScPhase2PuppiRawToDigi = l1sc_L1TScPhase2PuppiRawToDigi_alpaka(
     linksIds = cms.vuint32(*list(range(sum(args.buNumStreams))) if args.linksIds == [] else args.linksIds),
     src = cms.InputTag('rawDataCollector'),
     verbose = cms.untracked.bool(args.verbose),
-    verboseLevel = cms.untracked.int32(args.verboseLevel)
 )
 process.L1TScPhase2W3Pi = l1sc_L1TScPhase2W3Pi_alpaka(
     alpaka = cms.untracked.PSet(
@@ -81,11 +81,19 @@ process.L1TScPhase2W3Pi = l1sc_L1TScPhase2W3Pi_alpaka(
     ),
     src = 'L1TScPhase2PuppiRawToDigi',
     verbose = cms.untracked.bool(args.verbose),
+)
+process.L1TScPhase2W3PiAnalyzer = l1sc_L1TScPhase2W3PiAnalyzer(
+    puppi = 'L1TScPhase2W3Pi',
+    nbx_map = 'L1TScPhase2W3Pi',
+    table = 'L1TScPhase2W3Pi',
+    bx_ct = 'L1TScPhase2PuppiRawToDigi',
+    verbose = cms.untracked.bool(args.verbose),
     verboseLevel = cms.untracked.int32(args.verboseLevel)
 )
 
 # schedule the modules
 process.path = cms.Path(
     process.L1TScPhase2PuppiRawToDigi + 
-    process.L1TScPhase2W3Pi
+    process.L1TScPhase2W3Pi + 
+    process.L1TScPhase2W3PiAnalyzer
 )

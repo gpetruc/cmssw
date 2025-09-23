@@ -3,8 +3,7 @@
 
 #include <alpaka/alpaka.hpp>
 
-#include "DataFormats/L1ScoutingSoA/interface/alpaka/OrbitEventIndexMapDeviceCollection.h"
-#include "DataFormats/L1ScoutingSoA/interface/alpaka/PuppiDeviceCollection.h"
+#include "DataFormats/L1ScoutingSoA/interface/alpaka/DeviceCollection.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
 #include "L1TriggerScouting/Phase2/interface/L1TScPhase2Common.h"
 #include "L1TriggerScouting/Phase2/interface/alpaka/L1TScPhase2BitsEncoding.h"
@@ -29,9 +28,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
   };
 
   void rawToDigi(Queue& queue, data_t* p_data, PuppiDeviceCollection& puppi);
-  void associateOrbitEventIndex(Queue& queue,
-                                data_t* h_data,
-                                OrbitEventIndexMapDeviceCollection& orbit_association_map);
+  void associateNbxEventIndex(Queue& queue,
+                              data_t* h_data,
+                              NbxMapDeviceCollection& nbx_map);
 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels
 
