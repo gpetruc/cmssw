@@ -100,8 +100,6 @@ ScPhase2RecMesonAll::ScPhase2RecMesonAll(const edm::ParameterSet &iConfig)
 
       produces<OrbitCollection<l1Scouting::RecMeson>>(mt);
     }
-
-    produces<unsigned int>("nbx");
   }
 }
 
