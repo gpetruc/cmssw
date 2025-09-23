@@ -209,10 +209,10 @@ float ScPhase2TkRecMesonAll::isolationQ(int itype, unsigned int pidex1,
       continue;
 
     //only consider particles with a small distance in z from the candidates for the isolation calculation
-    float z_1 = abs(cands[pidex1].z0() - cands[j].z0());
-    float z_2 = abs(cands[pidex2].z0() - cands[j].z0());
-    if (z_1 > 1 && z_2 > 1)
+    float z_boson = (cands[pidex1].z0()*cands[pidex1].pt() + cands[pidex2].z0()*cands[pidex2].pt())/(cands[pidex1].pt() + cands[pidex2].pt());
+    if (abs(z_boson - cands[j].z0()) > 1) 
       continue;
+
 
     float deta = etaQ - cands[j].eta(), dphi = ROOT::VecOps::DeltaPhi<float>(phiQ, cands[j].phi());
     float dr2 = deta * deta + dphi * dphi;
