@@ -47,9 +47,6 @@ private:
     float maxiso = 0.25;
   } cuts;
 
-  template <typename T>
-  bool isolationQ(unsigned int pidex1, unsigned int pidex2, const T *cands, unsigned int size) const;
-
   std::tuple<bool, float> deltar(float eta1, float eta2, float phi1, float phi2) const;
 
   static float pairmass(const l1Scouting::RecMeson *cands, int a, int b);

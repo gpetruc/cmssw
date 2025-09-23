@@ -53,9 +53,6 @@ private:
     float maxisotkem = 0.25;
   } cuts;
 
-  template <typename T>
-  bool isolationQ(unsigned int pidex1, unsigned int pidex2, const T *candsGamma, unsigned int size) const;
-
   std::tuple<bool, float> deltar(float eta1, float eta2, float phi1, float phi2) const;
 
   template <typename T, typename U>

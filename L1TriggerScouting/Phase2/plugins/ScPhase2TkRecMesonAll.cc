@@ -87,7 +87,7 @@ ScPhase2TkRecMesonAll::ScPhase2TkRecMesonAll(const edm::ParameterSet &iConfig)
         dmass1_.push_back(0.1057);
         dmass2_.push_back(0.1057);
       } else {
-        throw cms::Exception("Configuration") << "Unrecognized meson '" << mt << "'; supported ones are phi, rho, jpsi."
+        throw cms::Exception("Configuration") << "Unrecognized meson '" << mt << "'; supported ones are phi, rho, jpsi." ;
       }
 
       produces<OrbitCollection<l1Scouting::RecMeson>>(mt);
@@ -207,6 +207,13 @@ float ScPhase2TkRecMesonAll::isolationQ(int itype, unsigned int pidex1,
   for (unsigned int j = 0u; j < size; ++j) {  //loop over other particles
     if (pidex1 == j or pidex2 == j)
       continue;
+
+    //only consider particles with a small distance in z from the candidates for the isolation calculation
+    float z_1 = abs(cands[pidex1].z0() - cands[j].z0());
+    float z_2 = abs(cands[pidex2].z0() - cands[j].z0());
+    if (z_1 > 1 && z_2 > 1)
+      continue;
+
     float deta = etaQ - cands[j].eta(), dphi = ROOT::VecOps::DeltaPhi<float>(phiQ, cands[j].phi());
     float dr2 = deta * deta + dphi * dphi;
     if (dr2 >= minDeltaR_ && dr2 <= maxDeltaR_)

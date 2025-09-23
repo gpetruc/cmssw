@@ -42,7 +42,7 @@ private:
   bool doStruct_;
   edm::EDGetTokenT<OrbitCollection<l1Scouting::Puppi>> structToken_;
   std::string mesonType_;
-  std::vector<float,2> mesonMassRange_ = {0.0f, 0.0f};
+  std::array<float, 2> mesonMassRange_{{0.0f, 0.0f}};
   float dmass1_ = 0;
   float dmass2_ = 0;
 
@@ -76,15 +76,15 @@ ScPhase2RecMeson::ScPhase2RecMeson(const edm::ParameterSet &iConfig)
     structToken_ = consumes<OrbitCollection<l1Scouting::Puppi>>(iConfig.getParameter<edm::InputTag>("src"));
 
     if (mesonType_ == "phi") {
-      mesonMassRange_ = {0.95, 1.25};
+      mesonMassRange_ = {{0.95, 1.25}};
       dmass1_ = 0.4937;
       dmass2_ = 0.4937;
     } else if (mesonType_ == "rho") {
-      mesonMassRange_ = {0.40, 1.30};
+      mesonMassRange_ = {{0.40, 1.30}};
       dmass1_ = 0.1396;
       dmass2_ = 0.1396;
     } else if (mesonType_ == "jpsi") {
-      mesonMassRange_ = {2.50, 3.50};
+      mesonMassRange_ = {{2.50, 3.50}};
       dmass1_ = 0.1057;
       dmass2_ = 0.1057;
     }
@@ -196,6 +196,13 @@ float ScPhase2RecMeson::isolationQ(unsigned int pidex1,
   for (unsigned int j = 0u; j < size; ++j) {  //loop over other particles
     if (pidex1 == j or pidex2 == j)
       continue;
+
+    //only consider particles with a small distance in z from the candidates for the isolation calculation
+    float z_1 = abs(cands[pidex1].z0() - cands[j].z0());
+    float z_2 = abs(cands[pidex2].z0() - cands[j].z0());
+    if (z_1 > 1 && z_2 > 1)
+      continue;
+
     float deta = etaQ - cands[j].eta(), dphi = ROOT::VecOps::DeltaPhi<float>(phiQ, cands[j].phi());
     float dr2 = deta * deta + dphi * dphi;
     if (dr2 >= minDeltaR_ && dr2 <= maxDeltaR_)
