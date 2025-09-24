@@ -3,13 +3,11 @@
 #include <cstdint>
 #include <cmath>
 
-#include "CLHEP/Units/GlobalPhysicalConstants.h"
 #include "DataFormats/L1TrackTrigger/interface/TTTrack_TrackWord.h"
 #include "DataFormats/Math/interface/deltaPhi.h"
 
 namespace l1trkUnpack {
-  // constant is 0.299792458; who knew c_light was in mm/ns?
-  static constexpr float MagConstant = CLHEP::c_light / 1.0E3;
+  static constexpr float MagConstant = 0.299792458;
   static constexpr float BField = 3.81120228767395; // in T
 
   inline void read(const uint64_t datalow,

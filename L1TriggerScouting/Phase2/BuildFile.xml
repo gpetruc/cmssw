@@ -1,6 +1,5 @@
 <use name="FWCore/Framework"/>
 <use name="EventFilter/Utilities"/>
-<use name="DataFormats/CLHEP"/>
 <use name="DataFormats/L1Scouting"/>
 <use name="DataFormats/L1Trigger"/>
 <use name="DataFormats/L1TParticleFlow"/>

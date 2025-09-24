@@ -118,7 +118,6 @@ void ScPhase2TrackerTrackRawToDigi::unpackFromRaw(uint64_t datalow,
     float z0F = l1trkUnpack::getZ0(z0);
     float chi2RPhiF = l1trkUnpack::getChi2RPhi(chi2RPhi);
     float chi2RZF = l1trkUnpack::getChi2RZ(chi2RZ);
-    float bendChi2F = l1trkUnpack::getBendChi2(bendChi2);
     int8_t charge = rInvF > 0? +1 : -1;
     GlobalVector momentum = l1trkUnpack::getMomentum(ptF, phiF, tanlF);
     GlobalPoint poca = l1trkUnpack::getPOCA(d0F, phiF, z0F);
