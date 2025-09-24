@@ -41,17 +41,23 @@ private:
 
   bool doStruct_;
   edm::EDGetTokenT<OrbitCollection<l1Scouting::Puppi>> structToken_;
-  std::vector<std::string> mesonTypes_;
 
-  float minDeltaR_ = 0.05 * 0.05;
-  float maxDeltaR_ = 0.25 * 0.25;
-  float maxDeltaRDaus_ = 0.40 * 0.40;
-  float maxDeltaZ_ = 1;
-  float minPtDau_ = 5.0;
+  struct mesonTypeStruct {
+    std::string name;
+    double minMesonMass;
+    double maxMesonMass;
+    double dmass1;
+    double dmass2;
+  };
 
-  std::vector<std::array<float, 2>> massRange_;
-  std::vector<float> dmass1_;
-  std::vector<float> dmass2_;
+  std::vector<mesonTypeStruct> mesonTypes_;
+
+  double minDeltaR_;
+  double maxDeltaR_;
+  double maxDeltaRDaus_;
+  double maxDeltaZ_;
+  double minPtDau_;
+  double maxZIsolation_;
 
   template <typename T>
   float isolationQ(int itype, unsigned int pidex1, unsigned int pidex2, const T *cands, unsigned int size) const;
@@ -59,7 +65,7 @@ private:
   float deltar(float eta1, float eta2, float phi1, float phi2) const;
 
   template <typename T>
-  static float pairmass(const std::array<unsigned int, 2> &t, const T *cands, const std::array<float, 2> &massD);
+  static float pairmass(const std::array<unsigned int, 2> &t, const T *cands, const std::array<double, 2> &massD);
 
   unsigned long countStruct_;
   unsigned long passStruct_;
@@ -67,32 +73,32 @@ private:
 
 ScPhase2RecMesonAll::ScPhase2RecMesonAll(const edm::ParameterSet &iConfig)
     : doStruct_(iConfig.getParameter<bool>("runStruct")),
-      mesonTypes_(iConfig.getParameter<std::vector<std::string>>("mesonTypes"))
+      minDeltaR_(iConfig.getParameter<double>("minDeltaR")),
+      maxDeltaR_(iConfig.getParameter<double>("maxDeltaR")),
+      maxDeltaRDaus_(iConfig.getParameter<double>("maxDeltaRDaus")),
+      maxDeltaZ_(iConfig.getParameter<double>("maxDeltaZ")),
+      minPtDau_(iConfig.getParameter<double>("minPtDau")),
+      maxZIsolation_(iConfig.getParameter<double>("maxZIsolation"))
   {
   if (doStruct_) {
     //PUPPI input being given here
     structToken_ = consumes<OrbitCollection<l1Scouting::Puppi>>(iConfig.getParameter<edm::InputTag>("src"));
 
-    for (const auto &mt : mesonTypes_) {
+    std::vector<edm::ParameterSet> mesonPsets =
+        iConfig.getParameter<std::vector<edm::ParameterSet>>("mesonTypes");
 
-      if (mt == "phi") {
-        massRange_.push_back({{0.95, 1.25}});
-        dmass1_.push_back(0.4937);
-        dmass2_.push_back(0.4937);
-      } else if (mt == "rho") {
-        massRange_.push_back({{0.40, 1.30}});
-        dmass1_.push_back(0.1396);
-        dmass2_.push_back(0.1396);
-      } else if (mt == "jpsi") {
-        massRange_.push_back({{2.50, 3.50}});
-        dmass1_.push_back(0.1057);
-        dmass2_.push_back(0.1057);
-      }
+    for (const auto& pset : mesonPsets) {
+      mesonTypeStruct mt;
+      mt.name = pset.getParameter<std::string>("name");
+      mt.minMesonMass = pset.getParameter<double>("minMesonMass");
+      mt.maxMesonMass = pset.getParameter<double>("maxMesonMass");
+      mt.dmass1 = pset.getParameter<double>("dmass1");
+      mt.dmass2 = pset.getParameter<double>("dmass2");
+      mesonTypes_.push_back(mt);
 
-      produces<OrbitCollection<l1Scouting::RecMeson>>(mt);
+      // Register output collections with instance labels
+      produces<OrbitCollection<l1Scouting::RecMeson>>(mt.name);
     }
-
-    produces<unsigned int>("nbx");
   }
 }
 
@@ -142,8 +148,6 @@ void ScPhase2RecMesonAll::runObj(const OrbitCollection<T> &src,
     }
     unsigned int ndaus = ix.size();
 
-    std::set<unsigned int> usedIndices;
-
     for (unsigned int i1 = 0; i1 < ndaus; ++i1) {
       for (unsigned int i2 = i1 + 1; i2 < ndaus; ++i2) {
         if (!(cands[ix[i1]].charge() * cands[ix[i2]].charge() < 0))
@@ -161,23 +165,22 @@ void ScPhase2RecMesonAll::runObj(const OrbitCollection<T> &src,
 
         for (unsigned int itype = 0; itype < mesonTypes_.size(); ++itype) {
 
-          auto mass2 = pairmass({{ix[i1], ix[i2]}}, cands, {{dmass1_[itype], dmass2_[itype]}});
-          if (!(mass2 >= massRange_[itype][0] and mass2 <= massRange_[itype][1]))
+          auto mass2 = pairmass({{ix[i1], ix[i2]}}, cands, {{mesonTypes_[itype].dmass1, mesonTypes_[itype].dmass2}});
+          if (!(mass2 >= mesonTypes_[itype].minMesonMass and mass2 <= mesonTypes_[itype].maxMesonMass))
             continue;
 
-          auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[ix[i1]].pt(), cands[ix[i1]].eta(), cands[ix[i1]].phi(), dmass1_[itype]);
-          auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[ix[i2]].pt(), cands[ix[i2]].eta(), cands[ix[i2]].phi(), dmass2_[itype]);
+          auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[ix[i1]].pt(), cands[ix[i1]].eta(), cands[ix[i1]].phi(), mesonTypes_[itype].dmass1);
+          auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[ix[i2]].pt(), cands[ix[i2]].eta(), cands[ix[i2]].phi(), mesonTypes_[itype].dmass2);
           auto recMeson_quad = p4_1 + p4_2;
 
           auto recMeson = l1Scouting::RecMeson(recMeson_quad.pt(), recMeson_quad.eta(),
                                               recMeson_quad.phi(), recMeson_quad.mass(),
-                                              0, dmass1_[itype], dmass2_[itype], 211, ix[i1], ix[i2],
+                                              0, mesonTypes_[itype].dmass1, mesonTypes_[itype].dmass2, 211, ix[i1], ix[i2],
                                               isoDR0p25);
 
           all_mesonVec_thisBx[itype].push_back(recMeson);
 
           all_ntotRecMeson[itype]++;
-          break;
         }
       }
     }
@@ -192,9 +195,8 @@ void ScPhase2RecMesonAll::runObj(const OrbitCollection<T> &src,
     auto outRecMeson = std::make_unique<OrbitCollection<l1Scouting::RecMeson>>(
         mesonVec_perType, all_ntotRecMeson[itype]
     );
-    iEvent.put(std::move(outRecMeson), mesonTypes_[itype]);
+    iEvent.put(std::move(outRecMeson), mesonTypes_[itype].name);
   }
-  iEvent.put(std::make_unique<unsigned int>(nbx), "nbx");
 }
 
 template <typename T>
@@ -203,14 +205,21 @@ float ScPhase2RecMesonAll::isolationQ(int itype, unsigned int pidex1,
                                       const T *cands,
                                       unsigned int size) const {
   float psum = 0;
-  auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[pidex1].pt(), cands[pidex1].eta(), cands[pidex1].phi(), dmass1_[itype]);
-  auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[pidex2].pt(), cands[pidex2].eta(), cands[pidex2].phi(), dmass2_[itype]);
+  auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[pidex1].pt(), cands[pidex1].eta(), cands[pidex1].phi(), mesonTypes_[itype].dmass1);
+  auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[pidex2].pt(), cands[pidex2].eta(), cands[pidex2].phi(), mesonTypes_[itype].dmass2);
   float ptQ = (p4_1 + p4_2).pt();
   float etaQ = (p4_1 + p4_2).eta();
   float phiQ = (p4_1 + p4_2).phi();
   for (unsigned int j = 0u; j < size; ++j) {  //loop over other particles
     if (pidex1 == j or pidex2 == j)
       continue;
+
+    //only consider particles with a small distance in z from the candidates for the isolation calculation
+    float z_boson = (cands[pidex1].z0()*cands[pidex1].pt() + cands[pidex2].z0()*cands[pidex2].pt())/(cands[pidex1].pt() + cands[pidex2].pt());
+    if (abs(z_boson - cands[j].z0()) > maxZIsolation_) 
+      continue;
+
+
     float deta = etaQ - cands[j].eta(), dphi = ROOT::VecOps::DeltaPhi<float>(phiQ, cands[j].phi());
     float dr2 = deta * deta + dphi * dphi;
     if (dr2 >= minDeltaR_ && dr2 <= maxDeltaR_)
@@ -231,7 +240,7 @@ float ScPhase2RecMesonAll::deltar(float eta1, float eta2, float phi1, float phi2
 template <typename T>
 float ScPhase2RecMesonAll::pairmass(const std::array<unsigned int, 2> &t,
                                     const T *cands,
-                                    const std::array<float, 2> &massD) {
+                                    const std::array<double, 2> &massD) {
   ROOT::Math::PtEtaPhiMVector p1(cands[t[0]].pt(), cands[t[0]].eta(), cands[t[0]].phi(), massD[0]);
   ROOT::Math::PtEtaPhiMVector p2(cands[t[1]].pt(), cands[t[1]].eta(), cands[t[1]].phi(), massD[1]);
   float mass = (p1 + p2).M();
@@ -239,10 +248,23 @@ float ScPhase2RecMesonAll::pairmass(const std::array<unsigned int, 2> &t,
 }
 
 void ScPhase2RecMesonAll::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
+  edm::ParameterSetDescription mesonDesc;
+  mesonDesc.add<std::string>("name");
+  mesonDesc.add<double>("minMesonMass");
+  mesonDesc.add<double>("maxMesonMass");
+  mesonDesc.add<double>("dmass1");
+  mesonDesc.add<double>("dmass2");
+
   edm::ParameterSetDescription desc;
   desc.add<edm::InputTag>("src");
   desc.add<bool>("runStruct", true);
-  desc.add<std::vector<std::string>>("mesonTypes");
+  desc.addVPSet("mesonTypes", mesonDesc);
+  desc.add<double>("minDeltaR");
+  desc.add<double>("maxDeltaR");
+  desc.add<double>("maxDeltaRDaus");
+  desc.add<double>("maxDeltaZ");
+  desc.add<double>("minPtDau");
+  desc.add<double>("maxZIsolation");
   descriptions.addDefault(desc);
 }
 

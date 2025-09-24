@@ -20,10 +20,10 @@
 #include <array>
 #include <iostream>
 
-class ScPhase2RecMesonHPhiGamma : public edm::stream::EDProducer<> {
+class ScPhase2BosonToRecMesonGamma : public edm::stream::EDProducer<> {
 public:
-  explicit ScPhase2RecMesonHPhiGamma(const edm::ParameterSet &);
-  ~ScPhase2RecMesonHPhiGamma() override;
+  explicit ScPhase2BosonToRecMesonGamma(const edm::ParameterSet &);
+  ~ScPhase2BosonToRecMesonGamma() override;
   static void fillDescriptions(edm::ConfigurationDescriptions &descriptions);
 
 private:
@@ -40,21 +40,13 @@ private:
 
   bool doStruct_;
   edm::EDGetTokenT<OrbitCollection<l1Scouting::RecMeson>> structMesonToken_;
-  edm::EDGetTokenT<OrbitCollection<l1Scouting::IsoTkEm>> structGammaToken_;
+  edm::EDGetTokenT<OrbitCollection<l1Scouting::TkEm>> structGammaToken_;
 
-  struct Cuts {
-    float minmassH = 100;
-    float maxmassH = 150;
-    float minptQ = 30;
-    float minptGamma = 30;
-    float maxiso = 0.25;
-    float mindr2tkem = 0.05 * 0.05;
-    float maxdr2tkem = 0.25 * 0.25;
-    float maxisotkem = 0.25;
-  } cuts;
-
-  template <typename T>
-  bool isolationQ(unsigned int pidex1, unsigned int pidex2, const T *candsGamma, unsigned int size) const;
+  double minmassBoson_;
+  double maxmassBoson_;
+  double minptQ_;
+  double minptGamma_;
+  std::string analysisName_;
 
   std::tuple<bool, float> deltar(float eta1, float eta2, float phi1, float phi2) const;
 
@@ -62,9 +54,6 @@ private:
   float tripletmass(const std::array<unsigned int, 2> &t,
                     const T *candsGamma,
                     const U *candsMeson);
-
-  template <typename T>
-  bool isolationTkEm(float pt, float eta, float phi, const T *candsGamma, unsigned int size) const;
 
   template <typename T, typename U>
   float tripletpt(const std::array<unsigned int, 2> &t,
@@ -75,26 +64,32 @@ private:
   unsigned long passStruct_;
 };
 
-ScPhase2RecMesonHPhiGamma::ScPhase2RecMesonHPhiGamma(const edm::ParameterSet &iConfig)
-    : doStruct_(iConfig.getParameter<bool>("runStruct")) {
+ScPhase2BosonToRecMesonGamma::ScPhase2BosonToRecMesonGamma(const edm::ParameterSet &iConfig)
+    : doStruct_(iConfig.getParameter<bool>("runStruct")),
+      minmassBoson_(iConfig.getParameter<double>("minmassBoson")),
+      maxmassBoson_(iConfig.getParameter<double>("maxmassBoson")),
+      minptQ_(iConfig.getParameter<double>("minptQ")),
+      minptGamma_(iConfig.getParameter<double>("minptGamma")),
+      analysisName_(iConfig.getParameter<std::string>("analysisName"))
+    {
   if (doStruct_) {
-    structGammaToken_ = consumes<OrbitCollection<l1Scouting::IsoTkEm>>(iConfig.getParameter<edm::InputTag>("srcGamma"));
+    structGammaToken_ = consumes<OrbitCollection<l1Scouting::TkEm>>(iConfig.getParameter<edm::InputTag>("srcGamma"));
     structMesonToken_ = consumes<OrbitCollection<l1Scouting::RecMeson>>(iConfig.getParameter<edm::InputTag>("srcMeson"));
     produces<std::vector<unsigned>>("selectedBx");
-    produces<l1ScoutingRun3::OrbitFlatTable>("recMesonHphigamma");
+    produces<l1ScoutingRun3::OrbitFlatTable>(analysisName_);
   }
 }
 
-ScPhase2RecMesonHPhiGamma::~ScPhase2RecMesonHPhiGamma() {};
+ScPhase2BosonToRecMesonGamma::~ScPhase2BosonToRecMesonGamma() {};
 
-void ScPhase2RecMesonHPhiGamma::beginStream(edm::StreamID) {
+void ScPhase2BosonToRecMesonGamma::beginStream(edm::StreamID) {
   countStruct_ = 0;
   passStruct_ = 0;
 }
 
-void ScPhase2RecMesonHPhiGamma::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
+void ScPhase2BosonToRecMesonGamma::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
   if (doStruct_) {
-    edm::Handle<OrbitCollection<l1Scouting::IsoTkEm>> srcGamma;
+    edm::Handle<OrbitCollection<l1Scouting::TkEm>> srcGamma;
     edm::Handle<OrbitCollection<l1Scouting::RecMeson>> srcMeson;
     iEvent.getByToken(structGammaToken_, srcGamma);
     iEvent.getByToken(structMesonToken_, srcMeson);
@@ -102,13 +97,13 @@ void ScPhase2RecMesonHPhiGamma::produce(edm::Event &iEvent, const edm::EventSetu
   }
 }
 
-void ScPhase2RecMesonHPhiGamma::endStream() {
+void ScPhase2BosonToRecMesonGamma::endStream() {
   if (doStruct_)
-    edm::LogImportant("ScPhase2AnalysisSummary") << "Rec Meson HPhiGamma Struct analysis: " << countStruct_ << " -> " << passStruct_;
+    edm::LogImportant("ScPhase2AnalysisSummary") << "Rec Meson BosonMesonGamma Struct analysis: " << countStruct_ << " -> " << passStruct_;
 }
 
 template <typename T, typename U>
-void ScPhase2RecMesonHPhiGamma::runObj(const OrbitCollection<T> &srcGamma,
+void ScPhase2BosonToRecMesonGamma::runObj(const OrbitCollection<T> &srcGamma,
                                     const OrbitCollection<U> &srcMeson,
                                     edm::Event &iEvent,
                                     unsigned long &nTry,
@@ -122,7 +117,7 @@ void ScPhase2RecMesonHPhiGamma::runObj(const OrbitCollection<T> &srcGamma,
   std::array<unsigned int, 2> bestTriplet;
   float mass = 0.0f;
   float bestTripletScore = 0.;
-  bool bestTripletFound = false;
+  bool bestTripletFound;
 
   for (unsigned int bx = 1; bx <= OrbitCollection<T>::NBX; ++bx) {
     nTry++;
@@ -139,18 +134,18 @@ void ScPhase2RecMesonHPhiGamma::runObj(const OrbitCollection<T> &srcGamma,
     if (nGamma < 1 || nMesons < 1) continue;
 
     for (unsigned int i1 = 0; i1 < nMesons; ++i1) {
-      if (candsMeson[i1].pt() < cuts.minptQ)
+      if (candsMeson[i1].pt() < minptQ_)
         continue;
 
       for (unsigned int i2 = 0; i2 < nGamma; ++i2) {
-        if (candsGamma[i2].pt() < cuts.minptGamma)
+        if (candsGamma[i2].pt() < minptGamma_)
         continue;
 
         std::array<unsigned int, 2> pair{{i1, i2}};
         mass = tripletmass(pair, candsGamma, candsMeson);
         float pt = tripletpt(pair, candsGamma, candsMeson);
 
-        if (!(mass >= cuts.minmassH and mass <= cuts.maxmassH))
+        if (!(mass >= minmassBoson_ and mass <= maxmassBoson_))
           continue;
 
         if (pt > bestTripletScore){
@@ -176,31 +171,16 @@ void ScPhase2RecMesonHPhiGamma::runObj(const OrbitCollection<T> &srcGamma,
   iEvent.put(std::move(ret), "selectedBx" + label);
   // now we make the table
   auto bxOffsets = bxOffsetsFiller.done();
-  auto tab = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(bxOffsets, "recMesonHphigamma" + label, true);
+  auto tab = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(bxOffsets, analysisName_ + label, true);
   tab->addColumn<float>("mass", masses, "2 kaons plus photon invariant mass");
   tab->addColumn<uint8_t>("i0", i0s, "leading kaon");
   tab->addColumn<uint8_t>("i1", i1s, "subleading kaon");
   tab->addColumn<uint8_t>("i2", i2s, "photon");
-  iEvent.put(std::move(tab), "recMesonHphigamma" + label);
-}
-
-template <typename T>
-bool ScPhase2RecMesonHPhiGamma::isolationTkEm(float pt, float eta, float phi, const T *candsGamma, unsigned int size) const {
-  bool passed = false;
-  float psum = 0;
-  for (unsigned int j = 0u; j < size; ++j) {  //loop over other particles
-    float deta = eta - candsGamma[j].eta(), dphi = ROOT::VecOps::DeltaPhi<float>(phi, candsGamma[j].phi());
-    float dr2 = deta * deta + dphi * dphi;
-    if (dr2 >= cuts.mindr2tkem && dr2 <= cuts.maxdr2tkem)
-      psum += candsGamma[j].pt();
-  }
-  if (psum <= cuts.maxisotkem * pt)
-    passed = true;
-  return passed;
+  iEvent.put(std::move(tab), analysisName_ + label);
 }
 
 template <typename T, typename U>
-float ScPhase2RecMesonHPhiGamma::tripletmass(const std::array<unsigned int, 2> &t,
+float ScPhase2BosonToRecMesonGamma::tripletmass(const std::array<unsigned int, 2> &t,
                                               const T *candsGamma,
                                               const U *candsMeson) {
   ROOT::Math::PtEtaPhiMVector p1(candsMeson[t[0]].pt(), candsMeson[t[0]].eta(), candsMeson[t[0]].phi(), candsMeson[t[0]].mass());
@@ -210,7 +190,7 @@ float ScPhase2RecMesonHPhiGamma::tripletmass(const std::array<unsigned int, 2> &
 }
 
 template <typename T, typename U>
-float ScPhase2RecMesonHPhiGamma::tripletpt(const std::array<unsigned int, 2> &t,
+float ScPhase2BosonToRecMesonGamma::tripletpt(const std::array<unsigned int, 2> &t,
                                               const T *candsGamma,
                                               const U *candsMeson) {
   ROOT::Math::PtEtaPhiMVector p1(candsMeson[t[0]].pt(), candsMeson[t[0]].eta(), candsMeson[t[0]].phi(), candsMeson[t[0]].mass());
@@ -219,12 +199,17 @@ float ScPhase2RecMesonHPhiGamma::tripletpt(const std::array<unsigned int, 2> &t,
   return pt;
 }
 
-void ScPhase2RecMesonHPhiGamma::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
+void ScPhase2BosonToRecMesonGamma::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
   edm::ParameterSetDescription desc;
   desc.add<edm::InputTag>("srcGamma");
   desc.add<edm::InputTag>("srcMeson");
   desc.add<bool>("runStruct", true);
+  desc.add<double>("minmassBoson");
+  desc.add<double>("maxmassBoson");
+  desc.add<double>("minptQ");
+  desc.add<double>("minptGamma");
+  desc.add<std::string>("analysisName");
   descriptions.addDefault(desc);
 }
 
-DEFINE_FWK_MODULE(ScPhase2RecMesonHPhiGamma);
+DEFINE_FWK_MODULE(ScPhase2BosonToRecMesonGamma);

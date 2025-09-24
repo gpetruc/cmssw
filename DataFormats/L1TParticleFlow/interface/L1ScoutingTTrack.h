@@ -1,13 +1,7 @@
 #ifndef DataFormats_L1TParticleFlow_TTrack_h
 #define DataFormats_L1TParticleFlow_TTrack_h
 
-#include <algorithm>
-#include <array>
-#include <bitset>
-#include <cmath>
-#include <limits>
-#include <string>
-#include <vector>
+#include <cstdint>
 
 namespace l1Scouting {
   class TTrack {
@@ -30,19 +24,6 @@ namespace l1Scouting {
     float pt_, eta_, phi_, z0_, dxy_, mvaQuality_;
     uint8_t nStub_, quality_;
     int8_t charge_;
-  };
-
-  struct TTrackSOA {
-    std::vector<uint16_t> bx;
-    std::vector<uint32_t> offsets;
-    std::vector<float> pt, eta, phi, z0, dxy, mvaQuality;
-    std::vector<uint8_t> nStub, quality;
-    std::vector<int8_t> charge;
-    TTrackSOA() : bx(), offsets(), pt(), eta(), phi(), z0(), dxy(), mvaQuality(), nStub(), quality(), charge() {}
-    TTrackSOA(const TTrackSOA& other) = default;
-    TTrackSOA(TTrackSOA&& other) = default;
-    TTrackSOA& operator=(const TTrackSOA& other) = default;
-    TTrackSOA& operator=(TTrackSOA&& other) = default;
   };
 };
 #endif

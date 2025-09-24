@@ -1,49 +1,84 @@
 import FWCore.ParameterSet.Config as cms
 
 
-hjpsigammaRecMesonStruct = cms.EDProducer("ScPhase2RecMesonHJPsiGamma",
-    # srcMeson = cms.InputTag("jpsiRecmesonStruct"),
+hjpsigammaRecMesonStruct = cms.EDProducer("ScPhase2BosonToRecMesonGamma",
     srcMeson = cms.InputTag("recMesonStruct", "jpsi"),
     srcGamma = cms.InputTag("recIsoTkEmStruct"),
+    minmassBoson = cms.double(100),
+    maxmassBoson = cms.double(150),
+    minptQ = cms.double(30),
+    minptGamma = cms.double(30),
+    analysisName = cms.string("recMesonHJPsiGamma")
 )
 
-h2phiRecMesonStruct = cms.EDProducer("ScPhase2RecMesonH2Phi",
-    #  src = cms.InputTag("phiRecMesonStruct"),
-    src = cms.InputTag("recMesonStruct", "phi"),
+h2phiRecMesonStruct = cms.EDProducer("ScPhase2BosonTo2RecMeson",
+    srcMeson1 = cms.InputTag("recMesonStruct", "phi"),
+    srcMeson2 = cms.InputTag("recMesonStruct", "phi"),
+    minmassBoson = cms.double(100),
+    maxmassBoson = cms.double(150),
+    minptQ = cms.double(1),
+    maxiso = cms.double(0.25),
+    analysisName = cms.string("recMesonH2Phi")
 )
 
-hphigammaRecMesonStruct = cms.EDProducer("ScPhase2RecMesonHPhiGamma",
-    # srcMeson = cms.InputTag("phiRecMesonStruct"),
+hphigammaRecMesonStruct = cms.EDProducer("ScPhase2BosonToRecMesonGamma",
     srcMeson = cms.InputTag("recMesonStruct", "phi"),
     srcGamma = cms.InputTag("recIsoTkEmStruct"),
+    minmassBoson = cms.double(100),
+    maxmassBoson = cms.double(150),
+    minptQ = cms.double(30),
+    minptGamma = cms.double(30),
+    analysisName = cms.string("recMesonHPhiGamma")
 )
 
-hphijpsiRecMesonStruct = cms.EDProducer("ScPhase2RecMesonHPhiJPsi",
-    # srcPhi = cms.InputTag("phiRecMesonStruct"),
-    srcPhi = cms.InputTag("recMesonStruct", "phi"),
-    # srcJPsi = cms.InputTag("jpsiRecmesonStruct"),
-    srcJPsi = cms.InputTag("recMesonStruct", "jpsi"),
+hphijpsiRecMesonStruct = cms.EDProducer("ScPhase2BosonTo2RecMeson",
+    srcMeson1 = cms.InputTag("recMesonStruct", "phi"),
+    srcMeson2 = cms.InputTag("recMesonStruct", "jpsi"),
+    minmassBoson = cms.double(100),
+    maxmassBoson = cms.double(150),
+    minptQ = cms.double(30),
+    maxiso = cms.double(0.25),
+    analysisName = cms.string("recMesonHPhiJPsi")
 )
 
-h2rhoRecMesonStruct = cms.EDProducer("ScPhase2RecMesonH2Rho",
-    #  src = cms.InputTag("rhoRecmesonStruct"),
-    src = cms.InputTag("recMesonStruct", "rho"),
+h2rhoRecMesonStruct = cms.EDProducer("ScPhase2BosonTo2RecMeson",
+    srcMeson1 = cms.InputTag("recMesonStruct", "rho"),
+    srcMeson2 = cms.InputTag("recMesonStruct", "rho"),
+    minmassBoson = cms.double(100),
+    maxmassBoson = cms.double(150),
+    minptQ = cms.double(3),
+    maxiso = cms.double(0.25),
+    analysisName = cms.string("recMesonH2Rho")
 )
 
-hrhogammaRecMesonStruct = cms.EDProducer("ScPhase2RecMesonHRhoGamma",
-    # srcMeson = cms.InputTag("rhoRecmesonStruct"),
+hrhogammaRecMesonStruct = cms.EDProducer("ScPhase2BosonToRecMesonGamma",
     srcMeson = cms.InputTag("recMesonStruct", "rho"),
     srcGamma = cms.InputTag("recIsoTkEmStruct"),
+    minmassBoson = cms.double(100),
+    maxmassBoson = cms.double(150),
+    minptQ = cms.double(30),
+    minptGamma = cms.double(30),
+    analysisName = cms.string("recMesonHRhoGamma")
 )
 
-z2phiRecMesonStruct = cms.EDProducer("ScPhase2RecMesonZ2Phi",
-    #  src = cms.InputTag("phiRecMesonStruct"),
-    src = cms.InputTag("recMesonStruct", "phi"),
+z2phiRecMesonStruct = cms.EDProducer("ScPhase2BosonTo2RecMeson",
+    srcMeson1 = cms.InputTag("recMesonStruct", "phi"),
+    srcMeson2 = cms.InputTag("recMesonStruct", "phi"),
+    minmassBoson = cms.double(60),
+    maxmassBoson = cms.double(120),
+    minptQ = cms.double(1),
+    maxiso = cms.double(0.25),
+    analysisName = cms.string("recMesonZ2Phi")
 )
 
-z2rhoRecMesonStruct = cms.EDProducer("ScPhase2RecMesonZ2Rho",
-    #  src = cms.InputTag("rhoRecmesonStruct"),
-    src = cms.InputTag("recMesonStruct", "rho"),
+z2rhoRecMesonStruct = cms.EDProducer("ScPhase2BosonTo2RecMeson",
+    srcMeson1 = cms.InputTag("recMesonStruct", "rho"),
+    srcMeson2 = cms.InputTag("recMesonStruct", "rho"),
+    minmassBoson = cms.double(60),
+    maxmassBoson = cms.double(120),
+    minptQ = cms.double(3),
+    maxiso = cms.double(0.25),
+    analysisName = cms.string("recMesonZ2Rho")
 )
 
 w3piStruct = cms.EDProducer("ScPhase2PuppiW3PiDemo",

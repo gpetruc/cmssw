@@ -33,7 +33,7 @@ scPhase2PFMasked = scPhase2PuppiMasked.clone(
     dataTag = cms.InputTag("scPhase2PFRawToDigiStruct"),
 )
 
-scPhase2RecIsoTkEmMasked = cms.EDProducer("MaskOrbitBxScoutingIsoTkEm",
+scPhase2RecIsoTkEmMasked = cms.EDProducer("MaskOrbitBxScoutingTkEm",
     dataTag = cms.InputTag("recIsoTkEmStruct"),
     selectBxs = cms.InputTag("scPhase2SelectedBXs","SelBx"),
 )

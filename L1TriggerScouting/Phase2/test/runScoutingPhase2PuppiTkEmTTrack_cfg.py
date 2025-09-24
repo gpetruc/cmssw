@@ -7,7 +7,7 @@ options.parseArguments()
 if options.buNumStreams == []:
     options.buNumStreams.append(2)
 fullCandRecoList = ["recIsoTkEm", "recMeson"]
-fullAnalysesList = ["w3pi", "wdsg", "wpig",
+fullAnalysesList = [#"w3pi", "wdsg", "wpig",
                     "z2phiRecMeson", "z2rhoRecMeson",
                     "h2phiRecMeson", "h2rhoRecMeson", "hphijpsiRecMeson",
                     "hphigammaRecMeson", "hrhogammaRecMeson", "hjpsigammaRecMeson"]

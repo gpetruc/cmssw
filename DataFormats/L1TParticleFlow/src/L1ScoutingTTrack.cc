@@ -1,1 +1,2 @@
 #include "DataFormats/L1TParticleFlow/interface/L1ScoutingTTrack.h"
+#define DataFormats_L1TParticleFlow_L1ScoutingTTrack_h
