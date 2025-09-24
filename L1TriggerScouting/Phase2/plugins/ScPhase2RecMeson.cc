@@ -42,7 +42,9 @@ private:
   bool doStruct_;
   edm::EDGetTokenT<OrbitCollection<l1Scouting::Puppi>> structToken_;
   std::string mesonType_;
-  std::array<float, 2> mesonMassRange_{{0.0f, 0.0f}};
+
+  float minMesonMass_ = 0;
+  float maxMesonMass_ = 0;
   float dmass1_ = 0;
   float dmass2_ = 0;
 
@@ -67,6 +69,12 @@ private:
 ScPhase2RecMeson::ScPhase2RecMeson(const edm::ParameterSet &iConfig)
     : doStruct_(iConfig.getParameter<bool>("runStruct")),
       mesonType_(iConfig.getParameter<std::string>("mesonType")),
+
+      minMesonMass_(iConfig.getParameter<double>("minMesonMass")),
+      maxMesonMass_(iConfig.getParameter<double>("maxMesonMass")),
+      dmass1_(iConfig.getParameter<double>("dmass1")),
+      dmass2_(iConfig.getParameter<double>("dmass2")),
+
       minPtDau_(iConfig.getParameter<double>("minPtDau")),
       maxDeltaRDaus_(iConfig.getParameter<double>("maxDeltaRDaus")),
       minDeltaR_(iConfig.getParameter<double>("minDeltaR")),
@@ -76,20 +84,6 @@ ScPhase2RecMeson::ScPhase2RecMeson(const edm::ParameterSet &iConfig)
   if (doStruct_) {
     //PUPPI input being given here
     structToken_ = consumes<OrbitCollection<l1Scouting::Puppi>>(iConfig.getParameter<edm::InputTag>("src"));
-
-    if (mesonType_ == "phi") {
-      mesonMassRange_ = {{0.95, 1.25}};
-      dmass1_ = 0.4937;
-      dmass2_ = 0.4937;
-    } else if (mesonType_ == "rho") {
-      mesonMassRange_ = {{0.40, 1.30}};
-      dmass1_ = 0.1396;
-      dmass2_ = 0.1396;
-    } else if (mesonType_ == "jpsi") {
-      mesonMassRange_ = {{2.50, 3.50}};
-      dmass1_ = 0.1057;
-      dmass2_ = 0.1057;
-    }
 
     produces<OrbitCollection<l1Scouting::RecMeson>>();
     produces<unsigned int>("nbx");
@@ -145,7 +139,7 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
           continue;
 
         auto mass2 = pairmass({{ix[i1], ix[i2]}}, cands, {{dmass1_, dmass2_}});
-        if (!(mass2 >= mesonMassRange_[0] and mass2 <= mesonMassRange_[1]))
+        if (!(mass2 >= minMesonMass_ and mass2 <= maxMesonMass_))
           continue;
 
         auto [drcond, drQ] = deltar(cands[ix[i1]].eta(), cands[ix[i2]].eta(), cands[ix[i1]].phi(), cands[ix[i2]].phi());
@@ -239,6 +233,12 @@ void ScPhase2RecMeson::fillDescriptions(edm::ConfigurationDescriptions &descript
   desc.add<edm::InputTag>("src");
   desc.add<bool>("runStruct", true);
   desc.add<std::string>("mesonType");
+
+  desc.add<double>("minMesonMass");
+  desc.add<double>("maxMesonMass");
+  desc.add<double>("dmass1");
+  desc.add<double>("dmass2");
+
   desc.add<double>("minPtDau");
   desc.add<double>("maxDeltaRDaus");
   desc.add<double>("minDeltaR");
