@@ -51,26 +51,19 @@
   <class name="l1Scouting::PuppiSOA" />
   <class name="edm::Wrapper<l1Scouting::PuppiSOA>" />
 
-  <class name="l1Scouting::TkEm"  ClassVersion="3">
-	<version ClassVersion="3" checksum="429045954"/>
+  <class name="l1Scouting::TkEm"  ClassVersion="4">
+	<version ClassVersion="4" checksum="4140587620"/>
   </class>
   <class name="std::vector<l1Scouting::TkEm>" />
   <class name="OrbitCollection<l1Scouting::TkEm>" />
   <class name="edm::Wrapper<OrbitCollection<l1Scouting::TkEm>>" />
 
-  <class name="l1Scouting::TkEle"  ClassVersion="3">
-	<version ClassVersion="3" checksum="1583094166"/>
+  <class name="l1Scouting::TkEle"  ClassVersion="4">
+	<version ClassVersion="4" checksum="407081992"/>
   </class>
   <class name="std::vector<l1Scouting::TkEle>" />
   <class name="OrbitCollection<l1Scouting::TkEle>" />
   <class name="edm::Wrapper<OrbitCollection<l1Scouting::TkEle>>" />
-
-  <class name="l1Scouting::IsoTkEm"  ClassVersion="3">
-	<version ClassVersion="3" checksum="39808717"/>
-  </class>
-  <class name="std::vector<l1Scouting::IsoTkEm>" />
-  <class name="OrbitCollection<l1Scouting::IsoTkEm>" />
-  <class name="edm::Wrapper<OrbitCollection<l1Scouting::IsoTkEm>>" />
 
   <class name="l1Scouting::TTrack"  ClassVersion="3">
         <version ClassVersion="3" checksum="2404234549"/>
@@ -78,8 +71,6 @@
   <class name="std::vector<l1Scouting::TTrack>" />
   <class name="OrbitCollection<l1Scouting::TTrack>" />
   <class name="edm::Wrapper<OrbitCollection<l1Scouting::TTrack>>" />
-  <class name="l1Scouting::TTrackSOA" />
-  <class name="edm::Wrapper<l1Scouting::TTrackSOA>" />
 
   <class name="l1t::PFJet"  ClassVersion="6">
         <version ClassVersion="6" checksum="2599349078"/>

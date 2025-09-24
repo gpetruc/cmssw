@@ -67,7 +67,7 @@ ScPhase2RecIsoTkEm::ScPhase2RecIsoTkEm(const edm::ParameterSet &iConfig)
     structToken_ = consumes<OrbitCollection<l1Scouting::Puppi>>(iConfig.getParameter<edm::InputTag>("src"));
     structTkEmToken_ = consumes<OrbitCollection<l1Scouting::TkEm>>(iConfig.getParameter<edm::InputTag>("srcTkEm"));
 
-    produces<OrbitCollection<l1Scouting::IsoTkEm>>();
+    produces<OrbitCollection<l1Scouting::TkEm>>();
     produces<unsigned int>("nbx");
   }
 }
@@ -97,14 +97,14 @@ void ScPhase2RecIsoTkEm::runObj(const OrbitCollection<T> &src,
                                 const std::string &label) {
   auto ret = std::make_unique<std::vector<unsigned>>();
 
-  std::vector<std::vector<l1Scouting::IsoTkEm>> photons_vec;
+  std::vector<std::vector<l1Scouting::TkEm>> photons_vec;
 
   ROOT::RVec<unsigned int> ig;
   unsigned int nbx = 0, ntotIsoPhoton = 0;
 
   for (unsigned int bx = 0; bx <= OrbitCollection<T>::NBX; ++bx) {
     nbx++;
-    std::vector<l1Scouting::IsoTkEm> photon_thisBx;
+    std::vector<l1Scouting::TkEm> photon_thisBx;
 
     auto rangeTkEm = srcTkEm.bxIterator(bx);
     const U *candsTkEm = &rangeTkEm.front();
@@ -125,7 +125,7 @@ void ScPhase2RecIsoTkEm::runObj(const OrbitCollection<T> &src,
         if (!isop)
           continue;
 
-        l1Scouting::IsoTkEm isolatedPhoton(
+        l1Scouting::TkEm isolatedPhoton(
           candsTkEm[i].pt(),
           candsTkEm[i].eta(),
           candsTkEm[i].phi(),
@@ -143,7 +143,7 @@ void ScPhase2RecIsoTkEm::runObj(const OrbitCollection<T> &src,
     ntotIsoPhoton++;
   }
 
-  auto outIsoPhoton = std::make_unique<OrbitCollection<l1Scouting::IsoTkEm>>(photons_vec, ntotIsoPhoton);
+  auto outIsoPhoton = std::make_unique<OrbitCollection<l1Scouting::TkEm>>(photons_vec, ntotIsoPhoton);
   iEvent.put(std::move(outIsoPhoton));
   iEvent.put(std::make_unique<unsigned int>(nbx), "nbx");
 }

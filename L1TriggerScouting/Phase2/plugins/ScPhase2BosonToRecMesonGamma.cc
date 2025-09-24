@@ -40,7 +40,7 @@ private:
 
   bool doStruct_;
   edm::EDGetTokenT<OrbitCollection<l1Scouting::RecMeson>> structMesonToken_;
-  edm::EDGetTokenT<OrbitCollection<l1Scouting::IsoTkEm>> structGammaToken_;
+  edm::EDGetTokenT<OrbitCollection<l1Scouting::TkEm>> structGammaToken_;
 
   double minmassBoson_;
   double maxmassBoson_;
@@ -73,7 +73,7 @@ ScPhase2BosonToRecMesonGamma::ScPhase2BosonToRecMesonGamma(const edm::ParameterS
       analysisName_(iConfig.getParameter<std::string>("analysisName"))
     {
   if (doStruct_) {
-    structGammaToken_ = consumes<OrbitCollection<l1Scouting::IsoTkEm>>(iConfig.getParameter<edm::InputTag>("srcGamma"));
+    structGammaToken_ = consumes<OrbitCollection<l1Scouting::TkEm>>(iConfig.getParameter<edm::InputTag>("srcGamma"));
     structMesonToken_ = consumes<OrbitCollection<l1Scouting::RecMeson>>(iConfig.getParameter<edm::InputTag>("srcMeson"));
     produces<std::vector<unsigned>>("selectedBx");
     produces<l1ScoutingRun3::OrbitFlatTable>(analysisName_);
@@ -89,7 +89,7 @@ void ScPhase2BosonToRecMesonGamma::beginStream(edm::StreamID) {
 
 void ScPhase2BosonToRecMesonGamma::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
   if (doStruct_) {
-    edm::Handle<OrbitCollection<l1Scouting::IsoTkEm>> srcGamma;
+    edm::Handle<OrbitCollection<l1Scouting::TkEm>> srcGamma;
     edm::Handle<OrbitCollection<l1Scouting::RecMeson>> srcMeson;
     iEvent.getByToken(structGammaToken_, srcGamma);
     iEvent.getByToken(structMesonToken_, srcMeson);

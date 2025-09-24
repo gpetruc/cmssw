@@ -40,7 +40,6 @@ private:
 
   bool doStruct_;
   edm::EDGetTokenT<OrbitCollection<l1Scouting::TTrack>> structToken_;
-  std::vector<std::string> mesonTypes_;
 
   struct mesonTypeStruct {
     std::string name;
@@ -65,7 +64,7 @@ private:
   float deltar(float eta1, float eta2, float phi1, float phi2) const;
 
   template <typename T>
-  static float pairmass(const std::array<unsigned int, 2> &t, const T *cands, const std::array<float, 2> &massD);
+  static float pairmass(const std::array<unsigned int, 2> &t, const T *cands, const std::array<double, 2> &massD);
 
   unsigned long countStruct_;
   unsigned long passStruct_;
@@ -81,8 +80,8 @@ ScPhase2TkRecMesonAll::ScPhase2TkRecMesonAll(const edm::ParameterSet &iConfig)
       maxZIsolation_(iConfig.getParameter<double>("maxZIsolation"))
   {
   if (doStruct_) {
-    //PUPPI input being given here
-    structToken_ = consumes<OrbitCollection<l1Scouting::Puppi>>(iConfig.getParameter<edm::InputTag>("src"));
+    //TTrack input being given here
+    structToken_ = consumes<OrbitCollection<l1Scouting::TTrack>>(iConfig.getParameter<edm::InputTag>("src"));
 
     std::vector<edm::ParameterSet> mesonPsets =
         iConfig.getParameter<std::vector<edm::ParameterSet>>("mesonTypes");
@@ -203,8 +202,9 @@ float ScPhase2TkRecMesonAll::isolationQ(int itype, unsigned int pidex1,
                                    const T *cands,
                                    unsigned int size) const {
   float psum = 0;
-  auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[pidex1].pt(), cands[pidex1].eta(), cands[pidex1].phi(), dmass1_[itype]);
-  auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[pidex2].pt(), cands[pidex2].eta(), cands[pidex2].phi(), dmass2_[itype]);
+
+  auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[pidex1].pt(), cands[pidex1].eta(), cands[pidex1].phi(), mesonTypes_[itype].dmass1);
+  auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[pidex2].pt(), cands[pidex2].eta(), cands[pidex2].phi(), mesonTypes_[itype].dmass2);
   float ptQ = (p4_1 + p4_2).pt();
   float etaQ = (p4_1 + p4_2).eta();
   float phiQ = (p4_1 + p4_2).phi();
@@ -245,7 +245,7 @@ float ScPhase2TkRecMesonAll::pairmass(const std::array<unsigned int, 2> &t,
   return mass;
 }
 
-void ScPhase2RecMesonAll::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
+void ScPhase2TkRecMesonAll::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
   edm::ParameterSetDescription mesonDesc;
   mesonDesc.add<std::string>("name");
   mesonDesc.add<double>("minMesonMass");
