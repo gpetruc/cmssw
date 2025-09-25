@@ -28,11 +28,10 @@ private:
                                                 const SDSRawDataCollection &feds,
                                                 std::vector<std::vector<T>> &buffer);
 
-  std::unique_ptr<l1Scouting::PuppiSOA> unpackSOA(const SDSRawDataCollection &feds);
-
   edm::EDGetTokenT<SDSRawDataCollection> rawToken_;
   std::vector<unsigned int> fedIDs_;
-  bool doCandidate_, doStruct_, doSOA_;
+  uint8_t splitFactor_; // number of fragments per BX
+  bool doCandidate_, doStruct_;
 
   // temporary storage
   std::vector<std::vector<l1t::PFCandidate>> candBuffer_;
@@ -46,9 +45,9 @@ private:
 ScPhase2PuppiRawToDigi::ScPhase2PuppiRawToDigi(const edm::ParameterSet &iConfig)
     : rawToken_(consumes<SDSRawDataCollection>(iConfig.getParameter<edm::InputTag>("src"))),
       fedIDs_(iConfig.getParameter<std::vector<unsigned int>>("fedIDs")),
+      splitFactor_(iConfig.getParameter<unsigned int>("splitFactor")),
       doCandidate_(iConfig.getParameter<bool>("runCandidateUnpacker")),
-      doStruct_(iConfig.getParameter<bool>("runStructUnpacker")),
-      doSOA_(iConfig.getParameter<bool>("runSOAUnpacker")) {
+      doStruct_(iConfig.getParameter<bool>("runStructUnpacker")) {
   if (doCandidate_) {
     candBuffer_.resize(OrbitCollection<l1t::PFCandidate>::NBX + 1);
     produces<OrbitCollection<l1t::PFCandidate>>();
@@ -57,10 +56,7 @@ ScPhase2PuppiRawToDigi::ScPhase2PuppiRawToDigi(const edm::ParameterSet &iConfig)
     structBuffer_.resize(OrbitCollection<l1Scouting::Puppi>::NBX + 1);
     produces<OrbitCollection<l1Scouting::Puppi>>();
   }
-  if (doSOA_) {
-    produces<l1Scouting::PuppiSOA>();
-  }
-  if (doCandidate_ || doStruct_ || doSOA_) {
+  if (doCandidate_ || doStruct_) {
     produces<unsigned int>("nbx");
   }
 }
@@ -76,10 +72,7 @@ void ScPhase2PuppiRawToDigi::produce(edm::Event &iEvent, const edm::EventSetup &
   if (doStruct_) {
     iEvent.put(unpackObj(iEvent.id().event(), *scoutingRawDataCollection, structBuffer_));
   }
-  if (doSOA_) {
-    iEvent.put(unpackSOA(*scoutingRawDataCollection));
-  }
-  if (doCandidate_ || doStruct_ || doSOA_) {
+  if (doCandidate_ || doStruct_) {
     iEvent.put(std::make_unique<unsigned int>(nbx_), "nbx");
   }
 }
@@ -90,6 +83,8 @@ std::unique_ptr<OrbitCollection<T>> ScPhase2PuppiRawToDigi::unpackObj(unsigned i
                                                                       std::vector<std::vector<T>> &buffer) {
   unsigned int ntot = 0;
   nbx_ = 0;
+  std::array<uint8_t, OrbitCollection<T>::NBX> bxcount;
+  std::fill(bxcount.begin(), bxcount.end(), 0);
   for (auto &fedId : fedIDs_) {
     const FEDRawData &src = feds.FEDData(fedId);
     const uint64_t *begin = reinterpret_cast<const uint64_t *>(src.data());
@@ -106,9 +101,15 @@ std::unique_ptr<OrbitCollection<T>> ScPhase2PuppiRawToDigi::unpackObj(unsigned i
         throw cms::Exception("CorruptData") << "Data for orbit " << orbit << ", fedId " << fedId
                                             << " has header with mismatching orbit number " << orbitno << std::endl;
       }
-      nbx_++;
-      ++p;
       assert(bx < OrbitCollection<T>::NBX);
+      auto nfound = ++bxcount[bx];
+      if (nfound > splitFactor_) { 
+        throw cms::Exception("CorruptData") << "Data for orbit " << orbit 
+                                            << " has " << nfound << " blocks for bx " << bx << ", expected " << splitFactor_ << std::endl;
+      } else if (nfound == splitFactor_) {
+        nbx_++;
+      }
+      ++p;
       std::vector<T> &outputBuffer = buffer[bx + 1];
       outputBuffer.reserve(nwords);
       for (unsigned int i = 0; i < nwords; ++i, ++p) {
@@ -171,71 +172,13 @@ void ScPhase2PuppiRawToDigi::unpackFromRaw(uint64_t data, std::vector<l1Scouting
   outBuffer.emplace_back(pt, eta, phi, pid, z0, dxy, puppiw, quality);
 }
 
-std::unique_ptr<l1Scouting::PuppiSOA> ScPhase2PuppiRawToDigi::unpackSOA(const SDSRawDataCollection &feds) {
-  std::vector<std::pair<const uint64_t *, const uint64_t *>> buffers;
-  unsigned int sizeguess = 0;
-  nbx_ = 0;
-  for (auto &fedId : fedIDs_) {
-    const FEDRawData &src = feds.FEDData(fedId);
-    buffers.emplace_back(reinterpret_cast<const uint64_t *>(src.data()),
-                         reinterpret_cast<const uint64_t *>(src.data() + src.size()));
-    sizeguess += src.size();
-  }
-  l1Scouting::PuppiSOA ret;
-  ret.bx.reserve(3564);
-  ret.offsets.reserve(3564 + 1);
-  for (std::vector<float> *v : {&ret.pt, &ret.eta, &ret.phi, &ret.z0, &ret.dxy, &ret.puppiw}) {
-    v->resize(sizeguess);
-  }
-  ret.pdgId.resize(sizeguess);
-  ret.quality.resize(sizeguess);
-  unsigned int i0 = 0;
-  for (int ibuff = 0, nbuffs = buffers.size(), lbuff = nbuffs - 1; buffers[ibuff].first != buffers[ibuff].second;
-       ibuff = (ibuff == lbuff ? 0 : ibuff + 1)) {
-    auto &pa = buffers[ibuff];
-    while (pa.first != pa.second && *pa.first == 0) {
-      pa.first++;
-    }
-    if (pa.first == pa.second)
-      continue;
-    unsigned int bx = ((*pa.first) >> 12) & 0xFFF;
-    unsigned int nwords = (*pa.first) & 0xFFF;
-    nbx_++;
-    pa.first++;
-    ret.bx.push_back(bx);
-    ret.offsets.push_back(i0);
-    for (unsigned int i = 0; i < nwords; ++i, ++pa.first, ++i0) {
-      uint64_t data = *pa.first;
-      l1puppiUnpack::readshared(data, ret.pt[i0], ret.eta[i0], ret.phi[i0]);
-      uint8_t pid = (data >> 37) & 0x7;
-      l1puppiUnpack::assignpdgid(pid, ret.pdgId[i0]);
-      if (pid > 1) {
-        l1puppiUnpack::readcharged(data, ret.z0[i0], ret.dxy[i0], ret.quality[i0]);
-        ret.puppiw[i0] = 1.0f;
-      } else {
-        l1puppiUnpack::readneutral(data, ret.puppiw[i0], ret.quality[i0]);
-        ret.dxy[i0] = 0.0f;
-        ret.z0[i0] = 0.0f;
-      }
-    }
-  }
-  ret.offsets.push_back(i0);
-  for (std::vector<float> *v : {&ret.pt, &ret.eta, &ret.phi, &ret.z0, &ret.dxy, &ret.puppiw}) {
-    v->resize(i0);
-  }
-  ret.pdgId.resize(i0);
-  ret.quality.resize(i0);
-  auto retptr = std::make_unique<l1Scouting::PuppiSOA>(std::move(ret));
-  return retptr;
-}
-
 void ScPhase2PuppiRawToDigi::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
   edm::ParameterSetDescription desc;
   desc.add<edm::InputTag>("src", edm::InputTag("rawDataCollector"));
   desc.add<std::vector<unsigned int>>("fedIDs");
+  desc.add<unsigned int>("splitFactor", 1)->setComment("Number of fragments per BX");
   desc.add<bool>("runCandidateUnpacker", false);
   desc.add<bool>("runStructUnpacker", true);
-  desc.add<bool>("runSOAUnpacker", false);
   descriptions.addDefault(desc);
 }
 

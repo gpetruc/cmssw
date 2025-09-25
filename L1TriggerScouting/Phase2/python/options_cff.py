@@ -67,6 +67,18 @@ options.register ('tkMuStreamIDs',
                   VarParsing.VarParsing.varType.int,          # string, int, or float
                   "Stream IDs for the TkMu inputs")
 
+options.register ('pfBarrelStreamIDs',
+                  [], # default value
+                  VarParsing.VarParsing.multiplicity.list,
+                  VarParsing.VarParsing.varType.int,          # string, int, or float
+                  "Stream IDs for the PF Barrel inputs")
+
+options.register ('pfEndcapStreamIDs',
+                  [], # default value
+                  VarParsing.VarParsing.multiplicity.list,
+                  VarParsing.VarParsing.varType.int,          # string, int, or float
+                  "Stream IDs for the PF Endcap inputs")
+
 options.register ('fuBaseDir',
                   '/dev/shm/data', # default value
                   VarParsing.VarParsing.multiplicity.singleton,
@@ -126,3 +138,21 @@ options.register ('task',
                   VarParsing.VarParsing.multiplicity.singleton,
                   VarParsing.VarParsing.varType.int,          # string, int, or float
                   "Task index (used for json outputs)")
+
+options.register ('backend',
+                  "serial_sync",
+                  VarParsing.VarParsing.multiplicity.singleton,
+                  VarParsing.VarParsing.varType.string,         
+                  "Hardware accelerator backend: serial_sync, cuda_async, or rocm_async")
+
+options.register ('verbose',
+                  False,
+                  VarParsing.VarParsing.multiplicity.singleton,
+                  VarParsing.VarParsing.varType.bool,         
+                  "Log debug messages to stdout")
+
+options.register ('verboseLevel',
+                  0,
+                  VarParsing.VarParsing.multiplicity.singleton,
+                  VarParsing.VarParsing.varType.int,         
+                  "0 - debug, 1 - full")

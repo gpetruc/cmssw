@@ -21,6 +21,7 @@ goodOrbitsByNBX = cms.EDFilter("GoodOrbitNBxSelector",
                     cms.InputTag("scPhase2TkEmRawToDigiStruct"),
                     cms.InputTag("scPhase2TrackerMuonRawToDigiStruct"),
                 ),
+    unpackersAlpaka = cms.VInputTag(),
     nbxMin = cms.uint32(3564)
 )
 

@@ -18,21 +18,7 @@ namespace l1puppiUnpack {
     static constexpr int16_t PDGIDS[8] = {130, 22, -211, 211, 11, -11, 13, -13};
     pdgid = PDGIDS[pid];
   }
-  inline void vassignpdgid(uint8_t pid, short int &pdgid) {
-    // vectorizable version, ugly as it is...
-    short int pdgId = pid ? 22 : 130;
-    if (pid > 1) {  // charged
-      if (pid / 2 == 1)
-        pdgId = -211;
-      else if (pid / 2 == 2)
-        pdgId = 11;
-      else
-        pdgId = 13;
-      if (pid & 1)
-        pdgId = -pdgId;
-    }
-    pdgid = pdgId;
-  }
+
   inline void assignCMSSWPFCandidateId(uint8_t pid, l1t::PFCandidate::ParticleType &id) {
     static constexpr l1t::PFCandidate::ParticleType PFIDS[8] = {l1t::PFCandidate::NeutralHadron,
                                                                 l1t::PFCandidate::Photon,
@@ -82,12 +68,6 @@ namespace l1puppiUnpack {
     dxy = dxyint * 0.05f;          // PLACEHOLDER
     quality = (data >> 58) & 0x7;  //3 bits
   }
-  inline void readcharged(const uint64_t data, uint8_t pid, float &z0, float &dxy) {  //float
-    int z0int = ((data >> 49) & 1) ? ((data >> 40) | (-0x200)) : ((data >> 40) & 0x3FF);
-    z0 = (pid > 1) * z0int * .05f;  //conver to centimeters
-    int dxyint = ((data >> 57) & 1) ? ((data >> 50) | (-0x100)) : ((data >> 50) & 0xFF);
-    dxy = (pid > 1) * dxyint * 0.05f;  // PLACEHOLDER
-  }
   inline void readneutral(const uint64_t data, uint16_t &wpuppi, uint8_t &id) {
     wpuppi = (data >> 40) & 0x3FF;
     id = (data >> 50) & 0x3F;
@@ -96,10 +76,6 @@ namespace l1puppiUnpack {
     int wpuppiint = (data >> 40) & 0x3FF;
     wpuppi = wpuppiint * (1 / 256.f);
     id = (data >> 50) & 0x3F;
-  }
-  inline void readneutral(const uint64_t data, uint8_t pid, float &wpuppi) {
-    int wpuppiint = (data >> 40) & 0x3FF;
-    wpuppi = pid > 1 ? wpuppiint * float(1 / 256.f) : 1.0f;
   }
   inline void readquality(const uint64_t data, uint8_t pid, uint8_t &quality) {
     quality = pid > 1 ? (data >> 58) & 0x7 : (data >> 50) & 0x3F;

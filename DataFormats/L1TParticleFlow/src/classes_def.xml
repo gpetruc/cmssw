@@ -42,8 +42,6 @@
   <class name="std::vector<l1Scouting::Puppi>" />
   <class name="OrbitCollection<l1Scouting::Puppi>" />
   <class name="edm::Wrapper<OrbitCollection<l1Scouting::Puppi>>" />
-  <class name="l1Scouting::PuppiSOA" />
-  <class name="edm::Wrapper<l1Scouting::PuppiSOA>" />
 
   <class name="l1Scouting::TkEm"  ClassVersion="3">
 	<version ClassVersion="3" checksum="429045954"/>

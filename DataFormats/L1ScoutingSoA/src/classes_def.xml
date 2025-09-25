@@ -1,0 +1,37 @@
+<lcgdict>
+  <!-- PuppiHostCollection -->
+  <class name="l1sc::PuppiSoA"/>
+  <class name="l1sc::PuppiSoA::View"/>
+  <class name="l1sc::PuppiSoA::ConstView"/>
+  <class name="l1sc::PuppiHostCollection"/>
+  <class name="edm::Wrapper<l1sc::PuppiHostCollection>" splitLevel="0"/>
+
+  <class name="l1sc::OffsetsSoA"/>
+  <class name="l1sc::OffsetsSoA::View"/>
+  <class name="l1sc::OffsetsSoA::ConstView"/>
+  <class name="l1sc::NbxSoA"/>
+  <class name="l1sc::NbxSoA::View"/>
+  <class name="l1sc::NbxSoA::ConstView"/>
+
+  <class name="portablecollection::CollectionImpl<0,l1sc::NbxLayout<128,false>,l1sc::OffsetsLayout<128,false>>"/>
+  <class name="portablecollection::CollectionImpl<1,l1sc::OffsetsLayout<128,false>>"/>
+  <class name="portablecollection::CollectionLeaf<0,l1sc::NbxLayout<128,false>>"/>
+  <class name="portablecollection::CollectionLeaf<1,l1sc::OffsetsLayout<128,false>>"/>
+  
+  <class name="l1sc::NbxMapHostCollection"/>
+  <class name="edm::Wrapper<l1sc::NbxMapHostCollection>" splitLevel="0"/>
+
+  <class name="l1sc::W3PiTriplet"/>
+  <class name="l1sc::W3PiTripletHostObject"/>
+  <class name="edm::Wrapper<l1sc::W3PiTripletHostObject>"/>
+
+  <class name="l1sc::W3PiPuppiTableSoA"/>
+  <class name="l1sc::W3PiPuppiTableSoA::View"/>
+  <class name="l1sc::W3PiPuppiTableSoA::ConstView"/>
+  <class name="l1sc::W3PiPuppiTableHostCollection"/>
+  <class name="edm::Wrapper<l1sc::W3PiPuppiTableHostCollection>" splitLevel="0"/>
+
+  <!-- CounterHost -->
+  <class name="l1sc::CounterHost"/>
+  <class name="edm::Wrapper<l1sc::CounterHost>" splitLevel="0"/>  
+</lcgdict>

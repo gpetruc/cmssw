@@ -9,7 +9,7 @@ if options.buNumStreams == []:
 analyses = options.analyses if options.analyses else ["w3pi", "hphijpsi", "h2rho", "h2phi"]
 print(f"Analyses set to {analyses}")
 
-if options.run not in ("both", "inclusive", "selected", "candidate", "soa", "all", "fast"):
+if options.run not in ("both", "inclusive", "selected", "candidate", "all", "fast", "alpaka", "unpack", "unpackAlpaka"):
     raise RuntimeError("Unsupported run mode %r" % options.run)
 
 process = cms.Process("SCPU")
@@ -80,6 +80,8 @@ process.load("L1TriggerScouting.Phase2.unpackers_cff")
 process.load("L1TriggerScouting.Phase2.rareDecayAnalyses_cff")
 process.load("L1TriggerScouting.Phase2.maskedCollections_cff")
 process.load("L1TriggerScouting.Phase2.nanoAODOutputs_cff")
+if options.run in ("all", "fast", "alpaka", "unpackAlpaka"): 
+  process.load("Configuration.StandardSequences.Accelerators_cff")
 
 ## Configure unpackers
 process.scPhase2PuppiRawToDigiStruct.fedIDs = [*puppiStreamIDs]
@@ -116,24 +118,46 @@ process.p_selected = cms.Path(
   process.scPhase2PuppiMaskedStructToTable
 )
 
+# Alpaka modules
+if options.run in ("all","fast","alpaka", "unpackAlpaka"): 
+  from L1TriggerScouting.Phase2.modules import (
+      l1sc_L1TScPhase2PuppiRawToDigi_alpaka,
+      l1sc_L1TScPhase2W3Pi_alpaka,
+      l1sc_L1TScPhase2W3PiAnalyzer
+  )
+  process.scPhase2PuppiRawToDigiAlpaka = l1sc_L1TScPhase2PuppiRawToDigi_alpaka(
+      alpaka = cms.untracked.PSet( backend = cms.untracked.string(options.backend) ),
+      linksIds = process.scPhase2PuppiRawToDigiStruct.fedIDs,
+      src = process.scPhase2PuppiRawToDigiStruct.src,
+      verbose = cms.untracked.bool(options.verbose),
+  )
+  process.w3piAlpaka = l1sc_L1TScPhase2W3Pi_alpaka(
+      alpaka = cms.untracked.PSet( backend = cms.untracked.string(options.backend) ),
+      src = 'scPhase2PuppiRawToDigiAlpaka',
+      verbose = cms.untracked.bool(options.verbose),
+  )
+  process.w3piAlpakaAnalyzer = l1sc_L1TScPhase2W3PiAnalyzer(
+    puppi = 'w3piAlpaka',
+    nbx_map = 'w3piAlpaka',
+    table = 'w3piAlpaka',
+    bx_ct = 'scPhase2PuppiRawToDigiAlpaka:nbx',
+    verbose = cms.untracked.bool(options.verbose),
+    verboseLevel = cms.untracked.int32(options.verboseLevel)
+  )
+  process.goodOrbitsByNBX.unpackersAlpaka = [ "scPhase2PuppiRawToDigiAlpaka" ]
+  if options.run in ("alpaka", "unpackAlpaka"):
+    process.goodOrbitsByNBX.unpackers = []
+
 # Additional modules and paths for benchmarking different data structures
 process.scPhase2PuppiRawToDigiCandidate = process.scPhase2PuppiRawToDigiStruct.clone(
     runStructUnpacker = cms.bool(False),
     runCandidateUnpacker = cms.bool(True),
 )
-process.scPhase2PuppiRawToDigiSOA = process.scPhase2PuppiRawToDigiStruct.clone(
-    runStructUnpacker = cms.bool(False),
-    runSOAUnpacker = cms.bool(True),
-)
 
 process.w3piCandidate = process.w3piStruct.clone(
+    src = 'scPhase2PuppiRawToDigiCandidate',
     runStruct = cms.bool(False),
     runCandidate = cms.bool(True),
-)
-
-process.w3piSOA = process.w3piStruct.clone(
-    runStruct = cms.bool(False),
-    runSOA = cms.bool(True),
 )
 
 process.p_candidate = cms.Path(
@@ -141,29 +165,40 @@ process.p_candidate = cms.Path(
   process.w3piCandidate
 )
 
-process.p_soa = cms.Path(
-  process.scPhase2PuppiRawToDigiSOA +
-  process.w3piSOA
-)
+if options.run in ("all", "fast", "alpaka", "unpackAlpaka"):
+  process.p_all = cms.Path(
+    process.scPhase2PuppiRawToDigiCandidate +
+    process.scPhase2PuppiRawToDigiStruct +
+    process.scPhase2PuppiRawToDigiAlpaka +
+    process.goodOrbitsByNBX +
+    process.w3piCandidate +
+    process.w3piStruct +
+    process.w3piAlpaka
+  )
 
-process.p_all = cms.Path(
-  process.scPhase2PuppiRawToDigiCandidate +
+  process.p_fast = cms.Path(
+    process.scPhase2PuppiRawToDigiStruct +
+    process.scPhase2PuppiRawToDigiAlpaka +
+    process.goodOrbitsByNBX +
+    process.w3piStruct +
+    process.w3piAlpaka
+  )
+
+  process.p_alpaka = cms.Path(
+    process.scPhase2PuppiRawToDigiAlpaka +
+    process.goodOrbitsByNBX +
+    process.w3piAlpaka
+  )
+
+  process.p_unpackAlpaka = cms.Path(
+    process.scPhase2PuppiRawToDigiAlpaka +
+    process.goodOrbitsByNBX
+  )
+
+process.p_unpack = cms.Path(
   process.scPhase2PuppiRawToDigiStruct +
-  process.scPhase2PuppiRawToDigiSOA +
-  process.scPhase2PuppiStructToTable +
-  process.w3piCandidate +
-  process.w3piStruct +
-  process.w3piSOA
+  process.goodOrbitsByNBX
 )
-
-process.p_fast = cms.Path(
-  process.scPhase2PuppiRawToDigiStruct +
-  process.scPhase2PuppiRawToDigiSOA +
-  process.scPhase2PuppiStructToTable +
-  process.w3piStruct +
-  process.w3piSOA
-)
-
 
 process.scPhase2NanoAll.fileName = options.outFile.replace(".root","")+".inclusive.root"
 process.scPhase2NanoAll.SelectEvents.SelectEvents = ['p_inclusive']
@@ -176,9 +211,13 @@ process.o_nanoInclusive = cms.EndPath(process.scPhase2NanoAll)
 process.o_nanoSelected = cms.EndPath(process.scPhase2NanoSelected)
 process.o_nanoBoth = cms.EndPath(process.scPhase2NanoAll + process.scPhase2NanoSelected)
 
-sched = [ process.p_inclusive, process.p_selected ]
-if options.run != "both":  [ getattr(process, "p_" + options.run)]
+if options.run not in ("both","inclusive","selected"): 
+  sched = [ getattr(process, "p_" + options.run)]
+else:
+  sched = [ process.p_inclusive, process.p_selected ]
+  if options.run in ("inclusive", "selected"):
+    sched = [ getattr(process, "p_" + options.run) ]
+  if options.outMode != "none":
+    sched.append(getattr(process, "o_"+options.outMode))
 
-if options.outMode != "none":
-  sched.append(getattr(process, "o_"+options.outMode))
 process.schedule = cms.Schedule(*sched)
