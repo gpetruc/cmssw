@@ -38,17 +38,17 @@ scPhase2RecIsoTkEmMasked = cms.EDProducer("MaskOrbitBxScoutingTkEm",
     selectBxs = cms.InputTag("scPhase2SelectedBXs","SelBx"),
 )
 
-scPhase2RecMesonPhiMasked = cms.EDProducer("MaskOrbitBxScoutingRecMeson",
+scPhase2RecMesonPhiMasked = cms.EDProducer("MaskOrbitBxScoutingRecMeson2",
     dataTag = cms.InputTag("recMesonStruct", "phi"),
     selectBxs = cms.InputTag("scPhase2SelectedBXs","SelBx"),
 )
 
-scPhase2RecMesonRhoMasked = cms.EDProducer("MaskOrbitBxScoutingRecMeson",
+scPhase2RecMesonRhoMasked = cms.EDProducer("MaskOrbitBxScoutingRecMeson2",
     dataTag = cms.InputTag("recMesonStruct", "rho"),
     selectBxs = cms.InputTag("scPhase2SelectedBXs","SelBx"),
 )
 
-scPhase2RecMesonJpsiMasked = cms.EDProducer("MaskOrbitBxScoutingRecMeson",
+scPhase2RecMesonJpsiMasked = cms.EDProducer("MaskOrbitBxScoutingRecMeson2",
     dataTag = cms.InputTag("recMesonStruct", "jpsi"),
     selectBxs = cms.InputTag("scPhase2SelectedBXs","SelBx"),
 )

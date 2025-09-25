@@ -33,7 +33,7 @@ public:
 
 private:
   // the tokens to access the data
-  edm::EDGetTokenT<OrbitCollection<l1Scouting::RecMeson>> src_;
+  edm::EDGetTokenT<OrbitCollection<l1Scouting::RecMeson<2>>> src_;
 
   std::string name_, doc_;
 };
@@ -42,7 +42,7 @@ private:
 // -------------------------------- constructor  -------------------------------
 
 ScRecMesonToOrbitFlatTable::ScRecMesonToOrbitFlatTable(const edm::ParameterSet& iConfig)
-    : src_(consumes<OrbitCollection<l1Scouting::RecMeson>>(iConfig.getParameter<edm::InputTag>("src"))),
+    : src_(consumes<OrbitCollection<l1Scouting::RecMeson<2>>>(iConfig.getParameter<edm::InputTag>("src"))),
       name_(iConfig.getParameter<std::string>("name")),
       doc_(iConfig.getParameter<std::string>("doc")) {
   produces<l1ScoutingRun3::OrbitFlatTable>();
@@ -52,19 +52,19 @@ ScRecMesonToOrbitFlatTable::ScRecMesonToOrbitFlatTable(const edm::ParameterSet& 
 // ----------------------- method called for each orbit  -----------------------
 void ScRecMesonToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm::EventSetup const&) const {
   
-  edm::Handle<OrbitCollection<l1Scouting::RecMeson>> src;
+  edm::Handle<OrbitCollection<l1Scouting::RecMeson<2>>> src;
   iEvent.getByToken(src_, src);
   auto out = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(src->bxOffsets(), name_);
   out->setDoc(doc_);
   std::vector<float> pt(out->size()), eta(out->size()), phi(out->size()), mass(out->size());
   std::vector<int16_t> id1(out->size()), id2(out->size());
   unsigned int i = 0;
-  for (const l1Scouting::RecMeson& RecMeson : *src) {
+  for (const l1Scouting::RecMeson<2>& RecMeson : *src) {
     pt[i] = RecMeson.pt();
     eta[i] = RecMeson.eta();
     phi[i] = RecMeson.phi();
-    id1[i] = RecMeson.id1();
-    id2[i] = RecMeson.id2();
+    id1[i] = RecMeson.daughterIds(0);
+    id2[i] = RecMeson.daughterIds(1);
     mass[i] = RecMeson.mass();
 
     ++i;

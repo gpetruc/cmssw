@@ -45,8 +45,8 @@ private:
     std::string name;
     double minMesonMass;
     double maxMesonMass;
-    double dmass1;
-    double dmass2;
+    double dauMass1;
+    double dauMass2;
   };
 
   std::vector<mesonTypeStruct> mesonTypes_;
@@ -91,12 +91,12 @@ ScPhase2TkRecMesonAll::ScPhase2TkRecMesonAll(const edm::ParameterSet &iConfig)
       mt.name = pset.getParameter<std::string>("name");
       mt.minMesonMass = pset.getParameter<double>("minMesonMass");
       mt.maxMesonMass = pset.getParameter<double>("maxMesonMass");
-      mt.dmass1 = pset.getParameter<double>("dmass1");
-      mt.dmass2 = pset.getParameter<double>("dmass2");
+      mt.dauMass1 = pset.getParameter<double>("dauMass1");
+      mt.dauMass2 = pset.getParameter<double>("dauMass2");
       mesonTypes_.push_back(mt);
 
       // Register output collections with instance labels
-      produces<OrbitCollection<l1Scouting::RecMeson>>(mt.name);
+      produces<OrbitCollection<l1Scouting::RecMeson<2>>>(mt.name);
     }
   }
 }
@@ -126,13 +126,13 @@ void ScPhase2TkRecMesonAll::runObj(const OrbitCollection<T> &src,
 
   ROOT::RVec<unsigned int> ix;
 
-  std::vector<std::vector<std::vector<l1Scouting::RecMeson>>> all_mesonVec;
+  std::vector<std::vector<std::vector<l1Scouting::RecMeson<2>>>> all_mesonVec;
   std::vector<unsigned int> all_ntotRecMeson(mesonTypes_.size(), 0);;
   int nbx = 0;
 
   for (unsigned int bx = 0; bx <= OrbitCollection<T>::NBX; ++bx) {
     nbx++;
-    std::vector<std::vector<l1Scouting::RecMeson>> all_mesonVec_thisBx(mesonTypes_.size());
+    std::vector<std::vector<l1Scouting::RecMeson<2>>> all_mesonVec_thisBx(mesonTypes_.size());
 
     auto range = src.bxIterator(bx);
     const T *cands = &range.front();
@@ -162,19 +162,22 @@ void ScPhase2TkRecMesonAll::runObj(const OrbitCollection<T> &src,
 
         for (unsigned int itype = 0; itype < mesonTypes_.size(); ++itype) {
 
-          auto mass2 = pairmass({{ix[i1], ix[i2]}}, cands, {{mesonTypes_[itype].dmass1, mesonTypes_[itype].dmass2}});
+          auto mass2 = pairmass({{ix[i1], ix[i2]}}, cands, {{mesonTypes_[itype].dauMass1, mesonTypes_[itype].dauMass2}});
           if (!(mass2 >= mesonTypes_[itype].minMesonMass and mass2 <= mesonTypes_[itype].maxMesonMass))
             continue;
 
-          auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[ix[i1]].pt(), cands[ix[i1]].eta(), cands[ix[i1]].phi(), mesonTypes_[itype].dmass1);
-          auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[ix[i2]].pt(), cands[ix[i2]].eta(), cands[ix[i2]].phi(), mesonTypes_[itype].dmass2);
+          auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[ix[i1]].pt(), cands[ix[i1]].eta(), cands[ix[i1]].phi(), mesonTypes_[itype].dauMass1);
+          auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[ix[i2]].pt(), cands[ix[i2]].eta(), cands[ix[i2]].phi(), mesonTypes_[itype].dauMass2);
           auto recMeson_quad = p4_1 + p4_2;
 
-          auto recMeson = l1Scouting::RecMeson(recMeson_quad.pt(), recMeson_quad.eta(),
-                                              recMeson_quad.phi(), recMeson_quad.mass(),
-                                              0, mesonTypes_[itype].dmass1, mesonTypes_[itype].dmass2, 211, ix[i1], ix[i2],
-                                              isoDR0p25);
-
+          std::array<double, 2> daughterMasses = {{ mesonTypes_[itype].dauMass1, mesonTypes_[itype].dauMass2 }};
+          std::array<unsigned int, 2> daughterIds = {{ ix[i1], ix[i2] }};
+  
+          // charge set to 0 because of opposite sign condition
+          auto recMeson = l1Scouting::RecMeson<2>(recMeson_quad.pt(), recMeson_quad.eta(),
+                                               recMeson_quad.phi(), recMeson_quad.mass(),
+                                               0, 211, isoDR0p25,
+                                               daughterMasses, daughterIds);
           all_mesonVec_thisBx[itype].push_back(recMeson);
 
           all_ntotRecMeson[itype]++;
@@ -185,11 +188,11 @@ void ScPhase2TkRecMesonAll::runObj(const OrbitCollection<T> &src,
   }
 
   for (unsigned int itype = 0; itype < mesonTypes_.size(); ++itype) {
-    std::vector<std::vector<l1Scouting::RecMeson>> mesonVec_perType;
+    std::vector<std::vector<l1Scouting::RecMeson<2>>> mesonVec_perType;
     for (auto &bxVec : all_mesonVec) {
         mesonVec_perType.push_back(std::move(bxVec[itype]));
     }
-    auto outRecMeson = std::make_unique<OrbitCollection<l1Scouting::RecMeson>>(
+    auto outRecMeson = std::make_unique<OrbitCollection<l1Scouting::RecMeson<2>>>(
         mesonVec_perType, all_ntotRecMeson[itype]
     );
     iEvent.put(std::move(outRecMeson), mesonTypes_[itype].name);
@@ -203,8 +206,8 @@ float ScPhase2TkRecMesonAll::isolationQ(int itype, unsigned int pidex1,
                                    unsigned int size) const {
   float psum = 0;
 
-  auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[pidex1].pt(), cands[pidex1].eta(), cands[pidex1].phi(), mesonTypes_[itype].dmass1);
-  auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[pidex2].pt(), cands[pidex2].eta(), cands[pidex2].phi(), mesonTypes_[itype].dmass2);
+  auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[pidex1].pt(), cands[pidex1].eta(), cands[pidex1].phi(), mesonTypes_[itype].dauMass1);
+  auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[pidex2].pt(), cands[pidex2].eta(), cands[pidex2].phi(), mesonTypes_[itype].dauMass2);
   float ptQ = (p4_1 + p4_2).pt();
   float etaQ = (p4_1 + p4_2).eta();
   float phiQ = (p4_1 + p4_2).phi();
@@ -250,8 +253,8 @@ void ScPhase2TkRecMesonAll::fillDescriptions(edm::ConfigurationDescriptions &des
   mesonDesc.add<std::string>("name");
   mesonDesc.add<double>("minMesonMass");
   mesonDesc.add<double>("maxMesonMass");
-  mesonDesc.add<double>("dmass1");
-  mesonDesc.add<double>("dmass2");
+  mesonDesc.add<double>("dauMass1");
+  mesonDesc.add<double>("dauMass2");
 
   edm::ParameterSetDescription desc;
   desc.add<edm::InputTag>("src");

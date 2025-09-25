@@ -12,11 +12,11 @@ typedef MaskOrbitBx<l1Scouting::TkEm> MaskOrbitBxScoutingTkEm;
 typedef MaskOrbitBx<l1Scouting::TkEle> MaskOrbitBxScoutingTkEle;
 typedef MaskOrbitBx<l1Scouting::TrackerMuon> MaskOrbitBxScoutingTrackerMuon;
 typedef MaskOrbitBx<l1Scouting::TTrack> MaskOrbitBxScoutingTrackerTrack;
-typedef MaskOrbitBx<l1Scouting::RecMeson> MaskOrbitBxScoutingRecMeson;
+typedef MaskOrbitBx<l1Scouting::RecMeson<2>> MaskOrbitBxScoutingRecMeson2;
 
 DEFINE_FWK_MODULE(MaskOrbitBxScoutingPuppi);
 DEFINE_FWK_MODULE(MaskOrbitBxScoutingTkEm);
 DEFINE_FWK_MODULE(MaskOrbitBxScoutingTkEle);
 DEFINE_FWK_MODULE(MaskOrbitBxScoutingTrackerMuon);
 DEFINE_FWK_MODULE(MaskOrbitBxScoutingTrackerTrack);
-DEFINE_FWK_MODULE(MaskOrbitBxScoutingRecMeson);
+DEFINE_FWK_MODULE(MaskOrbitBxScoutingRecMeson2);

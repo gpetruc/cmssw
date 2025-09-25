@@ -15,22 +15,22 @@ mesonTypes = cms.VPSet(
         name = cms.string("phi"),
         minMesonMass = cms.double(0.95),
         maxMesonMass = cms.double(1.25),
-        dmass1 = cms.double(0.4937),
-        dmass2 = cms.double(0.4937)
+        dauMass1 = cms.double(0.4937),
+        dauMass2 = cms.double(0.4937)
     ),
     cms.PSet(
         name = cms.string("rho"),
         minMesonMass = cms.double(0.40),
         maxMesonMass = cms.double(1.30),
-        dmass1 = cms.double(0.1396),
-        dmass2 = cms.double(0.1396)
+        dauMass1 = cms.double(0.1396),
+        dauMass2 = cms.double(0.1396)
     ),
     cms.PSet(
         name = cms.string("jpsi"),
         minMesonMass = cms.double(2.50),
         maxMesonMass = cms.double(3.50),
-        dmass1 = cms.double(0.1057),
-        dmass2 = cms.double(0.1057)
+        dauMass1 = cms.double(0.1057),
+        dauMass2 = cms.double(0.1057)
     )
 )    
 

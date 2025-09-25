@@ -39,7 +39,7 @@ private:
               const std::string &bxLabel);
 
   bool doStruct_;
-  edm::EDGetTokenT<OrbitCollection<l1Scouting::RecMeson>> structMesonToken_;
+  edm::EDGetTokenT<OrbitCollection<l1Scouting::RecMeson<2>>> structMesonToken_;
   edm::EDGetTokenT<OrbitCollection<l1Scouting::TkEm>> structGammaToken_;
 
   double minmassBoson_;
@@ -74,7 +74,7 @@ ScPhase2BosonToRecMesonGamma::ScPhase2BosonToRecMesonGamma(const edm::ParameterS
     {
   if (doStruct_) {
     structGammaToken_ = consumes<OrbitCollection<l1Scouting::TkEm>>(iConfig.getParameter<edm::InputTag>("srcGamma"));
-    structMesonToken_ = consumes<OrbitCollection<l1Scouting::RecMeson>>(iConfig.getParameter<edm::InputTag>("srcMeson"));
+    structMesonToken_ = consumes<OrbitCollection<l1Scouting::RecMeson<2>>>(iConfig.getParameter<edm::InputTag>("srcMeson"));
     produces<std::vector<unsigned>>("selectedBx");
     produces<l1ScoutingRun3::OrbitFlatTable>(analysisName_);
   }
@@ -90,7 +90,7 @@ void ScPhase2BosonToRecMesonGamma::beginStream(edm::StreamID) {
 void ScPhase2BosonToRecMesonGamma::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
   if (doStruct_) {
     edm::Handle<OrbitCollection<l1Scouting::TkEm>> srcGamma;
-    edm::Handle<OrbitCollection<l1Scouting::RecMeson>> srcMeson;
+    edm::Handle<OrbitCollection<l1Scouting::RecMeson<2>>> srcMeson;
     iEvent.getByToken(structGammaToken_, srcGamma);
     iEvent.getByToken(structMesonToken_, srcMeson);
     runObj(*srcGamma, *srcMeson, iEvent, countStruct_, passStruct_, "");
@@ -99,7 +99,9 @@ void ScPhase2BosonToRecMesonGamma::produce(edm::Event &iEvent, const edm::EventS
 
 void ScPhase2BosonToRecMesonGamma::endStream() {
   if (doStruct_)
-    edm::LogImportant("ScPhase2AnalysisSummary") << "Rec Meson BosonMesonGamma Struct analysis: " << countStruct_ << " -> " << passStruct_;
+    edm::LogImportant("ScPhase2AnalysisSummary") 
+    << "Rec Meson " << analysisName_ << " Struct analysis: " 
+    << countStruct_ << " -> " << passStruct_;
 }
 
 template <typename T, typename U>
@@ -162,8 +164,8 @@ void ScPhase2BosonToRecMesonGamma::runObj(const OrbitCollection<T> &srcGamma,
     ret->emplace_back(bx);
     nPass++;
     masses.push_back(mass);
-    i0s.push_back(candsMeson[bestTriplet[0]].id1());
-    i1s.push_back(candsMeson[bestTriplet[0]].id2());
+    i0s.push_back(candsMeson[bestTriplet[0]].daughterIds(0));
+    i1s.push_back(candsMeson[bestTriplet[0]].daughterIds(1));
     i2s.push_back(bestTriplet[1]);
     bxOffsetsFiller.addBx(bx, 1);
   }  // loop on BXs

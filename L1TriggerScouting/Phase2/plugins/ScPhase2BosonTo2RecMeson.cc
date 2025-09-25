@@ -39,7 +39,7 @@ private:
               const std::string &bxLabel);
 
   bool doStruct_;
-  edm::EDGetTokenT<OrbitCollection<l1Scouting::RecMeson>> structToken_;
+  edm::EDGetTokenT<OrbitCollection<l1Scouting::RecMeson<2>>> structToken_;
 
   double minmassBoson_; 
   double maxmassBoson_; 
@@ -47,8 +47,8 @@ private:
   double maxiso_; 
   std::string analysisName_;
 
-  static float quadrimass(const l1Scouting::RecMeson *candsa, int a, 
-                   const l1Scouting::RecMeson *candsb, int b);
+  static float quadrimass(const l1Scouting::RecMeson<2> *candsa, int a, 
+                   const l1Scouting::RecMeson<2> *candsb, int b);
 
   unsigned long countStruct_;
   unsigned long passStruct_;
@@ -63,8 +63,8 @@ ScPhase2BosonTo2RecMeson::ScPhase2BosonTo2RecMeson(const edm::ParameterSet &iCon
       analysisName_(iConfig.getParameter<std::string>("analysisName"))
      {
   if (doStruct_) {
-    structToken_ = consumes<OrbitCollection<l1Scouting::RecMeson>>(iConfig.getParameter<edm::InputTag>("srcMeson1"));
-    structToken_ = consumes<OrbitCollection<l1Scouting::RecMeson>>(iConfig.getParameter<edm::InputTag>("srcMeson2"));
+    structToken_ = consumes<OrbitCollection<l1Scouting::RecMeson<2>>>(iConfig.getParameter<edm::InputTag>("srcMeson1"));
+    structToken_ = consumes<OrbitCollection<l1Scouting::RecMeson<2>>>(iConfig.getParameter<edm::InputTag>("srcMeson2"));
     produces<std::vector<unsigned>>("selectedBx");
     produces<l1ScoutingRun3::OrbitFlatTable>(analysisName_);
   }
@@ -79,8 +79,8 @@ void ScPhase2BosonTo2RecMeson::beginStream(edm::StreamID) {
 
 void ScPhase2BosonTo2RecMeson::produce(edm::Event &iEvent, const edm::EventSetup &iSetup) {
   if (doStruct_) {
-    edm::Handle<OrbitCollection<l1Scouting::RecMeson>> srcMeson1;
-    edm::Handle<OrbitCollection<l1Scouting::RecMeson>> srcMeson2;
+    edm::Handle<OrbitCollection<l1Scouting::RecMeson<2>>> srcMeson1;
+    edm::Handle<OrbitCollection<l1Scouting::RecMeson<2>>> srcMeson2;
     iEvent.getByToken(structToken_, srcMeson1);
     iEvent.getByToken(structToken_, srcMeson2);
     runObj(*srcMeson1, *srcMeson2, iEvent, countStruct_, passStruct_, "");
@@ -89,7 +89,9 @@ void ScPhase2BosonTo2RecMeson::produce(edm::Event &iEvent, const edm::EventSetup
 
 void ScPhase2BosonTo2RecMeson::endStream() {
   if (doStruct_)
-    edm::LogImportant("ScPhase2AnalysisSummary") << "Rec Meson Boson to 2 Mesons Struct analysis: " << countStruct_ << " -> " << passStruct_;
+    edm::LogImportant("ScPhase2AnalysisSummary") 
+    << "Rec Meson " << analysisName_ << " Struct analysis: " 
+    << countStruct_ << " -> " << passStruct_;
 }
 
 template <typename T>
@@ -134,9 +136,9 @@ void ScPhase2BosonTo2RecMeson::runObj(const OrbitCollection<T> &srcMeson1,
           continue;
 
         // Four different dauther particles
-        if ((candsMeson1[i1].id1() == candsMeson2[i2].id1()) || (candsMeson1[i1].id1() == candsMeson2[i2].id2()))
+        if ((candsMeson1[i1].daughterIds(0) == candsMeson2[i2].daughterIds(0)) || (candsMeson1[i1].daughterIds(0) == candsMeson2[i2].daughterIds(1)))
           continue;
-        if ((candsMeson1[i1].id2() == candsMeson2[i2].id1()) || (candsMeson1[i1].id2() == candsMeson2[i2].id2()))
+        if ((candsMeson1[i1].daughterIds(1) == candsMeson2[i2].daughterIds(0)) || (candsMeson1[i1].daughterIds(1) == candsMeson2[i2].daughterIds(1)))
           continue;
 
         // Choose best pair of mesons based on score (e.g. max pt)
@@ -160,10 +162,10 @@ void ScPhase2BosonTo2RecMeson::runObj(const OrbitCollection<T> &srcMeson1,
     ret->emplace_back(bx);
     nPass++;
     masses.push_back(mass);
-    i0s.push_back(candsMeson1[bestMesonPair[0]].id1());
-    i1s.push_back(candsMeson1[bestMesonPair[0]].id2());
-    i2s.push_back(candsMeson2[bestMesonPair[1]].id1());
-    i3s.push_back(candsMeson2[bestMesonPair[1]].id2());
+    i0s.push_back(candsMeson1[bestMesonPair[0]].daughterIds(0));
+    i1s.push_back(candsMeson1[bestMesonPair[0]].daughterIds(1));
+    i2s.push_back(candsMeson2[bestMesonPair[1]].daughterIds(0));
+    i3s.push_back(candsMeson2[bestMesonPair[1]].daughterIds(1));
     bxOffsetsFiller.addBx(bx, 1);
   }  // loop on BXs
 
@@ -179,7 +181,7 @@ void ScPhase2BosonTo2RecMeson::runObj(const OrbitCollection<T> &srcMeson1,
   iEvent.put(std::move(tab), analysisName_ + label);
 }
 
-float ScPhase2BosonTo2RecMeson::quadrimass(const l1Scouting::RecMeson *candsa, int a, const l1Scouting::RecMeson *candsb, int b) {
+float ScPhase2BosonTo2RecMeson::quadrimass(const l1Scouting::RecMeson<2> *candsa, int a, const l1Scouting::RecMeson<2> *candsb, int b) {
   ROOT::Math::PtEtaPhiMVector p1(candsa[a].pt(), candsa[a].eta(), candsa[a].phi(), candsa[a].mass());
   ROOT::Math::PtEtaPhiMVector p2(candsb[b].pt(), candsb[b].eta(), candsb[b].phi(), candsb[b].mass());
   float mass = (p1 + p2).M();

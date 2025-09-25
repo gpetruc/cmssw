@@ -45,8 +45,8 @@ private:
 
   float minMesonMass_ = 0;
   float maxMesonMass_ = 0;
-  float dmass1_ = 0;
-  float dmass2_ = 0;
+  float dauMass1_ = 0;
+  float dauMass2_ = 0;
 
   double minPtDau_;
   double maxDeltaRDaus_;
@@ -72,8 +72,8 @@ ScPhase2RecMeson::ScPhase2RecMeson(const edm::ParameterSet &iConfig)
 
       minMesonMass_(iConfig.getParameter<double>("minMesonMass")),
       maxMesonMass_(iConfig.getParameter<double>("maxMesonMass")),
-      dmass1_(iConfig.getParameter<double>("dmass1")),
-      dmass2_(iConfig.getParameter<double>("dmass2")),
+      dauMass1_(iConfig.getParameter<double>("dauMass1")),
+      dauMass2_(iConfig.getParameter<double>("dauMass2")),
 
       minPtDau_(iConfig.getParameter<double>("minPtDau")),
       maxDeltaRDaus_(iConfig.getParameter<double>("maxDeltaRDaus")),
@@ -85,7 +85,7 @@ ScPhase2RecMeson::ScPhase2RecMeson(const edm::ParameterSet &iConfig)
     //PUPPI input being given here
     structToken_ = consumes<OrbitCollection<l1Scouting::Puppi>>(iConfig.getParameter<edm::InputTag>("src"));
 
-    produces<OrbitCollection<l1Scouting::RecMeson>>();
+    produces<OrbitCollection<l1Scouting::RecMeson<2>>>();
     produces<unsigned int>("nbx");
   }
 }
@@ -112,12 +112,12 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
   auto ret = std::make_unique<std::vector<unsigned>>();
 
   ROOT::RVec<unsigned int> ix;
-  std::vector<std::vector<l1Scouting::RecMeson>> mesonVec;
+  std::vector<std::vector<l1Scouting::RecMeson<2>>> mesonVec;
   unsigned int ntotRecMeson = 0, nbx = 0;
 
   for (unsigned int bx = 0; bx <= OrbitCollection<T>::NBX; ++bx) {
     nbx++;
-    std::vector<l1Scouting::RecMeson> mesonVec_thisBx;
+    std::vector<l1Scouting::RecMeson<2>> mesonVec_thisBx;
 
     auto range = src.bxIterator(bx);
     const T *cands = &range.front();
@@ -138,7 +138,7 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
         if (!(cands[ix[i1]].charge() * cands[ix[i2]].charge() < 0))
           continue;
 
-        auto mass2 = pairmass({{ix[i1], ix[i2]}}, cands, {{dmass1_, dmass2_}});
+        auto mass2 = pairmass({{ix[i1], ix[i2]}}, cands, {{dauMass1_, dauMass2_}});
         if (!(mass2 >= minMesonMass_ and mass2 <= maxMesonMass_))
           continue;
 
@@ -149,17 +149,20 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
         //std::array<unsigned int, 2> pair{{ix[i1], ix[i2]}};  // pair of indices
         //std::cout << "found a meson!!" << std::endl;
 
-        auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[ix[i1]].pt(), cands[ix[i1]].eta(), cands[ix[i1]].phi(), dmass1_);
-        auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[ix[i2]].pt(), cands[ix[i2]].eta(), cands[ix[i2]].phi(), dmass2_);
+        auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[ix[i1]].pt(), cands[ix[i1]].eta(), cands[ix[i1]].phi(), dauMass1_);
+        auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[ix[i2]].pt(), cands[ix[i2]].eta(), cands[ix[i2]].phi(), dauMass2_);
         auto recMeson_quad = p4_1 + p4_2;
         // Do we want to put isolation computation here or outside?
         float isoDR0p25 = isolationQ(ix[i1], ix[i2], cands, size);
 
+        std::array<double, 2> daughterMasses = {{ dauMass1_, dauMass2_ }};
+        std::array<unsigned int, 2> daughterIds = {{ ix[i1], ix[i2] }};
+
         // charge set to 0 because of opposite sign condition
-        auto recMeson = l1Scouting::RecMeson(recMeson_quad.pt(), recMeson_quad.eta(),
+        auto recMeson = l1Scouting::RecMeson<2>(recMeson_quad.pt(), recMeson_quad.eta(),
                                              recMeson_quad.phi(), recMeson_quad.mass(),
-                                             0, dmass1_, dmass2_, 211, ix[i1], ix[i2],
-                                             isoDR0p25);
+                                             0, 211, isoDR0p25,
+                                             daughterMasses, daughterIds);
         mesonVec_thisBx.push_back(recMeson);
 
         ntotRecMeson++;
@@ -171,7 +174,7 @@ void ScPhase2RecMeson::runObj(const OrbitCollection<T> &src,
   }  // loop on BXs
 
   // Put flat table into event
-  auto outRecMeson = std::make_unique<OrbitCollection<l1Scouting::RecMeson>>(mesonVec, ntotRecMeson);
+  auto outRecMeson = std::make_unique<OrbitCollection<l1Scouting::RecMeson<2>>>(mesonVec, ntotRecMeson);
   iEvent.put(std::move(outRecMeson));
   iEvent.put(std::make_unique<unsigned int>(nbx), "nbx");
 }
@@ -183,8 +186,8 @@ float ScPhase2RecMeson::isolationQ(unsigned int pidex1,
                                     const T *cands,
                                     unsigned int size) const {
   float psum = 0;
-  auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[pidex1].pt(), cands[pidex1].eta(), cands[pidex1].phi(), dmass1_);
-  auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[pidex2].pt(), cands[pidex2].eta(), cands[pidex2].phi(), dmass2_);
+  auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[pidex1].pt(), cands[pidex1].eta(), cands[pidex1].phi(), dauMass1_);
+  auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[pidex2].pt(), cands[pidex2].eta(), cands[pidex2].phi(), dauMass2_);
   float ptQ = (p4_1 + p4_2).pt();
   float etaQ = (p4_1 + p4_2).eta();
   float phiQ = (p4_1 + p4_2).phi();
@@ -236,8 +239,8 @@ void ScPhase2RecMeson::fillDescriptions(edm::ConfigurationDescriptions &descript
 
   desc.add<double>("minMesonMass");
   desc.add<double>("maxMesonMass");
-  desc.add<double>("dmass1");
-  desc.add<double>("dmass2");
+  desc.add<double>("dauMass1");
+  desc.add<double>("dauMass2");
 
   desc.add<double>("minPtDau");
   desc.add<double>("maxDeltaRDaus");

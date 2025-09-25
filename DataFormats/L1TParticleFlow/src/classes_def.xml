@@ -20,10 +20,15 @@
   <class name="edm::RefVector<l1t::PFTrackCollection>" />
   <class name="std::vector<edm::Ref<l1t::PFTrackCollection> >" />
 
-  <class name="l1Scouting::RecMeson" />
-  <class name="std::vector<l1Scouting::RecMeson>"/>
-  <class name="OrbitCollection<l1Scouting::RecMeson>" />
-  <class name="edm::Wrapper<OrbitCollection<l1Scouting::RecMeson>>" />
+  <class name="l1Scouting::RecMesonBase"/>
+  <class name="std::vector<l1Scouting::RecMesonBase>"/>
+  <class name="OrbitCollection<l1Scouting::RecMesonBase>" />
+  <class name="edm::Wrapper<OrbitCollection<l1Scouting::RecMesonBase>>" />
+
+  <class name="l1Scouting::RecMeson<2>" />
+  <class name="std::vector<l1Scouting::RecMeson<2>>"/>
+  <class name="OrbitCollection<l1Scouting::RecMeson<2>>" />
+  <class name="edm::Wrapper<OrbitCollection<l1Scouting::RecMeson<2>>>" />
 
   <class name="l1t::PFCandidate"  ClassVersion="7">
         <version ClassVersion="7" checksum="2118795037"/>

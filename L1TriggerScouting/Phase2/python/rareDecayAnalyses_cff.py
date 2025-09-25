@@ -8,7 +8,7 @@ hjpsigammaRecMesonStruct = cms.EDProducer("ScPhase2BosonToRecMesonGamma",
     maxmassBoson = cms.double(150),
     minptQ = cms.double(30),
     minptGamma = cms.double(30),
-    analysisName = cms.string("recMesonHJPsiGamma")
+    analysisName = cms.string("HJPsiGamma")
 )
 
 h2phiRecMesonStruct = cms.EDProducer("ScPhase2BosonTo2RecMeson",
@@ -18,7 +18,7 @@ h2phiRecMesonStruct = cms.EDProducer("ScPhase2BosonTo2RecMeson",
     maxmassBoson = cms.double(150),
     minptQ = cms.double(1),
     maxiso = cms.double(0.25),
-    analysisName = cms.string("recMesonH2Phi")
+    analysisName = cms.string("H2Phi")
 )
 
 hphigammaRecMesonStruct = cms.EDProducer("ScPhase2BosonToRecMesonGamma",
@@ -28,7 +28,7 @@ hphigammaRecMesonStruct = cms.EDProducer("ScPhase2BosonToRecMesonGamma",
     maxmassBoson = cms.double(150),
     minptQ = cms.double(30),
     minptGamma = cms.double(30),
-    analysisName = cms.string("recMesonHPhiGamma")
+    analysisName = cms.string("HPhiGamma")
 )
 
 hphijpsiRecMesonStruct = cms.EDProducer("ScPhase2BosonTo2RecMeson",
@@ -38,7 +38,7 @@ hphijpsiRecMesonStruct = cms.EDProducer("ScPhase2BosonTo2RecMeson",
     maxmassBoson = cms.double(150),
     minptQ = cms.double(30),
     maxiso = cms.double(0.25),
-    analysisName = cms.string("recMesonHPhiJPsi")
+    analysisName = cms.string("HPhiJPsi")
 )
 
 h2rhoRecMesonStruct = cms.EDProducer("ScPhase2BosonTo2RecMeson",
@@ -48,7 +48,7 @@ h2rhoRecMesonStruct = cms.EDProducer("ScPhase2BosonTo2RecMeson",
     maxmassBoson = cms.double(150),
     minptQ = cms.double(3),
     maxiso = cms.double(0.25),
-    analysisName = cms.string("recMesonH2Rho")
+    analysisName = cms.string("H2Rho")
 )
 
 hrhogammaRecMesonStruct = cms.EDProducer("ScPhase2BosonToRecMesonGamma",
@@ -58,7 +58,7 @@ hrhogammaRecMesonStruct = cms.EDProducer("ScPhase2BosonToRecMesonGamma",
     maxmassBoson = cms.double(150),
     minptQ = cms.double(30),
     minptGamma = cms.double(30),
-    analysisName = cms.string("recMesonHRhoGamma")
+    analysisName = cms.string("HRhoGamma")
 )
 
 z2phiRecMesonStruct = cms.EDProducer("ScPhase2BosonTo2RecMeson",
@@ -68,7 +68,7 @@ z2phiRecMesonStruct = cms.EDProducer("ScPhase2BosonTo2RecMeson",
     maxmassBoson = cms.double(120),
     minptQ = cms.double(1),
     maxiso = cms.double(0.25),
-    analysisName = cms.string("recMesonZ2Phi")
+    analysisName = cms.string("Z2Phi")
 )
 
 z2rhoRecMesonStruct = cms.EDProducer("ScPhase2BosonTo2RecMeson",
@@ -78,7 +78,7 @@ z2rhoRecMesonStruct = cms.EDProducer("ScPhase2BosonTo2RecMeson",
     maxmassBoson = cms.double(120),
     minptQ = cms.double(3),
     maxiso = cms.double(0.25),
-    analysisName = cms.string("recMesonZ2Rho")
+    analysisName = cms.string("Z2Rho")
 )
 
 w3piStruct = cms.EDProducer("ScPhase2PuppiW3PiDemo",
