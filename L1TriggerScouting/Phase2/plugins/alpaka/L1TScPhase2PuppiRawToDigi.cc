@@ -53,12 +53,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
     const device::EDPutToken<NbxMapDeviceCollection> nbx_map_token_;                  // orbit association map
     const edm::EDPutTokenT<CounterHost> nbx_token_;                                   // number of bunch crossings
     const std::vector<uint32_t> links_ids_;                                           // front-end devices stream links
+    const unsigned int splitFactor_;                                                  // number of fragments per BX
     std::vector<data_t> h_data_{};                                                    // headers 64-bit words
     std::vector<data_t> p_data_{};                                                    // payload 64-bit words
     std::unique_ptr<kernels::L1TScPhase2PuppiRawToDigiKernels> raw_to_digi_kernels_;  // kernels for decoding
     const bool verbose_;                                                              // verbose output
 
-    void collectBuffers(const SDSRawDataCollection &raw_data);
+    unsigned int collectBuffers(const SDSRawDataCollection &raw_data);
   };
 
   // __________________________________________________________________________________________________________________
@@ -71,6 +72,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
         nbx_map_token_{produces()},
         nbx_token_{produces("nbx")},
         links_ids_(params.getParameter<std::vector<uint32_t>>("linksIds")),
+        splitFactor_(params.getParameter<unsigned int>("splitFactor")),
         raw_to_digi_kernels_(std::make_unique<kernels::L1TScPhase2PuppiRawToDigiKernels>()),
         verbose_(params.getUntrackedParameter<bool>("verbose")) {}
 
@@ -83,7 +85,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
     auto raw_data = event.getHandle(raw_data_token_);
 
     // preprocess header -> payload
-    collectBuffers(*raw_data);
+    auto ngoodbx = collectBuffers(*raw_data);
     auto nbx = static_cast<int32_t>(h_data_.size());
 
     // nbx index map
@@ -96,12 +98,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
     auto puppi = PuppiDeviceCollection(p_data_.size(), event.queue());
     kernels::rawToDigi(event.queue(), p_data_.data(), puppi);
 
-    auto nbxProd = CounterHost(event.queue(), nbx);
-
-    // debug log to stdout
-    // if (verbose_) {
-    //   fmt::print("[DEBUG] l1sc::L1TScPhase2PuppiRawToDigi: OK (event: {})\n", event.id().event());
-    // }
+    auto nbxProd = CounterHost(event.queue(), ngoodbx);
 
     // store data in the event
     event.emplace(nbx_map_token_, std::move(nbx_map));
@@ -111,19 +108,21 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
     if (verbose_) {
       auto elapsed =
           std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - timestamp);
-      fmt::print("[DEBUG] l1sc::L1TScPhase2PuppiRawToDigi: OK {} us, {} nbx\n", elapsed.count(), nbx);
+      fmt::print(
+          "[DEBUG] l1sc::L1TScPhase2PuppiRawToDigi: OK {} us, {} bx ({} good) \n", elapsed.count(), nbx, ngoodbx);
     }
   }
 
   void L1TScPhase2PuppiRawToDigi::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
     edm::ParameterSetDescription desc;
     desc.add<std::vector<uint32_t>>("linksIds");
+    desc.add<unsigned int>("splitFactor", 1)->setComment("Number of fragments per BX");
     desc.add<edm::InputTag>("src");
     desc.addUntracked<bool>("verbose", false);
     descriptions.addWithDefaultLabel(desc);
   }
 
-  void L1TScPhase2PuppiRawToDigi::collectBuffers(const SDSRawDataCollection &raw_data) {
+  unsigned int L1TScPhase2PuppiRawToDigi::collectBuffers(const SDSRawDataCollection &raw_data) {
     p_data_.clear();
     h_data_.clear();
 
@@ -162,23 +161,34 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
     // restore bx order (size of heap at max 3564 not that heavy to track)
     // pop the first element outside the loop
     if (min_heap.empty())
-      return;
+      return 0;
+
+    unsigned int ngoodbx = 0;
     BxData bx_data = min_heap.top();
     h_data_.push_back(*(bx_data.header_ptr));                                                            // store header
     p_data_.insert(p_data_.end(), bx_data.payload_begin, bx_data.payload_begin + bx_data.payload_size);  // copy payload
     min_heap.pop();
+    unsigned int nslices = 1;
     while (!min_heap.empty()) {
       const auto &bx_data2 = min_heap.top();
-      if (bx_data2.bx != bx_data.bx) {                       // new bx
+      if (bx_data2.bx != bx_data.bx) {  // new bx
+        if (nslices == splitFactor_)
+          ngoodbx++;
+        nslices = 1;
         h_data_.push_back(*(bx_data2.header_ptr));           // store header
       } else {                                               // same bx, skip header
         h_data_.back() += (*(bx_data2.header_ptr)) & 0xFFF;  // merge size in header
+        nslices++;
       }
       bx_data = bx_data2;
       p_data_.insert(
           p_data_.end(), bx_data.payload_begin, bx_data.payload_begin + bx_data.payload_size);  // copy payload
       min_heap.pop();
     }
+    if (nslices == splitFactor_)
+      ngoodbx++;
+
+    return ngoodbx;
   }
 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc
