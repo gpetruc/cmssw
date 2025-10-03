@@ -32,10 +32,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
         uint64_t data = p_data[idx];
 
         // hardware values
-        auto hwPt = decodeBits<uint16_t>(data, 0, 14);
-        auto hwEta = decodeBitsSigned<int16_t>(data, 14, 12);
-        auto hwPhi = decodeBitsSigned<int16_t>(data, 26, 11);
-        auto pid = decodeBits<uint8_t>(data, 37, 3);
+        auto hwPt = decodeBits<uint16_t, 0, 14>(data);
+        auto hwEta = decodeBitsSigned<int16_t, 14, 12>(data);
+        auto hwPhi = decodeBitsSigned<int16_t, 26, 11>(data);
+        auto pid = decodeBits<uint8_t, 37, 3>(data);
 
         // convert to real values
         puppi.pt()[idx] = hwPt * 0.25f;
@@ -44,17 +44,17 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
         puppi.pdgid()[idx] = kPdgid<Acc1D>.get()[pid];
 
         if (pid > 1) {
-          auto hwZ0 = decodeBitsSigned<int16_t>(data, 40, 10);
-          auto hwDxy = decodeBitsSigned<int16_t>(data, 50, 8);
-          auto hwQual = decodeBits<uint8_t>(data, 58, 3);
+          auto hwZ0 = decodeBitsSigned<int16_t, 40, 10>(data);
+          auto hwDxy = decodeBitsSigned<int16_t, 50, 8>(data);
+          auto hwQual = decodeBits<uint8_t, 58, 3>(data);
 
           puppi.z0()[idx] = hwZ0 * 0.05f;
           puppi.dxy()[idx] = hwDxy * 0.05f;
           puppi.puppiw()[idx] = 1.0f;
           puppi.quality()[idx] = hwQual;
         } else {
-          auto hwPuppiw = decodeBits<uint16_t>(data, 40, 10);
-          auto hwQual = decodeBits<uint8_t>(data, 50, 6);
+          auto hwPuppiw = decodeBits<uint16_t, 40, 10>(data);
+          auto hwQual = decodeBits<uint8_t, 50, 6>(data);
 
           puppi.z0()[idx] = 0.0f;
           puppi.dxy()[idx] = 0.0f;
@@ -101,9 +101,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
             offsets.offsets()[0] = 0;
 
           for (int32_t idx : cms::alpakatools::uniform_elements(acc, offsets.metadata().size() - 1)) {
-            auto range = decodeBits<uint32_t>(data[idx], 0, 12);
+            auto range = decodeBits<uint32_t, 0, 12>(data[idx]);
             offsets.offsets()[idx + 1] = range;
-            bx_index.bx()[idx] = decodeBits<uint32_t>(data[idx], 12, 12);
+            bx_index.bx()[idx] = decodeBits<uint32_t, 12, 12>(data[idx]);
           }
         },
         h_data_device.data(),

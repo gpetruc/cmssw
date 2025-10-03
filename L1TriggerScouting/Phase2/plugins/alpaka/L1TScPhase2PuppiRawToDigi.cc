@@ -123,9 +123,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
 
       unsigned int ngoodbx = 0;
       BxData bx_data = min_heap.top();
-      h_data_.push_back(*(bx_data.header_ptr));  // store header
-      p_data_.insert(
-          p_data_.end(), bx_data.payload_begin, bx_data.payload_begin + bx_data.payload_size);  // copy payload
+      h_data_.push_back(*(bx_data.header_ptr));                                               // store header
+      p_data_.insert(p_data_.end(), bx_data.data_ptr, bx_data.data_ptr + bx_data.data_size);  // copy payload
       min_heap.pop();
       unsigned int nslices = 1;
       while (!min_heap.empty()) {
@@ -140,8 +139,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
           nslices++;
         }
         bx_data = bx_data2;
-        p_data_.insert(
-            p_data_.end(), bx_data.payload_begin, bx_data.payload_begin + bx_data.payload_size);  // copy payload
+        p_data_.insert(p_data_.end(), bx_data.data_ptr, bx_data.data_ptr + bx_data.data_size);  // copy payload
         min_heap.pop();
       }
       if (nslices == splitFactor_)
