@@ -212,6 +212,7 @@ void ScPhase2PuppiW3PiDemo::runObj(const OrbitCollection<T> &src,
   }  // loop on BXs
 
   iEvent.put(std::move(ret), "selectedBx" + label);
+
   // now we make the table
   auto bxOffsets = bxOffsetsFiller.done();
   auto tab = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(bxOffsets, "W3Pi" + label, true);

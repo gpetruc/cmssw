@@ -36,24 +36,24 @@ args.register(
 )
 
 args.register(
-    "verbose",
-    False,
+    "environment",
+    0, 
     VarParsing.VarParsing.multiplicity.singleton,
-    VarParsing.VarParsing.varType.bool,         
-    "Log debug messages to stdout"
+    VarParsing.VarParsing.varType.int,         
+    "0 - production, 1 - development, 2 - test"
 )
 
 args.register(
-    "verboseLevel",
-    0,
+    "fastPath",
+    True,
     VarParsing.VarParsing.multiplicity.singleton,
-    VarParsing.VarParsing.varType.int,         
-    "0 - debug, 1 - full"
+    VarParsing.VarParsing.varType.bool,
+    "Use fast path, skip full reconstruction of candidate table and compression of bx selection mask"
 )
 
 args.register (
     "runNumber",
-    37,
+    38,
     VarParsing.VarParsing.multiplicity.singleton,
     VarParsing.VarParsing.varType.int,
     "Run number"
@@ -83,6 +83,14 @@ args.register (
 )
 
 args.register (
+    "fuBaseDir",
+    "/dev/shm/ramdisk",
+    VarParsing.VarParsing.multiplicity.singleton,
+    VarParsing.VarParsing.varType.string,
+    "BU base directory"
+)
+
+args.register (
     "buBaseDir",
     "/dev/shm/ramdisk",
     VarParsing.VarParsing.multiplicity.list,
@@ -100,18 +108,90 @@ args.register (
 
 
 args.register (
-    "linksIds",
+    "streams",
     [],
     VarParsing.VarParsing.multiplicity.list,
     VarParsing.VarParsing.varType.int,
     "Input links IDs for the inputs"
 )
 
-
 args.register (
-    "fuBaseDir",
-    "/dev/shm/data",
+    "name",
+    "",
     VarParsing.VarParsing.multiplicity.singleton,
     VarParsing.VarParsing.varType.string,
-    "BU base directory"
+    "Name for output report file"
+)
+
+# W3Pi algorithm parameters
+args.register(
+    "ptMin",
+    7,
+    VarParsing.VarParsing.multiplicity.singleton,
+    VarParsing.VarParsing.varType.float,
+    "pT min"
+)
+
+args.register(
+    "ptInt",
+    12,
+    VarParsing.VarParsing.multiplicity.singleton,
+    VarParsing.VarParsing.varType.float,
+    "pT interval"
+)
+
+args.register(
+    "ptMax",
+    15,
+    VarParsing.VarParsing.multiplicity.singleton,
+    VarParsing.VarParsing.varType.float,
+    "pT max"
+)
+
+args.register(
+    "invariantMassLB",
+    40.0,
+    VarParsing.VarParsing.multiplicity.singleton,
+    VarParsing.VarParsing.varType.float,
+    "invariant_mass_lower_bound"
+)
+
+args.register(
+    "invariantMassUB",
+    150.0,
+    VarParsing.VarParsing.multiplicity.singleton,
+    VarParsing.VarParsing.varType.float,
+    "invariant_mass_upper_bound"
+)
+
+args.register(
+    "minDeltaR",
+    0.01 * 0.01,
+    VarParsing.VarParsing.multiplicity.singleton,
+    VarParsing.VarParsing.varType.float,
+    "min_deltar_threshold"
+)
+
+args.register(
+    "maxDeltaR",
+    0.25 * 0.25,
+    VarParsing.VarParsing.multiplicity.singleton,
+    VarParsing.VarParsing.varType.float,
+    "max_deltar_threshold"
+)
+
+args.register(
+    "maxIso",
+    2.0,
+    VarParsing.VarParsing.multiplicity.singleton,
+    VarParsing.VarParsing.varType.float,
+    "max_isolation_threshold"
+)
+
+args.register(
+    "angSepLB",
+    0.5 * 0.5,
+    VarParsing.VarParsing.multiplicity.singleton,
+    VarParsing.VarParsing.varType.float,
+    "ang_sep_lower_bound"
 )

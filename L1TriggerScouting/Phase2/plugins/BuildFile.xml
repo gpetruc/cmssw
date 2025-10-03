@@ -7,11 +7,11 @@
 <use name="DataFormats/NanoAOD"/>
 <use name="L1TriggerScouting/Utilities"/>
 <use name="L1TriggerScouting/Phase2"/>
-<library file="*.cc" name="L1ScoutingPhase2Classical">
+<library file="*.cc" name="L1ScoutingPhase2">
   <flags EDM_PLUGIN="1"/>
 </library>
 
-<library file="alpaka/*.cc" name="L1ScoutingPhase2Alpaka">
+<library file="alpaka/*.cc" name="L1ScoutingPhase2Portable">
   <use name="alpaka"/>
   <use name="DataFormats/L1ScoutingSoA"/>
   <use name="FWCore/Utilities"/>

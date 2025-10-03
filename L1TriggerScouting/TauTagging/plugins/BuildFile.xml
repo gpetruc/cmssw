@@ -1,0 +1,28 @@
+<use name="DataFormats/L1Trigger"/>
+<use name="DataFormats/L1Scouting"/>
+<use name="DataFormats/L1ScoutingSoA"/>
+<use name="DataFormats/L1TParticleFlow"/>
+<use name="DataFormats/NanoAOD"/>
+<use name="FWCore/Framework"/>
+<use name="FWCore/ParameterSet"/>
+<use name="FWCore/PluginManager"/>
+<use name="L1TriggerScouting/Phase2"/>
+<use name="L1TriggerScouting/Utilities"/>
+<library file="*.cc" name="L1TScoutingTauTaggingPlugins">
+  <flags EDM_PLUGIN="1"/>
+</library>
+
+<library file="alpaka/*.cc" name="L1TScoutingTauTaggingPluginsPortable">
+  <use name="alpaka"/>
+  <use name="FWCore/Utilities"/>
+  <use name="HeterogeneousCore/AlpakaCore"/>
+  <use name="HeterogeneousCore/AlpakaInterface"/>
+  <use name="L1TriggerScouting/TauTagging"/>
+  <flags ALPAKA_BACKENDS="serial cuda"/>
+  <flags EDM_PLUGIN="1"/>
+  <!-- CLUEstering lib -->
+  <flags CXXFLAGS="-Wno-sign-compare"/>
+  <flags CXXFLAGS="-Wno-type-limits"/>
+  <flags CXXFLAGS="-I${CMSSW_BASE}/src/CLUEstering/include"/>
+  <flags ADDINCLUDE="-I${CMSSW_BASE}/src/CLUEstering/include"/>
+</library>

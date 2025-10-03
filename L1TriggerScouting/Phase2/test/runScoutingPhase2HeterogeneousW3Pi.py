@@ -5,12 +5,15 @@ from L1TriggerScouting.Phase2.options_heterogeneous_w3pi_cff import args
 from L1TriggerScouting.Phase2.modules import (
     l1sc_L1TScPhase2PuppiRawToDigi_alpaka,
     l1sc_L1TScPhase2W3Pi_alpaka,
-    l1sc_L1TScPhase2W3PiAnalyzer
+    l1sc_L1TScPhase2AlpakaAnalyzer
 )
   
 
 args.parseArguments()
 process = cms.Process("L1TScPhase2HeterogeneousW3Pi")
+
+# summary
+process.options.wantSummary = cms.untracked.bool(True)
 
 # enable multithreading
 process.options.numberOfThreads = args.numberOfThreads if args.numberOfThreads > 1 else 1 
@@ -21,8 +24,13 @@ process.load("Configuration.StandardSequences.Accelerators_cff")
 
 # logging
 process.load("FWCore.MessageService.MessageLogger_cfi")
-process.MessageLogger.cerr.FwkReport.reportEvery = 1000
-process.MessageLogger.cerr.threshold = 'ERROR'
+process.MessageLogger.cerr.FwkReport.reportEvery = 100
+
+# timing service
+process.FastMonitoringService = cms.Service("FastMonitoringService")
+process.load( "HLTrigger.Timer.FastTimerService_cfi" )
+process.FastTimerService.writeJSONSummary = cms.untracked.bool(False)
+process.FastTimerService.jsonFileName = cms.untracked.string(f'resources.{os.uname()[1]}.{args.name}.json')
 
 # process a limited number of events
 process.maxEvents.input = args.numberOfEvents if args.numberOfEvents > 1 else 1 
@@ -71,24 +79,36 @@ process.L1TScPhase2PuppiRawToDigi = l1sc_L1TScPhase2PuppiRawToDigi_alpaka(
     alpaka = cms.untracked.PSet(
         backend = cms.untracked.string(args.backend)
     ),
-    linksIds = cms.vuint32(*list(range(sum(args.buNumStreams))) if args.linksIds == [] else args.linksIds),
+    streams = cms.vuint32(*list(range(sum(args.buNumStreams))) if args.streams == [] else args.streams),
     src = cms.InputTag('rawDataCollector'),
-    verbose = cms.untracked.bool(args.verbose),
+    environment = cms.untracked.int32(args.environment),
 )
 process.L1TScPhase2W3Pi = l1sc_L1TScPhase2W3Pi_alpaka(
     alpaka = cms.untracked.PSet(
         backend = cms.untracked.string(args.backend)
     ),
     src = 'L1TScPhase2PuppiRawToDigi',
-    verbose = cms.untracked.bool(args.verbose),
+    environment = cms.untracked.int32(args.environment),
+    # control params
+    pT_min = cms.double(args.ptMin),
+    pT_int = cms.double(args.ptInt),
+    pT_max = cms.double(args.ptMax),
+    invariant_mass_lower_bound = cms.double(args.invariantMassLB),
+    invariant_mass_upper_bound = cms.double(args.invariantMassUB),
+    min_deltar_threshold = cms.double(args.minDeltaR),
+    max_deltar_threshold = cms.double(args.maxDeltaR),
+    max_isolation_threshold = cms.double(args.maxIso),
+    ang_sep_lower_bound = cms.double(args.angSepLB),
+    # fast mode
+    fast_path = cms.bool(args.fastPath),
 )
-process.L1TScPhase2W3PiAnalyzer = l1sc_L1TScPhase2W3PiAnalyzer(
-    puppi = 'L1TScPhase2W3Pi',
-    nbx_map = 'L1TScPhase2W3Pi',
-    table = 'L1TScPhase2W3Pi',
-    bx_ct = 'L1TScPhase2PuppiRawToDigi',
-    verbose = cms.untracked.bool(args.verbose),
-    verboseLevel = cms.untracked.int32(args.verboseLevel)
+process.L1TScPhase2W3PiAnalyzer = l1sc_L1TScPhase2AlpakaAnalyzer(
+    puppi = 'L1TScPhase2PuppiRawToDigi',
+    bx_lookup = 'L1TScPhase2PuppiRawToDigi',
+    selected_bxs = 'L1TScPhase2W3Pi',
+    w3pi_table = 'L1TScPhase2W3Pi',
+    environment = cms.untracked.int32(args.environment),
+    fast_path = cms.bool(args.fastPath),
 )
 
 # schedule the modules

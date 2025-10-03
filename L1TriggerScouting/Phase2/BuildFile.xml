@@ -1,12 +1,14 @@
+<use name="rootvecops"/>
 <use name="DataFormats/L1Scouting"/>
 <use name="DataFormats/L1TParticleFlow"/>
 <use name="DataFormats/L1Trigger"/>
+<use name="DataFormats/Portable"/>
+<use name="DataFormats/SoATemplate"/>
 <use name="EventFilter/Utilities"/>
 <use name="FWCore/Framework"/>
 <use name="HeterogeneousCore/AlpakaCore"/>
 <use name="HeterogeneousCore/AlpakaInterface"/>
-<use name="rootvecops"/>
-<flags ALPAKA_BACKENDS="serial cuda rocm"/>
+<flags ALPAKA_BACKENDS="1"/>
 <export>
   <lib name="1"/>
 </export>

@@ -145,14 +145,16 @@ options.register ('backend',
                   VarParsing.VarParsing.varType.string,         
                   "Hardware accelerator backend: serial_sync, cuda_async, or rocm_async")
 
-options.register ('verbose',
-                  False,
-                  VarParsing.VarParsing.multiplicity.singleton,
-                  VarParsing.VarParsing.varType.bool,         
-                  "Log debug messages to stdout")
-
-options.register ('verboseLevel',
-                  0,
+options.register ('environment',
+                  0, 
                   VarParsing.VarParsing.multiplicity.singleton,
                   VarParsing.VarParsing.varType.int,         
-                  "0 - debug, 1 - full")
+                  '0 - production, 1 - development, 2 - test'
+)
+
+options.register ('fastPath',
+                  False,
+                  VarParsing.VarParsing.multiplicity.singleton,
+                  VarParsing.VarParsing.varType.bool,
+                  'Use fast path, skip full reconstruction of candidate table and compression of bx selection mask in w3pi portable implementation'
+)

@@ -95,10 +95,10 @@ if options.run in ("alpaka", "unpackAlpaka"):
   )
   process.scPhase2PFRawToDigiAlpaka = l1sc_L1TScPhase2PuppiRawToDigi_alpaka(
       alpaka = cms.untracked.PSet( backend = cms.untracked.string(options.backend) ),
-      linksIds = process.scPhase2PFRawToDigiStruct.fedIDs,
+      streams = process.scPhase2PFRawToDigiStruct.fedIDs,
       splitFactor = cms.uint32(len(pfStreamIDs) // options.timeslices),
       src = process.scPhase2PFRawToDigiStruct.src,
-      verbose = cms.untracked.bool(options.verbose),
+      environment = cms.untracked.int32(options.environment),
   )
   process.goodOrbitsByNBX.unpackersAlpaka = [ "scPhase2PFRawToDigiAlpaka" ]
   if options.run in ("alpaka", "unpackAlpaka"):

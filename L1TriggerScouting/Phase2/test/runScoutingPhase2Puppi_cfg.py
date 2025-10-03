@@ -21,7 +21,7 @@ process.options = cms.untracked.PSet(
     numberOfThreads = cms.untracked.uint32(options.numThreads),
     numberOfStreams = cms.untracked.uint32(options.numFwkStreams),
     numberOfConcurrentLuminosityBlocks = cms.untracked.uint32(1),
-    wantSummary = cms.untracked.bool(True)
+    wantSummary = cms.untracked.bool(False)
 )
 process.load("FWCore.MessageService.MessageLogger_cfi")
 process.MessageLogger.cerr.FwkReport.reportEvery = 100
@@ -123,26 +123,38 @@ if options.run in ("all","fast","alpaka", "unpackAlpaka"):
   from L1TriggerScouting.Phase2.modules import (
       l1sc_L1TScPhase2PuppiRawToDigi_alpaka,
       l1sc_L1TScPhase2W3Pi_alpaka,
-      l1sc_L1TScPhase2W3PiAnalyzer
+      l1sc_L1TScPhase2AlpakaAnalyzer
   )
   process.scPhase2PuppiRawToDigiAlpaka = l1sc_L1TScPhase2PuppiRawToDigi_alpaka(
       alpaka = cms.untracked.PSet( backend = cms.untracked.string(options.backend) ),
-      linksIds = process.scPhase2PuppiRawToDigiStruct.fedIDs,
+      streams = process.scPhase2PuppiRawToDigiStruct.fedIDs,
       src = process.scPhase2PuppiRawToDigiStruct.src,
-      verbose = cms.untracked.bool(options.verbose),
+      environment = cms.untracked.int32(options.environment),
   )
   process.w3piAlpaka = l1sc_L1TScPhase2W3Pi_alpaka(
       alpaka = cms.untracked.PSet( backend = cms.untracked.string(options.backend) ),
       src = 'scPhase2PuppiRawToDigiAlpaka',
-      verbose = cms.untracked.bool(options.verbose),
+      environment = cms.untracked.int32(options.environment),
+      # control params
+      pT_min = cms.double(7),
+      pT_int = cms.double(12),
+      pT_max = cms.double(15),
+      invariant_mass_lower_bound = cms.double(40),
+      invariant_mass_upper_bound = cms.double(150),
+      min_deltar_threshold = cms.double(0.01 * 0.01),
+      max_deltar_threshold = cms.double(0.25 * 0.25),
+      max_isolation_threshold = cms.double(2.0),
+      ang_sep_lower_bound = cms.double(0.5 * 0.5),
+      # fast mode
+      fast_path = cms.bool(options.fastPath),
   )
-  process.w3piAlpakaAnalyzer = l1sc_L1TScPhase2W3PiAnalyzer(
-    puppi = 'w3piAlpaka',
-    nbx_map = 'w3piAlpaka',
-    table = 'w3piAlpaka',
-    bx_ct = 'scPhase2PuppiRawToDigiAlpaka:nbx',
-    verbose = cms.untracked.bool(options.verbose),
-    verboseLevel = cms.untracked.int32(options.verboseLevel)
+  process.w3piAlpakaAnalyzer = l1sc_L1TScPhase2AlpakaAnalyzer(
+    puppi = 'scPhase2PuppiRawToDigiAlpaka',
+    bx_lookup = 'scPhase2PuppiRawToDigiAlpaka',
+    selected_bxs = 'w3piAlpaka',
+    w3pi_table = 'w3piAlpaka',
+    environment = cms.untracked.int32(options.environment),
+    fast_path = cms.bool(options.fastPath),
   )
   process.goodOrbitsByNBX.unpackersAlpaka = [ "scPhase2PuppiRawToDigiAlpaka" ]
   if options.run in ("alpaka", "unpackAlpaka"):
@@ -173,7 +185,8 @@ if options.run in ("all", "fast", "alpaka", "unpackAlpaka"):
     process.goodOrbitsByNBX +
     process.w3piCandidate +
     process.w3piStruct +
-    process.w3piAlpaka
+    process.w3piAlpaka + 
+    process.w3piAlpakaAnalyzer
   )
 
   process.p_fast = cms.Path(
@@ -181,13 +194,15 @@ if options.run in ("all", "fast", "alpaka", "unpackAlpaka"):
     process.scPhase2PuppiRawToDigiAlpaka +
     process.goodOrbitsByNBX +
     process.w3piStruct +
-    process.w3piAlpaka
+    process.w3piAlpaka + 
+    process.w3piAlpakaAnalyzer
   )
 
   process.p_alpaka = cms.Path(
     process.scPhase2PuppiRawToDigiAlpaka +
     process.goodOrbitsByNBX +
-    process.w3piAlpaka
+    process.w3piAlpaka + 
+    process.w3piAlpakaAnalyzer
   )
 
   process.p_unpackAlpaka = cms.Path(
