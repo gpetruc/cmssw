@@ -14,6 +14,18 @@
   <class name="edm::DeviceProduct<alpaka_rocm_async::l1sc::PuppiDeviceCollection>" persistent="false"/>
   <class name="edm::Wrapper<edm::DeviceProduct<alpaka_rocm_async::l1sc::PuppiDeviceCollection>>" persistent="false"/>
 
+  <!-- TkEmDeviceCollection -->
+  <class name="alpaka_rocm_async::PortableCollection<l1sc::TkEmSoA>" persistent="false"/>
+  <class name="alpaka_rocm_async::l1sc::TkEmDeviceCollection" persistent="false"/>
+  <class name="edm::DeviceProduct<alpaka_rocm_async::l1sc::TkEmDeviceCollection>" persistent="false"/>
+  <class name="edm::Wrapper<edm::DeviceProduct<alpaka_rocm_async::l1sc::TkEmDeviceCollection>>" persistent="false"/>
+  
+  <!-- TkEleDeviceCollection -->
+  <class name="alpaka_rocm_async::PortableCollection<l1sc::TkEleSoA>" persistent="false"/>
+  <class name="alpaka_rocm_async::l1sc::TkEleDeviceCollection" persistent="false"/>
+  <class name="edm::DeviceProduct<alpaka_rocm_async::l1sc::TkEleDeviceCollection>" persistent="false"/>
+  <class name="edm::Wrapper<edm::DeviceProduct<alpaka_rocm_async::l1sc::TkEleDeviceCollection>>" persistent="false"/>
+
   <!-- PFCandidateDeviceCollection -->
   <class name="alpaka_rocm_async::l1sc::PFCandidateDeviceCollection" persistent="false"/>
   <class name="edm::DeviceProduct<alpaka_rocm_async::l1sc::PFCandidateDeviceCollection>" persistent="false"/>

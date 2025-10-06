@@ -32,6 +32,20 @@
   <class name="l1sc::PuppiHostCollection"/>
   <class name="edm::Wrapper<l1sc::PuppiHostCollection>" splitLevel="0"/>
 
+  <!-- TkEmHostCollection -->
+  <class name="l1sc::TkEmSoA"/>
+  <class name="l1sc::TkEmSoA::View"/>
+  <class name="l1sc::TkEmSoA::ConstView"/>
+  <class name="l1sc::TkEmHostCollection"/>
+  <class name="edm::Wrapper<l1sc::TkEmHostCollection>" splitLevel="0"/>
+
+  <!-- TkEleHostCollection -->
+  <class name="l1sc::TkEleSoA"/>
+  <class name="l1sc::TkEleSoA::View"/>
+  <class name="l1sc::TkEleSoA::ConstView"/>
+  <class name="l1sc::TkEleHostCollection"/>
+  <class name="edm::Wrapper<l1sc::TkEleHostCollection>" splitLevel="0"/>
+
   <!-- PFCandidateHostCollection -->
   <class name="l1sc::PFCandidateSoA"/>
   <class name="l1sc::PFCandidateSoA::View"/>
