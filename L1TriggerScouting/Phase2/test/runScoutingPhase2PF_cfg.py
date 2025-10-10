@@ -2,14 +2,32 @@ from __future__ import print_function
 import FWCore.ParameterSet.Config as cms
 import os
 
-from L1TriggerScouting.Phase2.options_cff import options
+from L1TriggerScouting.Phase2.options_cff import options, VarParsing
+options.register ('njets',
+                  16, 
+                  VarParsing.VarParsing.multiplicity.singleton,
+                  VarParsing.VarParsing.varType.int,         
+                  'Number of jet seeds to reconstruct with SeededCone'
+)
+options.register ('minSeedPt',
+                  0.0, 
+                  VarParsing.VarParsing.multiplicity.singleton,
+                  VarParsing.VarParsing.varType.float,
+                  'Minimum pt cut for seeded-cone jet seeds'
+)
+options.register ('jetR',
+                  0.4, 
+                  VarParsing.VarParsing.multiplicity.singleton,
+                  VarParsing.VarParsing.varType.float,
+                  'Jet radius'
+)
 options.parseArguments()
 if options.buNumStreams == []:
     options.buNumStreams.append(1)
 analyses = options.analyses if options.analyses else ["w3pi", "hphijpsi", "h2rho", "h2phi"]
 print(f"Analyses set to {analyses}")
 
-if options.run not in ("unpack", "unpackAlpaka", "clueAlpaka"):
+if options.run not in ("unpack", "ak4", "sc4", "unpackAlpaka", "clueAlpaka"):
     raise RuntimeError("Unsupported run mode %r" % options.run)
 
 process = cms.Process("SCPU")
@@ -88,6 +106,17 @@ process.scPhase2PFRawToDigiStruct = process.scPhase2PuppiRawToDigiStruct.clone(
 process.goodOrbitsByNBX.nbxMin = 3564 * options.timeslices // options.tmuxPeriod
 process.goodOrbitsByNBX.unpackers = [ "scPhase2PFRawToDigiStruct" ]
 
+process.scPhase2AK4PFDemo = cms.EDProducer("ScPhase2PuppiAKJetsDemo",
+  src = cms.InputTag("scPhase2PFRawToDigiStruct"),
+  rParam = cms.double(options.jetR)
+)
+process.scPhase2SC4PFDemo = cms.EDProducer("ScPhase2PuppiSCJetsDemo",
+  src = cms.InputTag("scPhase2PFRawToDigiStruct"),
+  rParam = cms.double(options.jetR),
+  nJets = cms.uint32(options.njets),
+  minSeedPt = cms.double(options.minSeedPt)
+)
+
 # Alpaka modules
 if "alpaka" in options.run.lower():
   from L1TriggerScouting.Phase2.modules import (
@@ -116,7 +145,6 @@ if "alpaka" in options.run.lower():
   process.goodOrbitsByNBX.unpackersAlpaka = [ "scPhase2PFRawToDigiAlpaka" ]
   process.goodOrbitsByNBX.unpackers = []
 
-
   process.p_unpackAlpaka = cms.Path(
     process.scPhase2PFRawToDigiAlpaka +
     process.goodOrbitsByNBX
@@ -130,6 +158,14 @@ if "alpaka" in options.run.lower():
 process.p_unpack = cms.Path(
   process.scPhase2PFRawToDigiStruct +
   process.goodOrbitsByNBX
+)
+process.p_ak4 = cms.Path(
+  process.scPhase2PFRawToDigiStruct +
+  process.scPhase2AK4PFDemo
+)
+process.p_sc4 = cms.Path(
+  process.scPhase2PFRawToDigiStruct +
+  process.scPhase2SC4PFDemo
 )
 
 if options.run not in ("both","inclusive","selected"): 
