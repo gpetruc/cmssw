@@ -5,7 +5,6 @@
 #include "DataFormats/L1ScoutingSoA/interface/PuppiHostCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/TkEmHostCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/TkEleHostCollection.h"
-#include "DataFormats/L1ScoutingSoA/interface/PFCandidateHostCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/SelectedBxHostCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/W3PiHostTable.h"
 #include "DataFormats/L1ScoutingSoA/interface/CounterHost.h"
@@ -17,5 +16,4 @@ SET_PORTABLEHOSTCOLLECTION_READ_RULES(l1sc::TkEmHostCollection);
 SET_PORTABLEHOSTCOLLECTION_READ_RULES(l1sc::TkEleHostCollection);
 SET_PORTABLEHOSTCOLLECTION_READ_RULES(l1sc::SelectedBxHostCollection);
 SET_PORTABLEHOSTCOLLECTION_READ_RULES(l1sc::W3PiHostTable);
-SET_PORTABLEHOSTCOLLECTION_READ_RULES(l1sc::PFCandidateHostCollection);
 SET_PORTABLEHOSTOBJECT_READ_RULES(l1sc::CounterHost);

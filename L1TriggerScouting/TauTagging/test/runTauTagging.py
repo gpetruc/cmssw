@@ -2,9 +2,11 @@ import os
 import FWCore.ParameterSet.Config as cms
 from IOPool.Input.modules import PoolSource
 from L1TriggerScouting.TauTagging.options_cff import args
+from L1TriggerScouting.Phase2.modules import (
+    l1sc_L1TScPhase2PuppiRawToDigi_alpaka,
+)
 from L1TriggerScouting.TauTagging.modules import (
     l1sc_PFCandidateAoSToSoA_alpaka,
-    l1sc_PFCandidateRawToDigi_alpaka,
     l1sc_CLUETaus_alpaka,
     l1sc_TauTaggingSink,
 )
@@ -74,11 +76,12 @@ else:
 # setup chain configs
 # PFCandidates
 if args.runScouting:
-    process.PFCandidatesProducer = l1sc_PFCandidateRawToDigi_alpaka(
+    process.PFCandidatesProducer = l1sc_L1TScPhase2PuppiRawToDigi_alpaka(
         alpaka = cms.untracked.PSet(
             backend = cms.untracked.string(args.backend)
         ),
         streams = cms.vuint32(*list(range(sum(args.buNumStreams))) if args.streams == [] else args.streams),
+        splitFactor = cms.uint32(sum(args.buNumStreams) if args.streams == [] else len(args.streams)),
         src = cms.InputTag('rawDataCollector'),
         environment = cms.untracked.int32(args.environment),
     )

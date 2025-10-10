@@ -1,5 +1,5 @@
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/ClustersDeviceCollection.h"
-#include "DataFormats/L1ScoutingSoA/interface/alpaka/PFCandidateDeviceCollection.h"
+#include "DataFormats/L1ScoutingSoA/interface/alpaka/PuppiDeviceCollection.h"
 #include "FWCore/ParameterSet/interface/ConfigurationDescriptions.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 #include "FWCore/ParameterSet/interface/ParameterSetDescription.h"
@@ -63,7 +63,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
 
   private:
     // get device pf data
-    const device::EDGetToken<PFCandidateDeviceCollection> pf_candidates_token_;
+    const device::EDGetToken<PuppiDeviceCollection> pf_candidates_token_;
     // get association map if runScouting=False
     const device::EDGetToken<BxLookupDeviceCollection> bx_lookup_token_;
     // put device clustering data

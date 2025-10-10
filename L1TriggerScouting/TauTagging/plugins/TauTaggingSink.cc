@@ -4,7 +4,7 @@
 
 #include "DataFormats/L1ScoutingSoA/interface/BxLookupHostCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/ClustersHostCollection.h"
-#include "DataFormats/L1ScoutingSoA/interface/PFCandidateHostCollection.h"
+#include "DataFormats/L1ScoutingSoA/interface/PuppiHostCollection.h"
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/EventSetup.h"
 #include "FWCore/Framework/interface/stream/EDAnalyzer.h"
@@ -104,7 +104,7 @@ namespace l1sc {
       fmt::print("=========================================================================\n");
     }
 
-    void print(const PFCandidateHostCollection::ConstView& pf,
+    void print(const PuppiHostCollection::ConstView& pf,
                const ClustersHostCollection::ConstView& clusters,
                const std::string_view clusters_backend) {
       const auto size = pf.metadata().size();
@@ -120,12 +120,12 @@ namespace l1sc {
       fmt::print("[DEBUG] CLUETaus[{}] ({}) found {} clusters:\n", size, clusters_backend, clusters_num);
 
       constexpr auto sep =
-          "+---------+---------+---------+---------+---------+---------+---------+---------+---------+---------+-------"
-          "--+---------+---------+";
+          "+---------+---------+---------+---------+---------+---------+---------+---------+---------+-------"
+          "--+---------+";
       auto printHeader = [&] {
         fmt::print("{}\n", sep);
         fmt::print(
-            "| {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} "
+            "| {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} "
             "|\n",
             "index",
             "is_seed",
@@ -133,32 +133,28 @@ namespace l1sc {
             "pt",
             "eta",
             "phi",
-            "mass",
             "z0",
             "dxy",
             "puppiw",
-            "charge",
-            "type",
+            "quality",
             "pdgid");
         fmt::print("{}\n", sep);
       };
 
       auto printRow = [&](int index, const auto& pf_view, const auto& clusters_view) {
         fmt::print(
-            "| {:>7d} | {:>7d} | {:>7d} | {:>7.2f} | {:>7.2f} | {:>7.2f} | {:>7.2f} | {:>7.2f} | {:>7.2f} | {:>7.2f} | "
-            "{:>7d} | {:>7d} | {:>7d} |\n",
+            "| {:>7d} | {:>7d} | {:>7d} | {:>7.2f} | {:>7.2f} | {:>7.2f} | {:>7.2f} | {:>7.2f} | {:>7.2f} | "
+            "{:>7d} | {:>7d} |\n",
             index,
             clusters_view.is_seed(),
             clusters_view.cluster(),
             pf_view.pt(),
             pf_view.eta(),
             pf_view.phi(),
-            pf_view.mass(),
             pf_view.z0(),
             pf_view.dxy(),
             pf_view.puppiw(),
-            pf_view.charge(),
-            pf_view.type(),
+            pf_view.quality(),
             pf_view.pdgid());
       };
 
@@ -174,10 +170,8 @@ namespace l1sc {
 
       if (max_entries < size) {
         fmt::print(
-            "| {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} "
+            "| {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} "
             "|\n",
-            "...",
-            "...",
             "...",
             "...",
             "...",
@@ -197,7 +191,7 @@ namespace l1sc {
       fmt::print("{}\n", sep);
     }
 
-    void print(const PFCandidateHostCollection::ConstView& pf,
+    void print(const PuppiHostCollection::ConstView& pf,
                const BxIndexSoA::ConstView& bx_index,
                const OffsetsSoA::ConstView& offsets,
                const ClustersHostCollection::ConstView& clusters,
@@ -218,19 +212,19 @@ namespace l1sc {
         all_clusters_num += clusters_num;
       }
       // Header
-      fmt::print("[DEBUG] PFCandidateCollection[{}] ({}) found {} clusters per BX (avg. across {} BXs):\n",
+      fmt::print("[DEBUG] PuppiCollection[{}] ({}) found {} clusters per BX (avg. across {} BXs):\n",
                  size,
                  pf_backend,
                  static_cast<int>(all_clusters_num / bx_index.metadata().size()),
                  bx_index.metadata().size());
 
       constexpr auto sep =
-          "+-------+---------+-------+---------+---------+---------+---------+---------+---------+---------+---------+-"
-          "--------+---------+---------+---------+";
+          "+-------+-------+---------+---------+---------+---------+---------+---------+---------+-"
+          "--------+---------+---------+";
       auto printHeader = [&] {
         fmt::print("{}\n", sep);
         fmt::print(
-            "| {:>5} | {:>7} | {:>5} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | "
+            "| {:>5} | {:>7} | {:>5} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | "
             "{:>7} | {:>7} |\n",
             "bx",
             "index",
@@ -240,20 +234,18 @@ namespace l1sc {
             "pt",
             "eta",
             "phi",
-            "mass",
             "z0",
             "dxy",
             "puppiw",
-            "charge",
-            "type",
+            "quality",
             "pdgid");
         fmt::print("{}\n", sep);
       };
 
       auto printRow = [&](int bx, int global, int local, const auto& clusters_view, const auto& pf_view) {
         fmt::print(
-            "| {:5d} | {:7d} | {:5d} | {:7d} | {:7d} | {:>7.2f} | {:>7.2f} | {:>7.2f} | {:>7.2f} | {:>7.2f} | {:>7.2f} "
-            "| {:>7.2f} | {:>7d} | {:>7d} | {:>7d} |\n",
+            "| {:5d} | {:7d} | {:5d} | {:7d} | {:7d} | {:>7.2f} | {:>7.2f} | {:>7.2f} | {:>7.2f} | {:>7.2f} "
+            "| {:>7.2f} | {:>7d} | {:>7d} |\n",
             bx,
             global,
             local,
@@ -262,12 +254,10 @@ namespace l1sc {
             pf_view.pt(),
             pf_view.eta(),
             pf_view.phi(),
-            pf_view.mass(),
             pf_view.z0(),
             pf_view.dxy(),
             pf_view.puppiw(),
-            pf_view.charge(),
-            pf_view.type(),
+            pf_view.quality(),
             pf_view.pdgid());
       };
 
@@ -295,10 +285,8 @@ namespace l1sc {
       // Ellipsis row if not all printed
       if (printed < size) {
         fmt::print(
-            "| {:>5} | {:>7} | {:>5} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | "
+            "| {:>5} | {:>7} | {:>5} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | "
             "{:>7} | {:>7} |\n",
-            "...",
-            "...",
             "...",
             "...",
             "...",
@@ -328,48 +316,43 @@ namespace l1sc {
       fmt::print("{}\n", sep);
     }
 
-    void print(const PFCandidateHostCollection::ConstView& pf, const std::string_view pf_backend) {
+    void print(const PuppiHostCollection::ConstView& pf, const std::string_view pf_backend) {
       const auto size = pf.metadata().size();
       if (size == 0)
         return;
 
       // Header
-      fmt::print("[DEBUG] PFCandidateCollection[{}] ({}):\n", size, pf_backend);
+      fmt::print("[DEBUG] PuppiCollection[{}] ({}):\n", size, pf_backend);
 
       constexpr auto sep =
-          "+---------+---------+---------+---------+---------+---------+---------+---------+---------+---------+-------"
+          "+---------+---------+---------+---------+---------+---------+---------+---------+-------"
           "--+";
       auto printHeader = [&] {
         fmt::print("{}\n", sep);
-        fmt::print("| {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} |\n",
+        fmt::print("| {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} |\n",
                    "index",
                    "pt",
                    "eta",
                    "phi",
-                   "mass",
                    "z0",
                    "dxy",
                    "puppiw",
-                   "charge",
-                   "type",
+                   "quality",
                    "pdgid");
         fmt::print("{}\n", sep);
       };
 
       auto printRow = [&](int index, const auto& pf_view) {
-        fmt::print(
-            "| {:7d} | {:7.2f} | {:7.2f} | {:7.2f} | {:7.2f} | {:7.2f} | {:7.2f} | {:7.2f} | {:7d} | {:7d} | {:7d} |\n",
-            index,
-            pf_view.pt(),
-            pf_view.eta(),
-            pf_view.phi(),
-            pf_view.mass(),
-            pf_view.z0(),
-            pf_view.dxy(),
-            pf_view.puppiw(),
-            pf_view.charge(),
-            pf_view.type(),
-            pf_view.pdgid());
+        fmt::print("| {:7d} | {:7.2f} | {:7.2f} | {:7.2f} | {:7.2f} | {:7.2f} | {:7.2f} | {:7d} | {:7d} |\n",
+                   index,
+                   pf_view.pt(),
+                   pf_view.eta(),
+                   pf_view.phi(),
+                   pf_view.z0(),
+                   pf_view.dxy(),
+                   pf_view.puppiw(),
+                   pf_view.quality(),
+                   pf_view.pdgid());
       };
 
       printHeader();
@@ -383,9 +366,7 @@ namespace l1sc {
       }
 
       if (max_entries < size) {
-        fmt::print("| {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} |\n",
-                   "...",
-                   "...",
+        fmt::print("| {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} | {:>7} |\n",
                    "...",
                    "...",
                    "...",
@@ -405,7 +386,7 @@ namespace l1sc {
 
   private:
     // get products
-    const edm::EDGetTokenT<PFCandidateHostCollection> pf_token_;
+    const edm::EDGetTokenT<PuppiHostCollection> pf_token_;
     const edm::EDGetTokenT<BxLookupHostCollection> bx_lookup_token_;
     const edm::EDGetTokenT<ClustersHostCollection> clusters_token_;
     // backend query

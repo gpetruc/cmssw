@@ -46,13 +46,6 @@
   <class name="l1sc::TkEleHostCollection"/>
   <class name="edm::Wrapper<l1sc::TkEleHostCollection>" splitLevel="0"/>
 
-  <!-- PFCandidateHostCollection -->
-  <class name="l1sc::PFCandidateSoA"/>
-  <class name="l1sc::PFCandidateSoA::View"/>
-  <class name="l1sc::PFCandidateSoA::ConstView"/>
-  <class name="l1sc::PFCandidateHostCollection"/>
-  <class name="edm::Wrapper<l1sc::PFCandidateHostCollection>" splitLevel="0"/>
-
   <!-- SelectedBxHostCollection -->
   <class name="l1sc::SelectedBxSoA"/>
   <class name="l1sc::SelectedBxSoA::View"/>

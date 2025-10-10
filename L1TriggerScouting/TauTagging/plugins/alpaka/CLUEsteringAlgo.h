@@ -6,7 +6,7 @@
 #include "CLUEstering/CLUEstering.hpp"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/BxLookupDeviceCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/ClustersDeviceCollection.h"
-#include "DataFormats/L1ScoutingSoA/interface/alpaka/PFCandidateDeviceCollection.h"
+#include "DataFormats/L1ScoutingSoA/interface/alpaka/PuppiDeviceCollection.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
@@ -19,9 +19,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
   public:
     explicit CLUEsteringAlgo(float dc, float rhoc, float dm, bool wrap_coords);
 
-    void run(Queue& queue, const PFCandidateDeviceCollection& pf, ClustersDeviceCollection& clusters) const;
+    void run(Queue& queue, const PuppiDeviceCollection& pf, ClustersDeviceCollection& clusters) const;
     void run(Queue& queue,
-             const PFCandidateDeviceCollection& pf,
+             const PuppiDeviceCollection& pf,
              const BxLookupDeviceCollection& bx_lookup,
              ClustersDeviceCollection& clusters) const;
 

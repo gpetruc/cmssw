@@ -17,7 +17,6 @@
   <use name="FWCore/Utilities"/>
   <use name="HeterogeneousCore/AlpakaCore"/>
   <use name="HeterogeneousCore/AlpakaInterface"/>
-  <use name="L1TriggerScouting/TauTagging"/>
   <flags ALPAKA_BACKENDS="serial cuda"/>
   <flags EDM_PLUGIN="1"/>
   <!-- CLUEstering lib -->

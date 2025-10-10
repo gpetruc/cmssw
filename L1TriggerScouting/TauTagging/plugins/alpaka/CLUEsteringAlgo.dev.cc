@@ -9,11 +9,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
   CLUEsteringAlgo::CLUEsteringAlgo(float dc, float rhoc, float dm, bool wrap_coords)
       : dc_(dc), rhoc_(rhoc), dm_(dm), wrap_coords_(wrap_coords) {}
 
-  void CLUEsteringAlgo::run(Queue& queue,
-                            const PFCandidateDeviceCollection& pf,
-                            ClustersDeviceCollection& clusters) const {
+  void CLUEsteringAlgo::run(Queue& queue, const PuppiDeviceCollection& pf, ClustersDeviceCollection& clusters) const {
     // CLUEstering call internally reinterpret_cast<T*> to non-const ptr
-    auto& pf_cast = const_cast<PFCandidateDeviceCollection&>(pf);
+    auto& pf_cast = const_cast<PuppiDeviceCollection&>(pf);
     const uint32_t n_points = pf_cast.view().metadata().size();
 
     // buffers
@@ -34,11 +32,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
   }
 
   void CLUEsteringAlgo::run(Queue& queue,
-                            const PFCandidateDeviceCollection& pf,
+                            const PuppiDeviceCollection& pf,
                             const BxLookupDeviceCollection& bx_lookup,
                             ClustersDeviceCollection& clusters) const {
     // CLUEstering call internally reinterpret_cast<T*> to non-const ptr, alpaka::memcpy also
-    auto& pf_cast = const_cast<PFCandidateDeviceCollection&>(pf);
+    auto& pf_cast = const_cast<PuppiDeviceCollection&>(pf);
     auto& bx_lookup_cast = const_cast<BxLookupDeviceCollection&>(bx_lookup);
 
     const auto nbx = static_cast<int32_t>(bx_lookup_cast.const_view<BxIndexSoA>().metadata().size());

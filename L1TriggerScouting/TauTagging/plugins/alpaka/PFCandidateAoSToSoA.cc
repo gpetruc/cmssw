@@ -1,5 +1,5 @@
-#include "DataFormats/L1ScoutingSoA/interface/PFCandidateHostCollection.h"
-#include "DataFormats/L1ScoutingSoA/interface/alpaka/PFCandidateDeviceCollection.h"
+#include "DataFormats/L1ScoutingSoA/interface/PuppiHostCollection.h"
+#include "DataFormats/L1ScoutingSoA/interface/alpaka/PuppiDeviceCollection.h"
 #include "DataFormats/L1TParticleFlow/interface/PFCandidate.h"
 #include "FWCore/MessageLogger/interface/MessageLogger.h"
 #include "FWCore/ParameterSet/interface/ConfigurationDescriptions.h"
@@ -34,7 +34,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
         return c.eta() > -2.4 && c.eta() < 2.4;
       });
       // allocate buffer to store converted soa
-      auto pf_candidates_soa = PFCandidateHostCollection(size, event.queue());
+      auto pf_candidates_soa = PuppiHostCollection(size, event.queue());
       alpaka::wait(event.queue());
 
       // convert aos to soa
@@ -45,26 +45,14 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
           continue;
         auto pf_view = pf_candidates_soa.view()[idx_target];
 
-        // real
         pf_view.pt() = static_cast<float>(pf_candidate.pt());
         pf_view.eta() = static_cast<float>(pf_candidate.eta());
         pf_view.phi() = static_cast<float>(pf_candidate.phi());
-        pf_view.mass() = static_cast<float>(pf_candidate.mass());
         pf_view.z0() = static_cast<float>(pf_candidate.z0());
         pf_view.dxy() = static_cast<float>(pf_candidate.dxy());
         pf_view.puppiw() = static_cast<float>(pf_candidate.puppiWeight());
-        pf_view.charge() = static_cast<int8_t>(pf_candidate.charge());
-        pf_view.type() = static_cast<uint8_t>(pf_candidate.id());
+        pf_view.quality() = static_cast<int16_t>(pf_candidate.hwQual());
         pf_view.pdgid() = static_cast<uint8_t>(pf_candidate.pdgId());
-
-        // hw
-        pf_view.hwPt() = static_cast<uint16_t>(pf_candidate.hwPt());
-        pf_view.hwEta() = static_cast<int16_t>(pf_candidate.hwEta());
-        pf_view.hwPhi() = static_cast<int16_t>(pf_candidate.hwPhi());
-        pf_view.hwZ0() = static_cast<int16_t>(pf_candidate.hwZ0());
-        pf_view.hwDxy() = static_cast<int16_t>(pf_candidate.hwDxy());
-        pf_view.hwQual() = static_cast<int16_t>(pf_candidate.hwQual());
-        pf_view.hwPuppiw() = static_cast<int16_t>(pf_candidate.hwPuppiWeight());
 
         ++idx_target;
       }
@@ -84,7 +72,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
     // get host data
     const edm::EDGetTokenT<std::vector<l1t::PFCandidate>> pf_candidates_aos_token_;
     // produce host data that will be automatically copied to device
-    const edm::EDPutTokenT<PFCandidateHostCollection> pf_candidates_soa_token_;
+    const edm::EDPutTokenT<PuppiHostCollection> pf_candidates_soa_token_;
     // debug / test
     const Environment environment_;
   };

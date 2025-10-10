@@ -9,7 +9,7 @@ if options.buNumStreams == []:
 analyses = options.analyses if options.analyses else ["w3pi", "hphijpsi", "h2rho", "h2phi"]
 print(f"Analyses set to {analyses}")
 
-if options.run not in ("both", "inclusive", "selected", "candidate", "soa", "all", "fast", "alpaka", "unpack", "unpackAlpaka"):
+if options.run not in ("unpack", "unpackAlpaka", "clueAlpaka"):
     raise RuntimeError("Unsupported run mode %r" % options.run)
 
 process = cms.Process("SCPU")
@@ -77,7 +77,7 @@ process.source = cms.Source("DAQSource",
 os.system("touch " + buDirs[0] + "/" + "fu.lock")
 
 process.load("L1TriggerScouting.Phase2.unpackers_cff")
-if options.run in ("alpaka", "unpackAlpaka"): 
+if "alpaka" in options.run.lower():
   process.load("Configuration.StandardSequences.Accelerators_cff")
 
 ## Configure unpackers
@@ -89,9 +89,12 @@ process.goodOrbitsByNBX.nbxMin = 3564 * options.timeslices // options.tmuxPeriod
 process.goodOrbitsByNBX.unpackers = [ "scPhase2PFRawToDigiStruct" ]
 
 # Alpaka modules
-if options.run in ("alpaka", "unpackAlpaka"): 
+if "alpaka" in options.run.lower():
   from L1TriggerScouting.Phase2.modules import (
-      l1sc_L1TScPhase2PuppiRawToDigi_alpaka
+      l1sc_L1TScPhase2PuppiRawToDigi_alpaka,
+  )
+  from L1TriggerScouting.TauTagging.modules import (
+      l1sc_CLUETaus_alpaka,
   )
   process.scPhase2PFRawToDigiAlpaka = l1sc_L1TScPhase2PuppiRawToDigi_alpaka(
       alpaka = cms.untracked.PSet( backend = cms.untracked.string(options.backend) ),
@@ -100,14 +103,28 @@ if options.run in ("alpaka", "unpackAlpaka"):
       src = process.scPhase2PFRawToDigiStruct.src,
       environment = cms.untracked.int32(options.environment),
   )
+  process.CLUETaus = l1sc_CLUETaus_alpaka(
+      alpaka = cms.untracked.PSet( backend = cms.untracked.string(options.backend) ),
+      src = 'scPhase2PFRawToDigiAlpaka',
+      dc = cms.double(0.2),
+      rhoc = cms.double(5.0),
+      dm = cms.double(0.4),
+      wrapCoords = cms.bool(False),
+      environment = cms.untracked.int32(options.environment),
+      run_scout = cms.bool(True),
+  )
   process.goodOrbitsByNBX.unpackersAlpaka = [ "scPhase2PFRawToDigiAlpaka" ]
-  if options.run in ("alpaka", "unpackAlpaka"):
-    process.goodOrbitsByNBX.unpackers = []
+  process.goodOrbitsByNBX.unpackers = []
 
 
   process.p_unpackAlpaka = cms.Path(
     process.scPhase2PFRawToDigiAlpaka +
     process.goodOrbitsByNBX
+  )
+  process.p_clueAlpaka = cms.Path(
+    process.scPhase2PFRawToDigiAlpaka +
+    process.goodOrbitsByNBX +
+    process.CLUETaus
   )
 
 process.p_unpack = cms.Path(

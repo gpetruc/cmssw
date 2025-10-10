@@ -9,7 +9,6 @@
 #include "DataFormats/L1ScoutingSoA/interface/PuppiSoA.h"
 #include "DataFormats/L1ScoutingSoA/interface/TkEmSoA.h"
 #include "DataFormats/L1ScoutingSoA/interface/TkEleSoA.h"
-#include "DataFormats/L1ScoutingSoA/interface/PFCandidateSoA.h"
 #include "DataFormats/L1ScoutingSoA/interface/SelectedBxSoA.h"
 #include "DataFormats/L1ScoutingSoA/interface/W3PiTable.h"
 
@@ -18,7 +17,6 @@
 #include "DataFormats/L1ScoutingSoA/interface/PuppiHostCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/TkEmHostCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/TkEleHostCollection.h"
-#include "DataFormats/L1ScoutingSoA/interface/PFCandidateHostCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/SelectedBxHostCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/W3PiHostTable.h"
 #include "DataFormats/L1ScoutingSoA/interface/CounterHost.h"

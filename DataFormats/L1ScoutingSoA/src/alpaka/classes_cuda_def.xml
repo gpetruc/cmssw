@@ -25,11 +25,6 @@
   <class name="alpaka_cuda_async::l1sc::TkEleDeviceCollection" persistent="false"/>
   <class name="edm::DeviceProduct<alpaka_cuda_async::l1sc::TkEleDeviceCollection>" persistent="false"/>
   <class name="edm::Wrapper<edm::DeviceProduct<alpaka_cuda_async::l1sc::TkEleDeviceCollection>>" persistent="false"/>
- 
-  <!-- PFCandidateDeviceCollection -->
-  <class name="alpaka_cuda_async::l1sc::PFCandidateDeviceCollection" persistent="false"/>
-  <class name="edm::DeviceProduct<alpaka_cuda_async::l1sc::PFCandidateDeviceCollection>" persistent="false"/>
-  <class name="edm::Wrapper<edm::DeviceProduct<alpaka_cuda_async::l1sc::PFCandidateDeviceCollection>>" persistent="false"/>
   
   <!-- SelectedBxDeviceCollection -->
   <class name="alpaka_cuda_async::l1sc::SelectedBxDeviceCollection" persistent="false"/>
