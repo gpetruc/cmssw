@@ -18,15 +18,20 @@ options.register ('jetR',
                   0.4, 
                   VarParsing.VarParsing.multiplicity.singleton,
                   VarParsing.VarParsing.varType.float,
-                  'Jet radius'
-)
+                  'Jet radius')
+options.register ('dumpClusters',
+                  False, 
+                  VarParsing.VarParsing.multiplicity.singleton,
+                  VarParsing.VarParsing.varType.bool,         
+                  'Dump clusters to options.outFile')
+
 options.parseArguments()
 if options.buNumStreams == []:
     options.buNumStreams.append(1)
 analyses = options.analyses if options.analyses else ["w3pi", "hphijpsi", "h2rho", "h2phi"]
 print(f"Analyses set to {analyses}")
 
-if options.run not in ("unpack", "ak4", "sc4", "unpackAlpaka", "clueAlpaka"):
+if options.run not in ("unpack", "ak4", "sc4", "unpackAlpaka", "clueAlpaka", "sc4Alpaka"):
     raise RuntimeError("Unsupported run mode %r" % options.run)
 
 process = cms.Process("SCPU")
@@ -120,6 +125,7 @@ process.scPhase2SC4PFDemo = cms.EDProducer("ScPhase2PuppiSCJetsDemo",
 if "alpaka" in options.run.lower():
   from L1TriggerScouting.Phase2.modules import (
       l1sc_L1TScPhase2PuppiRawToDigi_alpaka,
+      l1sc_L1TScPhase2SCJets_alpaka
   )
   from L1TriggerScouting.TauTagging.modules import (
       l1sc_CLUETaus_alpaka,
@@ -131,6 +137,7 @@ if "alpaka" in options.run.lower():
       src = process.scPhase2PFRawToDigiStruct.src,
       environment = cms.untracked.int32(options.environment),
   )
+
   process.CLUETaus = l1sc_CLUETaus_alpaka(
       alpaka = cms.untracked.PSet( backend = cms.untracked.string(options.backend) ),
       src = 'scPhase2PFRawToDigiAlpaka',
@@ -140,6 +147,13 @@ if "alpaka" in options.run.lower():
       wrapCoords = cms.bool(False),
       environment = cms.untracked.int32(options.environment),
       run_scout = cms.bool(True),
+  )
+
+  process.scPhase2SC4PFAlpaka = l1sc_L1TScPhase2SCJets_alpaka(
+      alpaka = cms.untracked.PSet( backend = cms.untracked.string(options.backend) ),
+      src = cms.InputTag("scPhase2PFRawToDigiAlpaka"),
+      rParam = cms.double(options.jetR),
+      nJets = cms.uint32(options.njets),
   )
   process.goodOrbitsByNBX.unpackersAlpaka = [ "scPhase2PFRawToDigiAlpaka" ]
   process.goodOrbitsByNBX.unpackers = []
@@ -153,6 +167,12 @@ if "alpaka" in options.run.lower():
     process.goodOrbitsByNBX +
     process.CLUETaus
   )
+  process.p_sc4Alpaka = cms.Path(
+    process.scPhase2PFRawToDigiAlpaka +
+    process.goodOrbitsByNBX +
+    process.scPhase2SC4PFAlpaka
+  )
+
 
 process.p_unpack = cms.Path(
   process.scPhase2PFRawToDigiStruct +
@@ -169,6 +189,40 @@ process.p_sc4 = cms.Path(
 
 if options.run not in ("both","inclusive","selected"): 
   sched = [ getattr(process, "p_" + options.run)]
+  if options.dumpClusters:
+    process.scPhase2PFStructToTable = cms.EDProducer("ScPuppiToOrbitFlatTable",
+       src = cms.InputTag("scPhase2PFRawToDigiStruct"),
+       name = cms.string("L1PF"),
+       doc = cms.string("L1PF candidates from Correlator Layer 1"),
+    )
+    process.p_pfTab = cms.Path(
+       process.scPhase2PFRawToDigiStruct +
+       process.scPhase2PFStructToTable
+    )
+    sched.append(process.p_pfTab)
+    process.out = cms.OutputModule("OrbitNanoAODOutputModule",
+     fileName = cms.untracked.string(options.outFile),
+     SelectEvents = cms.untracked.PSet(SelectEvents = cms.vstring()),
+     outputCommands = cms.untracked.vstring("drop *", 
+       "keep l1ScoutingRun3OrbitFlatTable_*_*_*")
+    )
+    process.p_out = cms.EndPath(process.out)
+    if options.run in ("sc4Alpaka",):
+      process.dumpClusters = cms.EDProducer("ClusterSoAToOrbitFlatTable",
+          srcBx = cms.InputTag("scPhase2PFRawToDigiAlpaka"),
+          srcClusters = cms.InputTag("scPhase2SC4PFAlpaka"),
+          name = cms.string("SC4AlpakaClusters"),
+          doc = cms.string("")
+      )
+      process.dumpJets = cms.EDProducer("ClusterObjSoAToOrbitFlatTable",
+          srcBx = cms.InputTag("scPhase2PFRawToDigiAlpaka"),
+          srcClusters = cms.InputTag("scPhase2SC4PFAlpaka"),
+          name = cms.string("SC4AlpakaJets"),
+          doc = cms.string(""),
+      )
+      process.p_dump = cms.Path(process.dumpClusters + process.dumpJets)
+      sched.append(process.p_dump)
+    sched.append(process.p_out)
 else:
   sched = [ process.p_inclusive, process.p_selected ]
   if options.run in ("inclusive", "selected"):
