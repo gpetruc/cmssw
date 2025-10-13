@@ -24,6 +24,11 @@
   <class name="l1sc::ClustersSoA::ConstView"/>
   <class name="l1sc::ClustersHostCollection"/>
   <class name="edm::Wrapper<l1sc::ClustersHostCollection>" splitLevel="0"/>
+  <class name="l1sc::ClusterObjSoA"/>
+  <class name="l1sc::ClusterObjSoA::View"/>
+  <class name="l1sc::ClusterObjSoA::ConstView"/>
+  <class name="l1sc::ClusterObjHostCollection"/>
+  <class name="edm::Wrapper<l1sc::ClusterObjHostCollection>" splitLevel="0"/>
 
   <!-- PuppiHostCollection -->
   <class name="l1sc::PuppiSoA"/>

@@ -7,6 +7,7 @@
 namespace l1sc {
 
   using ClustersHostCollection = PortableHostCollection<ClustersSoA>;
+  using ClusterObjHostCollection = PortableHostCollection<ClusterObjSoA>;
 
 }  // namespace l1sc
 

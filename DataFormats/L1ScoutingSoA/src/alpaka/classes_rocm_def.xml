@@ -8,6 +8,9 @@
   <class name="alpaka_rocm_async::l1sc::ClustersDeviceCollection" persistent="false"/>
   <class name="edm::DeviceProduct<alpaka_rocm_async::l1sc::ClustersDeviceCollection>" persistent="false"/>
   <class name="edm::Wrapper<edm::DeviceProduct<alpaka_rocm_async::l1sc::ClustersDeviceCollection>>" persistent="false"/>
+  <class name="alpaka_rocm_async::l1sc::ClusterObjDeviceCollection" persistent="false"/>
+  <class name="edm::DeviceProduct<alpaka_rocm_async::l1sc::ClusterObjDeviceCollection>" persistent="false"/>
+  <class name="edm::Wrapper<edm::DeviceProduct<alpaka_rocm_async::l1sc::ClusterObjDeviceCollection>>" persistent="false"/>
 
   <!-- PuppiDeviceCollection -->
   <class name="alpaka_rocm_async::l1sc::PuppiDeviceCollection" persistent="false"/>
