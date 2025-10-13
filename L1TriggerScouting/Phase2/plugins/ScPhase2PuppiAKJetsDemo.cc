@@ -87,7 +87,7 @@ void ScPhase2PuppiAKJetsDemo::produce(edm::Event &iEvent, const edm::EventSetup 
     for (auto j : jets) {
       pt.push_back(j.pt());
       eta.push_back(j.eta());
-      phi.push_back(j.phi());
+      phi.push_back(reco::reducePhiRange(j.phi()));
       for (const auto & dau : j.constituents()) {
         unsigned int idx = dau.user_index() + i0;
         cluster[idx] = icluster;
@@ -100,13 +100,13 @@ void ScPhase2PuppiAKJetsDemo::produce(edm::Event &iEvent, const edm::EventSetup 
   }  // loop over BX
 
   auto bxOffsets = bxOffsetsFiller.done();
-  auto tab = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(bxOffsets, "AK4Jets", false);
+  auto tab = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(bxOffsets, "AK4Jets");
   tab->addColumn<float>("pt", pt, "Jet pt");
   tab->addColumn<float>("eta", eta, "Jet eta");
   tab->addColumn<float>("phi", phi, "Jet phi");
   iEvent.put(std::move(tab), "jets");
 
-  auto cltab = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(src->bxOffsets(), "AK4Clusters", false);
+  auto cltab = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(src->bxOffsets(), "AK4Clusters");
   cltab->addColumn<int>("cluster", cluster, "cluster index (-1 if unclustered)");
   iEvent.put(std::move(cltab), "clusters");
 }

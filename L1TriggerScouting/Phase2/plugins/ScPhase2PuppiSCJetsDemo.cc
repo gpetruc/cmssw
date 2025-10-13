@@ -153,13 +153,13 @@ void ScPhase2PuppiSCJetsDemo::produce(edm::Event &iEvent, const edm::EventSetup 
   }  // loop over BX
 
   auto bxOffsets = bxOffsetsFiller.done();
-  auto tab = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(bxOffsets, "SC4Jets", true);
+  auto tab = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(bxOffsets, "SC4Jets");
   tab->addColumn<float>("pt", pt, "Jet pt");
   tab->addColumn<float>("eta", eta, "Jet eta");
   tab->addColumn<float>("phi", phi, "Jet phi");
   iEvent.put(std::move(tab), "jets");
 
-  auto cltab = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(src->bxOffsets(), "SC4Clusters", false);
+  auto cltab = std::make_unique<l1ScoutingRun3::OrbitFlatTable>(src->bxOffsets(), "SC4Clusters");
   cltab->addColumn<int>("cluster", cluster, "cluster index (-1 if unclustered)");
   cltab->addColumn<bool>("is_seed", is_seed, "whether the particle was a seed");
   iEvent.put(std::move(cltab), "clusters");

@@ -13,8 +13,7 @@ options.register ('minSeedPt',
                   0.0, 
                   VarParsing.VarParsing.multiplicity.singleton,
                   VarParsing.VarParsing.varType.float,
-                  'Minimum pt cut for seeded-cone jet seeds'
-)
+                  'Minimum pt cut for seeded-cone jet seeds')
 options.register ('jetR',
                   0.4, 
                   VarParsing.VarParsing.multiplicity.singleton,
