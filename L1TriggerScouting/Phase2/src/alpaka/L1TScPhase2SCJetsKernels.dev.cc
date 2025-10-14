@@ -4,6 +4,7 @@
 #include "HeterogeneousCore/AlpakaInterface/interface/host.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/workdivision.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/prefixScan.h"
+#include "HeterogeneousCore/AlpakaInterface/interface/radixSort.h"
 #include "HeterogeneousCore/AlpakaMath/interface/deltaPhi.h"
 
 //#define L1TSC_VERBOSE_DEBUG
@@ -18,10 +19,77 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
     ALPAKA_FN_ACC void operator()(TAcc const& acc,
                                   PuppiDeviceCollection::ConstView puppi,
                                   OffsetsSoA::ConstView bx_lookup,
+                                  float R,
                                   float R2,
+                                  uint16_t* uieta,
+                                  uint16_t* idx,
+                                  ClusterObjDeviceCollection::View work,
                                   ClustersDeviceCollection::View clusters,
                                   ClusterObjDeviceCollection::View jets) const {
       uint32_t grid_dim = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0];
+      // step-0: sort by eta in blocks
+      for (uint32_t block_idx : independent_groups(acc, grid_dim)) {
+        // get event range
+        uint32_t begin = bx_lookup.offsets()[block_idx];
+        uint32_t end = bx_lookup.offsets()[block_idx + 1];
+        if (end <= begin)
+          continue;
+        uint32_t block_dim = end - begin;
+#ifdef L1TSC_VERBOSE_DEBUG
+        if (block_idx <= 2)
+          printf("\nBlock %u of size %u (from %u to %u):\n", block_idx, block_dim, begin, end);
+#endif
+        for (uint32_t tid : independent_group_elements(acc, block_dim)) {
+          uieta[tid + begin] = (puppi.eta()[tid + begin] + 5.f) * (std::numeric_limits<uint16_t>::max() / 10.0f);
+          idx[tid + begin] = tid;  // this is important for the GPU implementation of radixSort
+#ifdef L1TSC_VERBOSE_DEBUG
+          if (block_idx <= 2)
+            printf(" -  pt %7.2f eta %+6.3f phi %+6.3f  index %d, id %u --> uieta %u\n",
+                   puppi.pt()[tid + begin],
+                   puppi.eta()[tid + begin],
+                   puppi.phi()[tid + begin],
+                   tid,
+                   tid + begin,
+                   uieta[tid + begin]);
+#endif
+        }
+      }
+      radixSortMulti(acc, uieta, idx, bx_lookup.offsets(), nullptr);
+
+      // step-1: rearrange
+      for (uint32_t block_idx : independent_groups(acc, grid_dim)) {
+        // get event range
+        uint32_t begin = bx_lookup.offsets()[block_idx];
+        uint32_t end = bx_lookup.offsets()[block_idx + 1];
+        if (end <= begin)
+          continue;
+        uint32_t block_dim = end - begin;
+#ifdef L1TSC_VERBOSE_DEBUG
+        if (block_idx <= 2)
+          printf("\nRearranged:\n");
+#endif
+        for (uint32_t tid : independent_group_elements(acc, block_dim)) {
+          auto ipart = tid + begin;  // global index
+          auto isrc = idx[ipart] + begin;
+          work.pt()[ipart] = puppi.pt()[isrc];
+          work.eta()[ipart] = puppi.eta()[isrc];
+          work.phi()[ipart] = puppi.phi()[isrc];
+          work.cluster()[ipart] = isrc;
+#ifdef L1TSC_VERBOSE_DEBUG
+          if (block_idx <= 2)
+            printf(" -  %3d pt %7.2f eta %+6.3f phi %+6.3f id %u from %u\n",
+                   tid,
+                   work.pt()[tid + begin],
+                   work.eta()[tid + begin],
+                   work.phi()[tid + begin],
+                   isrc,
+                   idx[ipart]);
+#endif
+        }
+      }
+      alpaka::syncBlockThreads(acc);
+
+      // step-2: seed finding
       for (uint32_t block_idx : independent_groups(acc, grid_dim)) {
         // get event range
         uint32_t begin = bx_lookup.offsets()[block_idx];
@@ -34,58 +102,94 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
         // pre-cluster
         for (uint32_t tid : independent_group_elements(acc, block_dim)) {
           // try this as a seed
-          uint32_t iseed = tid + begin;  // global index
-          float seed_pt = puppi.pt()[iseed], seed_eta = puppi.eta()[iseed], seed_phi = puppi.phi()[iseed];
+          uint32_t iseed = tid + begin, icluster = work.cluster()[iseed];  // global index
+          float seed_pt = work.pt()[iseed], seed_eta = work.eta()[iseed], seed_phi = work.phi()[iseed];
           float sum_pt = seed_pt, sum_eta = 0, sum_phi = 0;
-          clusters.is_seed()[iseed] = 1;
-          for (uint32_t j = 0; j < block_dim; ++j) {
-            if (j == tid)
-              continue;
-            float deta = puppi.eta()[j + begin] - seed_eta;
-            float dphi = cms::alpakatools::deltaPhi(acc, puppi.phi()[j + begin], seed_phi);
+          bool is_seed = true;
+          // scan up
+
+          for (uint32_t j = tid; j > 0; --j) {
+            uint32_t ipart = j - 1 + begin;  // global index
+            float deta = work.eta()[ipart] - seed_eta;
+            if (deta < -R)  // sorted in eta, so we can stop here
+              break;
+            float dphi = cms::alpakatools::deltaPhi(acc, work.phi()[ipart], seed_phi);
             if (deta * deta + dphi * dphi < R2) {
-              if (puppi.pt()[j + begin] > seed_pt || (puppi.pt()[j + begin] == seed_pt && j < tid)) {
-                clusters.is_seed()[iseed] = 0;
+              if (work.pt()[ipart] >= seed_pt) {  // here we use >=, since we're for indices above ipart
+                is_seed = false;
                 break;
               } else {
-                sum_pt += puppi.pt()[j + begin];
-                sum_eta += puppi.pt()[j + begin] * deta;
-                sum_phi += puppi.pt()[j + begin] * dphi;
+                sum_pt += work.pt()[ipart];
+                sum_eta += work.pt()[ipart] * deta;
+                sum_phi += work.pt()[ipart] * dphi;
               }
             }
           }
-          sum_eta = seed_eta + sum_eta / sum_pt;
-          sum_phi = cms::alpakatools::reducePhiRange(acc, seed_phi + sum_phi / sum_pt);
-          jets.pt()[iseed] = clusters.is_seed()[iseed] ? sum_pt : 0;
-          jets.eta()[iseed] = clusters.is_seed()[iseed] ? sum_eta : 0;
-          jets.phi()[iseed] = clusters.is_seed()[iseed] ? sum_phi : 0;
-          jets.cluster()[iseed] = clusters.is_seed()[iseed] ? iseed : 0;
+          for (uint32_t j = tid + 1; j < block_dim; ++j) {
+            uint32_t ipart = j + begin;  // global index
+            float deta = work.eta()[ipart] - seed_eta;
+            if (deta > R)  // sorted in eta, so we can stop here
+              break;
+            float dphi = cms::alpakatools::deltaPhi(acc, work.phi()[ipart], seed_phi);
+            if (deta * deta + dphi * dphi < R2) {
+              if (work.pt()[ipart] > seed_pt) {  // note: here we use > instead of >=
+                is_seed = false;
+                break;
+              } else {
+                sum_pt += work.pt()[ipart];
+                sum_eta += work.pt()[ipart] * deta;
+                sum_phi += work.pt()[ipart] * dphi;
+              }
+            }
+          }
 #ifdef L1TSC_VERBOSE_DEBUG
           if (block_idx <= 2)
-            if (clusters.is_seed()[iseed])
-              printf("Jet pt %7.2f eta %+6.3f phi %+6.3f, seed %d\n\n",
-                    jets.pt()[iseed],
-                    jets.eta()[iseed],
-                    jets.phi()[iseed],
-                    iseed);
+            printf("Cluster %u at index %u pt %7.2f eta %+6.3f phi %+6.3f, %s not a seed\n",
+                   icluster,
+                   iseed,
+                   seed_pt,
+                   seed_eta,
+                   seed_phi,
+                   is_seed ? "is" : "is not");
+#endif
+          sum_eta = seed_eta + sum_eta / sum_pt;
+          sum_phi = cms::alpakatools::reducePhiRange(acc, seed_phi + sum_phi / sum_pt);
+          jets.pt()[iseed] = is_seed ? sum_pt : 0;
+          jets.eta()[iseed] = is_seed ? sum_eta : 0;
+          jets.phi()[iseed] = is_seed ? sum_phi : 0;
+          jets.cluster()[iseed] = is_seed ? icluster : 0;
+          clusters.is_seed()[icluster] = is_seed ? 1 : 0;
+#ifdef L1TSC_VERBOSE_DEBUG
+          if (block_idx <= 2)
+            if (is_seed)
+              printf("Jet pt %7.2f eta %+6.3f phi %+6.3f, from seed index %d, id %u pt %7.2f eta %+6.3f phi %+6.3f\n\n",
+                     jets.pt()[iseed],
+                     jets.eta()[iseed],
+                     jets.phi()[iseed],
+                     iseed,
+                     icluster,
+                     seed_pt,
+                     seed_eta,
+                     seed_phi);
 #endif
         }
         alpaka::syncBlockThreads(acc);
 
         // reassociate
         for (uint32_t tid : independent_group_elements(acc, block_dim)) {
-          auto ipart = tid + begin;  // global index
+          auto ipart = tid + begin;                   // global index
+          uint32_t icluster = work.cluster()[ipart];  // original index of the item
           float nearest = R2;
-          clusters.cluster()[ipart] = -1;
+          clusters.cluster()[icluster] = -1;
           for (uint32_t j = 0; j < block_dim; ++j) {
             auto jseed = j + begin;  // global index
             if (!clusters.is_seed()[jseed])
               continue;
-            float deta = puppi.eta()[ipart] - jets.eta()[jseed];
-            float dphi = cms::alpakatools::deltaPhi(acc, puppi.phi()[ipart], jets.phi()[jseed]);
+            float deta = work.eta()[ipart] - jets.eta()[jseed];
+            float dphi = cms::alpakatools::deltaPhi(acc, work.phi()[ipart], jets.phi()[jseed]);
             float dr2 = deta * deta + dphi * dphi;
             if (dr2 < nearest) {
-              clusters.cluster()[ipart] = jseed;
+              clusters.cluster()[icluster] = jets.cluster()[jseed];
               nearest = dr2;
             }
           }
@@ -127,7 +231,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
 
 #ifdef L1TSC_VERBOSE_DEBUG
         if (once_per_block(acc) && (block_idx <= 2))
-            printf("In BX %u begin with %u PF candidates: \n", block_idx + 1, end - begin);
+          printf("In BX %u begin with %u PF candidates: \n", block_idx + 1, end - begin);
 #endif
         // running sums (accumulating on multiple threads)
         auto& seed_pt = alpaka::declareSharedVar<float, __COUNTER__>(acc);
@@ -154,14 +258,14 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
             float spt = 0, seta = 0, sphi = 0;
             unsigned int iseed = end;
             for (unsigned int j = begin, myend = begin + size; j < myend; ++j) {
-  #ifdef L1TSC_VERBOSE_DEBUG
+#ifdef L1TSC_VERBOSE_DEBUG
               if ((block_idx <= 2) && (iter == 0) && single_thread) {
                 printf("  %4u: pt %7.2f eta %+6.3f phi %+6.3f  index %7d\n",
-                      j,
-                      pt[j],
-                      eta[j],
-                      puppi.phi()[j],
-                      puppi.cluster()[j] - begin);
+                       j,
+                       pt[j],
+                       eta[j],
+                       puppi.phi()[j],
+                       puppi.cluster()[j] - begin);
               }
 #endif
               if (pt[j] > spt) {
@@ -181,16 +285,16 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
 #ifdef L1TSC_VERBOSE_DEBUG
             if (block_idx <= 2)
               printf(
-                  "In BX %u selected %u (pt %7.2f eta %+6.3f phi %+6.3f) at %u as seed for iteration %u (%u/%u particles left)\n",
+                  "In BX %u selected %u (pt %7.2f eta %+6.3f phi %+6.3f) as seed for iteration %u (%u/%u particles "
+                  "left)\n",
                   block_idx + 1,
                   iseed - begin,
-                  bestpt,
+                  spt,
                   seed_eta,
                   seed_phi,
-                  jseed,
                   iter,
                   size,
-                  end - begin);            
+                  end - begin);
 #endif
           }
 
@@ -235,11 +339,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
 #ifdef L1TSC_VERBOSE_DEBUG
             if (block_idx <= 2)
               printf("In BX %u Jet pt %7.2f eta %+6.3f phi %+6.3f, seed %d\n\n",
-                    block_idx + 1,
-                    jets.pt()[begin + iter],
-                    jets.eta()[begin + iter],
-                    jets.phi()[begin + iter],
-                    iseed);
+                     block_idx + 1,
+                     jets.pt()[begin + iter],
+                     jets.eta()[begin + iter],
+                     jets.phi()[begin + iter],
+                     seed_i);
 #endif
           }
 
@@ -300,12 +404,24 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
     clusters.zeroInitialise(queue);
     jets.zeroInitialise(queue);
 
+    // index buffer for reordering
+    auto partExtent = Vec1D(src.const_view().metadata().size());
+    auto h_key_device = alpaka::allocAsyncBuf<uint16_t, Idx>(queue, partExtent);
+    auto h_idx_device = alpaka::allocAsyncBuf<uint16_t, Idx>(queue, partExtent);
+    alpaka::memset(queue, h_idx_device, 0x00);
+
+    auto work = ClusterObjDeviceCollection(src.const_view().metadata().size(), queue);
+
     alpaka::exec<Acc1D>(queue,
                         grid,
                         JetKernel{},
                         src.const_view(),
                         bx_lookup.const_view<OffsetsSoA>(),
+                        std::sqrt(R2),
                         R2,
+                        h_key_device.data(),
+                        h_idx_device.data(),
+                        work.view(),
                         clusters.view(),
                         jets.view());
   }
