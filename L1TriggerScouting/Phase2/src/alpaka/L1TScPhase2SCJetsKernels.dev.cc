@@ -87,6 +87,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
 #endif
         }
       }
+
+      auto& nseeds = alpaka::declareSharedVar<uint32_t, __COUNTER__>(acc);
+      if (once_per_block(acc))
+        nseeds = 0;
       alpaka::syncBlockThreads(acc);
 
       // step-2: seed finding
@@ -154,24 +158,29 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
 #endif
           sum_eta = seed_eta + sum_eta / sum_pt;
           sum_phi = cms::alpakatools::reducePhiRange(acc, seed_phi + sum_phi / sum_pt);
-          jets.pt()[iseed] = is_seed ? sum_pt : 0;
-          jets.eta()[iseed] = is_seed ? sum_eta : 0;
-          jets.phi()[iseed] = is_seed ? sum_phi : 0;
-          jets.cluster()[iseed] = is_seed ? icluster : 0;
-          clusters.is_seed()[icluster] = is_seed ? 1 : 0;
+          if (is_seed) {
+            auto ijet = alpaka::atomicAdd(acc, &nseeds, 1u, alpaka::hierarchy::Blocks{}) + begin;
+            jets.pt()[ijet] = sum_pt;
+            jets.eta()[ijet] = sum_eta;
+            jets.phi()[ijet] = sum_phi;
+            jets.cluster()[ijet] = icluster;
+            clusters.is_seed()[icluster] = 1;
 #ifdef L1TSC_VERBOSE_DEBUG
-          if (block_idx <= 2)
-            if (is_seed)
-              printf("Jet pt %7.2f eta %+6.3f phi %+6.3f, from seed index %d, id %u pt %7.2f eta %+6.3f phi %+6.3f\n\n",
-                     jets.pt()[iseed],
-                     jets.eta()[iseed],
-                     jets.phi()[iseed],
-                     iseed,
-                     icluster,
-                     seed_pt,
-                     seed_eta,
-                     seed_phi);
+            if (block_idx <= 2)
+              printf(
+                  "Jet %3u pt %7.2f eta %+6.3f phi %+6.3f, from seed index %d, id %u pt %7.2f eta %+6.3f phi "
+                  "%+6.3f\n\n",
+                  ijet - begin,
+                  jets.pt()[ijet],
+                  jets.eta()[ijet],
+                  jets.phi()[ijet],
+                  iseed,
+                  icluster,
+                  seed_pt,
+                  seed_eta,
+                  seed_phi);
 #endif
+          }
         }
         alpaka::syncBlockThreads(acc);
 
@@ -181,10 +190,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
           uint32_t icluster = work.cluster()[ipart];  // original index of the item
           float nearest = R2;
           clusters.cluster()[icluster] = -1;
-          for (uint32_t j = 0; j < block_dim; ++j) {
+          for (uint32_t j = 0; j < nseeds; ++j) {
             auto jseed = j + begin;  // global index
-            if (!clusters.is_seed()[jseed])
-              continue;
             float deta = work.eta()[ipart] - jets.eta()[jseed];
             float dphi = cms::alpakatools::deltaPhi(acc, work.phi()[ipart], jets.phi()[jseed]);
             float dr2 = deta * deta + dphi * dphi;
