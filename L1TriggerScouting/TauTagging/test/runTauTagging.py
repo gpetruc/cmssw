@@ -105,26 +105,22 @@ if "clustering" in args.only or "tagging" in args.only:
         rhoc = cms.double(args.rhoc),
         dm = cms.double(args.dm),
         wrapCoords = cms.bool(args.wrapCoords),
-        run_scout = cms.bool(args.runScouting),
     )
     process.path += process.CLUETaus
 
 # Tagging
 if "tagging" in args.only:
-    if args.runScouting:
-        print("Scouting analysis are not supported for tagging with direct ML inference at the moment")
-    else:
-        from L1TriggerScouting.TauTagging.modules import l1sc_SoftTauIdML_alpaka
-        process.SoftTauId = l1sc_SoftTauIdML_alpaka(
-            alpaka = cms.untracked.PSet(
-                backend = cms.untracked.string(args.backend)
-            ),
-            pf = 'PFCandidatesProducer',
-            clusters = 'CLUETaus',
-            model = cms.FileInPath(args.model),
-            run_scout = cms.bool(args.runScouting),
-        )
-        process.path += process.SoftTauId
+    from L1TriggerScouting.TauTagging.modules import l1sc_SoftTauIdML_alpaka
+    process.SoftTauId = l1sc_SoftTauIdML_alpaka(
+        alpaka = cms.untracked.PSet(
+            backend = cms.untracked.string(args.backend)
+        ),
+        src = 'PFCandidatesProducer',
+        clusters = 'CLUETaus',
+        model = cms.FileInPath(args.model),
+        maxBatchSize = cms.uint32(150)
+    )
+    process.path += process.SoftTauId
 
 # debug sink
 process.TauTaggingSink = l1sc_TauTaggingSink(

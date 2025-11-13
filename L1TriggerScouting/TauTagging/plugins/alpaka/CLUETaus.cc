@@ -27,7 +27,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
           clustering_(static_cast<float>(params.getParameter<double>("dc")),
                       static_cast<float>(params.getParameter<double>("rhoc")),
                       static_cast<float>(params.getParameter<double>("dm")),
-                      params.getParameter<bool>("wrapCoords"))} {}
+                      params.getParameter<bool>("wrapCoords")) {}
 
     void produce(device::Event &event, const device::EventSetup &event_setup) override {
       // get collection from device memory space (implicit copy done by framework)
@@ -66,8 +66,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
     const device::EDPutToken<CandsClusterBxDeviceCollection> candsclusterbx_token_;
     // algorithm
     const kernels::CLUEsteringAlgo clustering_;
-    // scouting switch
-    const bool run_scout_;
   };
 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc

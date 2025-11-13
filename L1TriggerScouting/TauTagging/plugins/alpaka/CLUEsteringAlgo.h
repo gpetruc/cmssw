@@ -5,12 +5,15 @@
 #include <vector>
 
 #include "CLUEstering/CLUEstering.hpp"
-#include "DataFormats/L1ScoutingSoA/interface/alpaka/AssociationMapDevice.h"
+#include "DataFormats/L1ScoutingSoA/interface/alpaka/LongAssociationMapDevice.h"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/CandsClusterBxDeviceCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/BxLookupDeviceCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/ClustersDeviceCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/PFCandidateDeviceCollection.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
+
+// #define __DEBUGLITE__
+// #define __DEBUG__
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
 
@@ -22,11 +25,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
   public:
     explicit CLUEsteringAlgo(float dc, float rhoc, float dm, bool wrap_coords);
 
-    AssociationMapDevice run(
-        Queue& queue, 
-        const PFCandidateDeviceCollection& pf, 
-        ClustersDeviceCollection& clusters) const;
-    AssociationMapDevice run(Queue& queue,
+    CandsClusterBxDeviceCollection run(Queue& queue,
              const PFCandidateDeviceCollection& pf,
              const BxLookupDeviceCollection& bx_lookup,
              ClustersDeviceCollection& clusters) const;
