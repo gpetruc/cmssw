@@ -20,7 +20,7 @@ process.load("Configuration.StandardSequences.Accelerators_cff")
 
 # logging configuration
 process.load("FWCore.MessageService.MessageLogger_cfi")
-process.MessageLogger.cerr.FwkReport.reportEvery = 100
+process.MessageLogger.cerr.FwkReport.reportEvery = 10
 
 process.path = cms.Path()
 # process a limited number of events
@@ -108,6 +108,15 @@ if "clustering" in args.only or "tagging" in args.only:
     )
     process.path += process.CLUETaus
 
+    from L1TriggerScouting.Phase2.modules import ClusterToOrbitFlatTable
+    process.CLUEToOrbit = ClusterToOrbitFlatTable(
+        srcClusters = "CLUETaus", 
+        srcCandidates = "PFCandidatesProducer", 
+        name = "CLUETaus", 
+        doc = ""
+    )
+    process.path += process.CLUEToOrbit
+
 # Tagging
 if "tagging" in args.only:
     from L1TriggerScouting.TauTagging.modules import l1sc_SoftTauIdML_alpaka
@@ -122,12 +131,24 @@ if "tagging" in args.only:
     )
     process.path += process.SoftTauId
 
-# debug sink
-process.TauTaggingSink = l1sc_TauTaggingSink(
-    src = 'PFCandidatesProducer',
-    clusters = 'CLUETaus',
-    taus = 'SoftTauId',
-    environment = cms.untracked.int32(args.environment),
-    run_scout = cms.bool(args.runScouting),
-)
-process.path += process.TauTaggingSink
+process.out = cms.OutputModule("OrbitNanoAODOutputModule",
+    fileName = cms.untracked.string("orbitNanoClusters.root"),
+    SelectEvents = cms.untracked.PSet(SelectEvents = cms.vstring()),  # keep all events
+    outputCommands = cms.untracked.vstring(
+        "drop *",
+        "keep l1ScoutingRun3OrbitFlatTable_*_*_*",
+    )
+)   
+process.end = cms.EndPath(process.out)
+
+# # debug sink
+# process.TauTaggingSink = l1sc_TauTaggingSink(
+#     src = 'PFCandidatesProducer',
+#     clusters = 'CLUETaus',
+#     taus = 'SoftTauId',
+#     environment = cms.untracked.int32(args.environment),
+#     run_scout = cms.bool(args.runScouting),
+# )
+# process.path += process.TauTaggingSink
+
+

@@ -135,8 +135,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
     auto input_tensor = SoftTauInputDeviceTensor(kNumClusters, queue);
     input_tensor.zeroInitialise(queue);
 
-    std::cout << "INITIALIZED SoftTauInputDeviceTensor" << std::endl;
-
+    std::cout << "CREATED SoftTauInputDeviceTensor" << std::endl;
+    
     alpaka::exec<Acc1D>(queue, 
       make_workdiv<Acc1D>(kNumClusters, 128), 
       ComputeClueTauFeaturesKernel{}, 
@@ -144,7 +144,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
       candsClusterBx.view<LongIndexSoA>(),
       candsClusterBx.view<ClusterOffsetsSoA>(),
       input_tensor.view());
-
+      
+    std::cout << "FILLED SoftTauInputDeviceTensor" << std::endl;
+    
     return input_tensor;
   }
 

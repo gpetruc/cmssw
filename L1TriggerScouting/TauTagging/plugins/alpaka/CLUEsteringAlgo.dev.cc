@@ -80,54 +80,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
     }
   };
 
-  // class GetAssociatorKernel {
-  // public:
-  //   ALPAKA_FN_ACC void operator()(
-  //       Acc1D const& acc, 
-  //       clue::AssociationMapView associator, 
-  //       LongIndexSoA::View indexes, 
-  //       LongOffsetsSoA::View offsets, 
-  //       int32_t begin_cands,
-  //       int32_t begin_clusters,
-  //       int32_t begin_clustered) const {
-  //       if (once_per_grid(acc)) {
-  //         offsets.offsets()[0] = begin_clustered;
-  //         for (int32_t c_id = 0; c_id < offsets.metadata().size() - 1; c_id++) {
-  //           auto span = associator[c_id];
-  //           offsets.offsets()[c_id + 1] = span.size() + offsets.offsets()[c_id];
-  //           auto begin = offsets.offsets()[c_id];
-  //           for (int32_t i = 0; i < span.size(); i++) {
-  //             indexes.indexes()[i + begin] = span[i] + begin_cands;
-  //           }
-  //         }
-  //       }
-  //     }
-  // };
-
-  class GetAssociatorKernel {
-  public:
-    ALPAKA_FN_ACC void operator()(
-      Acc1D const& acc, 
-      const int32_t* src_indexes, 
-      const int32_t* src_offsets, 
-      LongIndexSoA::View indexes, 
-      LongOffsetsSoA::View offsets, 
-      int32_t begin_indexes,
-      int32_t begin_offsets, 
-      int32_t num_indexes, 
-      int32_t num_offsets) const {
-        if (once_per_grid(acc)) {
-          for (auto ii = 0; ii < num_indexes; ++ii) { 
-            indexes.indexes()[ii] = src_indexes[ii] + begin_indexes;
-          }
-          
-          for (auto ii = 0; ii < num_offsets; ++ii) {
-            offsets.offsets()[ii] = src_offsets[ii] + begin_offsets;
-          }
-        }
-      } 
-  };
-
   class UpdateAssociatorKernel {
   public:
     ALPAKA_FN_ACC void operator()(
@@ -172,7 +124,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
                             const PFCandidateDeviceCollection& pf,
                             const BxLookupDeviceCollection& bx_lookup,
                             ClustersDeviceCollection& clusters) const {
-    // TODO: CLUE is not yet adapted to run on multiple BXs and batch efficiently, for loop required.
     const auto nbx = static_cast<int32_t>(bx_lookup.const_view<BxIndexSoA>().metadata().size());
     auto bx_lookup_host = BxLookupHostCollection({{nbx, nbx + 1}}, queue);
     alpaka::memcpy(queue, bx_lookup_host.buffer(), bx_lookup.buffer());
@@ -180,11 +131,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
 
     // create vector to store all association maps for each event
     std::vector<clue::AssociationMap<>> association_collection;
-    association_collection.reserve(nbx);
 
     // create host vector where to store the TRUE number of clustered candidates per event
+    // and also create an index to fill it
     auto num_clustered_d = alpaka::allocAsyncBuf<int32_t, int32_t>(queue, nbx);
-
+    // keep track of the total number of clusters in the current orbit
     int32_t clustersTotal = 0;
 
     for (uint32_t idx = 0; idx < bx_lookup_host.const_view<BxIndexSoA>().metadata().size(); idx++) {
@@ -201,7 +152,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
 #if defined(__DEBUG__) || defined(__DEBUGLITE__)
         std::cout << "WARNING! NO POINTS FOUND IN THE EVENT" << std::endl;
 #endif
-        continue;
+        throw std::runtime_error("Encountered an event with no candidates inside");
       }
 
       // buffers
@@ -223,8 +174,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
       if (associator.size() == 0) {
 #if defined(__DEBUG__) || defined(__DEBUGLITE__)
         std::cout << "WARNING! associatior.size()IN THE EVENT" << std::endl;
+        // maybe here it could be necessary to handcraft a "mock" AssociationMap
 #endif
-        continue;
       }
       
       // fetch true number of clustered points from the buffers of the association map
@@ -235,15 +186,18 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
                           num_clustered_d.data(),
                           associator.extract().keys.data());
       
-      // set entry of the vector
+      // set entry of the association map vector
       association_collection.push_back(std::move(associator));
-  
+      // update total number of clusters in the current orbit
       clustersTotal += associator.size();
     }
 
     // bring number of clustered candidates per event back to the host
     std::vector<int32_t> num_clustered(nbx);
     alpaka::memcpy(queue, num_clustered, num_clustered_d);
+
+    // accumulate over the entries of the num_clustered vector in order to get the 
+    // total number of clustered candidates in the current orbit
     int32_t clusteredTotal = std::accumulate(num_clustered.begin(), num_clustered.end(), 0);
 
 #if defined(__DEBUG__) || defined(__DEBUGLITE__)
