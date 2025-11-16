@@ -131,6 +131,16 @@ if "tagging" in args.only:
     )
     process.path += process.SoftTauId
 
+    from L1TriggerScouting.Phase2.modules import TaggerOutToOrbitFlatTable
+    process.TaggerOutToOrbit = TaggerOutToOrbitFlatTable(
+        srcClusters = "CLUETaus", 
+        srcCandidates = "PFCandidatesProducer", 
+        srcOut = "SoftTauId", 
+        name = "TaggerOut", 
+        doc = ""
+    )
+    process.path += process.TaggerOutToOrbit
+
 process.out = cms.OutputModule("OrbitNanoAODOutputModule",
     fileName = cms.untracked.string("orbitNanoClusters.root"),
     SelectEvents = cms.untracked.PSet(SelectEvents = cms.vstring()),  # keep all events

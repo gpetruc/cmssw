@@ -80,6 +80,28 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
     }
   };
 
+  // class UpdateAssociatorKernel {
+  // public:
+  //   ALPAKA_FN_ACC void operator()(
+  //     Acc1D const& acc, 
+  //     LongIndexSoA::View indexes, 
+  //     LongOffsetsSoA::View offsets, 
+  //     int32_t begin_indexes,
+  //     int32_t begin_offsets, 
+  //     int32_t num_indexes, 
+  //     int32_t num_offsets) const {
+  //       if (once_per_grid(acc)) {
+  //         for (auto ii = 0; ii < num_indexes; ++ii) { 
+  //           indexes.indexes()[ii] += begin_indexes;
+  //         }
+          
+  //         for (auto ii = 0; ii < num_offsets; ++ii) {
+  //           offsets.offsets()[ii] += begin_offsets;
+  //         }
+  //       }
+  //     } 
+  // };
+
   class UpdateAssociatorKernel {
   public:
     ALPAKA_FN_ACC void operator()(
@@ -90,14 +112,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
       int32_t begin_offsets, 
       int32_t num_indexes, 
       int32_t num_offsets) const {
-        if (once_per_grid(acc)) {
-          for (auto ii = 0; ii < num_indexes; ++ii) { 
-            indexes.indexes()[ii] += begin_indexes;
-          }
-          
-          for (auto ii = 0; ii < num_offsets; ++ii) {
-            offsets.offsets()[ii] += begin_offsets;
-          }
+        for (auto thread_idx : alpaka::uniformElements(acc, num_indexes)) {
+          indexes.indexes()[thread_idx] += begin_indexes;
+        }
+
+        for (auto thread_idx : alpaka::uniformElements(acc, num_offsets)) {
+          offsets.offsets()[thread_idx] += begin_indexes;
         }
       } 
   };
