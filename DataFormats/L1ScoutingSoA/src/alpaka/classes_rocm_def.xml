@@ -9,16 +9,6 @@
   <class name="edm::DeviceProduct<alpaka_rocm_async::l1sc::AssociationMapDevice>" persistent="false"/>
   <class name="edm::Wrapper<edm::DeviceProduct<alpaka_rocm_async::l1sc::AssociationMapDevice>>" persistent="false"/>
 
-  <!-- LongAssociationMapDevice -->
-  <class name="alpaka_rocm_async::l1sc::LongAssociationMapDevice" persistent="false"/>
-  <class name="edm::DeviceProduct<alpaka_rocm_async::l1sc::LongAssociationMapDevice>" persistent="false"/>
-  <class name="edm::Wrapper<edm::DeviceProduct<alpaka_rocm_async::l1sc::LongAssociationMapDevice>>" persistent="false"/>
-
-  <!-- CandsClusterBxDeviceCollection -->
-  <class name="alpaka_rocm_async::l1sc::CandsClusterBxDeviceCollection" persistent="false"/>
-  <class name="edm::DeviceProduct<alpaka_rocm_async::l1sc::CandsClusterBxDeviceCollection>" persistent="false"/>
-  <class name="edm::Wrapper<edm::DeviceProduct<alpaka_rocm_async::l1sc::CandsClusterBxDeviceCollection>>" persistent="false"/>
-
   <!-- ClustersDeviceCollection -->
   <class name="alpaka_rocm_async::l1sc::ClustersDeviceCollection" persistent="false"/>
   <class name="edm::DeviceProduct<alpaka_rocm_async::l1sc::ClustersDeviceCollection>" persistent="false"/>

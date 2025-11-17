@@ -11,7 +11,6 @@
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/AssociationMapDevice.h"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/BxLookupDeviceCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/ClustersDeviceCollection.h"
-#include "DataFormats/L1ScoutingSoA/interface/alpaka/CandsClusterBxDeviceCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/PFCandidateDeviceCollection.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
 
@@ -40,7 +39,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
 
   SoftTauInputDeviceTensor transform(Queue& queue, 
                  const PFCandidateDeviceCollection& pf, 
-                 const CandsClusterBxDeviceCollection& candsClusterBx);
+                 const AssociationMapDevice& clusterCandsMap);
 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels
 

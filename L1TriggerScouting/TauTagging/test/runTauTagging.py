@@ -124,7 +124,7 @@ if "tagging" in args.only:
         alpaka = cms.untracked.PSet(
             backend = cms.untracked.string(args.backend)
         ),
-        src = 'PFCandidatesProducer',
+        pf = 'PFCandidatesProducer',
         clusters = 'CLUETaus',
         model = cms.FileInPath(args.model),
         maxBatchSize = cms.uint32(150)

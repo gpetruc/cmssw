@@ -17,7 +17,8 @@
 #include "FWCore/MessageLogger/interface/MessageDrop.h"
 
 #include "DataFormats/NanoAOD/interface/OrbitFlatTable.h"
-#include "DataFormats/L1ScoutingSoA/interface/CandsClusterBxHostCollection.h"
+#include "DataFormats/L1ScoutingSoA/interface/BxLookupHostCollection.h"
+#include "DataFormats/L1ScoutingSoA/interface/AssociationMapHost.h"
 #include "DataFormats/L1ScoutingSoA/interface/PFCandidateHostCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/SoftTauHostTensor.h"
 
@@ -40,7 +41,8 @@ public:
 
 private:
   // the tokens to access the data
-  edm::EDGetTokenT<l1sc::CandsClusterBxHostCollection> srcClusters_;
+  edm::EDGetTokenT<l1sc::BxLookupHostCollection> srcBxClustersMap_;
+  edm::EDGetTokenT<l1sc::AssociationMapHost> srcClusterCandsMap_;
   edm::EDGetTokenT<l1sc::PFCandidateHostCollection> srcCandidates_;
   edm::EDGetTokenT<l1sc::SoftTauOutputHostTensor> srcOut_;
 
@@ -51,7 +53,8 @@ private:
 // -------------------------------- constructor  -------------------------------
 
 TaggerOutToOrbitFlatTable::TaggerOutToOrbitFlatTable(const edm::ParameterSet& iConfig) :
-      srcClusters_(consumes<l1sc::CandsClusterBxHostCollection>(iConfig.getParameter<edm::InputTag>("srcClusters"))),
+      srcBxClustersMap_(consumes<l1sc::BxLookupHostCollection>(iConfig.getParameter<edm::InputTag>("srcClusters"))),
+      srcClusterCandsMap_(consumes<l1sc::AssociationMapHost>(iConfig.getParameter<edm::InputTag>("srcClusters"))),
       srcCandidates_(consumes<l1sc::PFCandidateHostCollection>(iConfig.getParameter<edm::InputTag>("srcCandidates"))),
       srcOut_(consumes<l1sc::SoftTauOutputHostTensor>(iConfig.getParameter<edm::InputTag>("srcOut"))),
       name_(iConfig.getParameter<std::string>("name")),
@@ -62,20 +65,24 @@ TaggerOutToOrbitFlatTable::TaggerOutToOrbitFlatTable(const edm::ParameterSet& iC
 
 // ----------------------- method called for each orbit  -----------------------
 void TaggerOutToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm::EventSetup const&) const {
-  edm::Handle<l1sc::CandsClusterBxHostCollection> srcClusters;
-  iEvent.getByToken(srcClusters_, srcClusters);
+  edm::Handle<l1sc::BxLookupHostCollection> srcBxClustersMap;
+  iEvent.getByToken(srcBxClustersMap_, srcBxClustersMap);
+  edm::Handle<l1sc::AssociationMapHost> srcClusterCandsMap;
+  iEvent.getByToken(srcClusterCandsMap_, srcClusterCandsMap);
   edm::Handle<l1sc::PFCandidateHostCollection> srcCandidates;
   iEvent.getByToken(srcCandidates_, srcCandidates);
   edm::Handle<l1sc::SoftTauOutputHostTensor> srcOut;
   iEvent.getByToken(srcOut_, srcOut);
 
-  const unsigned int nbx = srcClusters->const_view<l1sc::LongOffsetsSoA>().metadata().size() - 1;
+  std::cout << "Serializing model outputs (with other features) for the current orbit" << std::endl;
 
-  const auto *bx_offsets = srcClusters->const_view<l1sc::LongOffsetsSoA>().offsets().data();
-  const auto *cluster_idx = srcClusters->const_view<l1sc::ClusterIndexSoA>().indexes().data();
-  const auto *cluster_off = srcClusters->const_view<l1sc::ClusterOffsetsSoA>().offsets().data();
-  const auto *candidate_idx = srcClusters->const_view<l1sc::LongIndexSoA>().indexes().data();
-  const auto num_clusters = srcClusters->const_view<l1sc::ClusterIndexSoA>().metadata().size();
+  const unsigned int nbx = srcBxClustersMap->const_view<l1sc::OffsetsSoA>().metadata().size() - 1;
+
+  const auto *bx_offsets = srcBxClustersMap->const_view<l1sc::OffsetsSoA>().offsets().data();
+  const auto *cluster_idx = srcBxClustersMap->const_view<l1sc::BxIndexSoA>().bx().data();
+  const auto *cluster_off = srcClusterCandsMap->const_view<l1sc::OffsetsSoA>().offsets().data();
+  const auto *candidate_idx = srcClusterCandsMap->const_view<l1sc::IndexSoA>().indexes().data();
+  const auto num_clusters = srcBxClustersMap->const_view<l1sc::BxIndexSoA>().metadata().size();
 
   const auto *pt = srcCandidates->const_view().pt().data();
   const auto *eta = srcCandidates->const_view().eta().data();
@@ -88,8 +95,6 @@ void TaggerOutToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm::
   const auto num_outputs = srcOut->const_view().metadata().size(); 
 
   // num_outputs is expected to be the total number of clusters
-  std::cout << "num_clusters = " << num_clusters << std::endl;
-  std::cout << "num_outputs = " << num_outputs << std::endl;
   assert(num_outputs == num_clusters);
 
   // features that are going to be serialized for each 
@@ -147,7 +152,7 @@ void TaggerOutToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm::
   out->addColumn<float>("pt_reg", pts_reg, "tagger pt regression");
   out->addColumn<float>("vz_reg", vzs_reg, "tagger vz regression");
   out->addColumn<float>("charge_reg", charges_reg, "tagger charge regression");
-  out->addColumn<int32_t>("cluster", clusters, "cluster index");
+  out->addColumn<uint32_t>("cluster", clusters, "cluster index");
   iEvent.put(std::move(out));
 }
 

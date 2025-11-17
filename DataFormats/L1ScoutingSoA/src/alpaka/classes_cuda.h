@@ -9,13 +9,9 @@
 #include "DataFormats/Common/interface/DeviceProduct.h"
 
 #include "DataFormats/L1ScoutingSoA/interface/IndexSoA.h"
-#include "DataFormats/L1ScoutingSoA/interface/LongIndexSoA.h"
 #include "DataFormats/L1ScoutingSoA/interface/BxIndexSoA.h"
 #include "DataFormats/L1ScoutingSoA/interface/ClustersSoA.h"
 #include "DataFormats/L1ScoutingSoA/interface/OffsetsSoA.h"
-#include "DataFormats/L1ScoutingSoA/interface/LongOffsetsSoA.h"
-#include "DataFormats/L1ScoutingSoA/interface/ClusterIndexSoA.h"
-#include "DataFormats/L1ScoutingSoA/interface/ClusterOffsetsSoA.h"
 #include "DataFormats/L1ScoutingSoA/interface/PuppiSoA.h"
 #include "DataFormats/L1ScoutingSoA/interface/TkEmSoA.h"
 #include "DataFormats/L1ScoutingSoA/interface/TkEleSoA.h"
@@ -24,9 +20,7 @@
 #include "DataFormats/L1ScoutingSoA/interface/SoftTauTensorSoA.h"
 
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/AssociationMapDevice.h"
-#include "DataFormats/L1ScoutingSoA/interface/alpaka/LongAssociationMapDevice.h"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/BxLookupDeviceCollection.h"
-#include "DataFormats/L1ScoutingSoA/interface/alpaka/CandsClusterBxDeviceCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/ClustersDeviceCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/PuppiDeviceCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/TkEmDeviceCollection.h"

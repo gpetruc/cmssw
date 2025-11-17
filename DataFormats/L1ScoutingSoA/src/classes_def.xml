@@ -18,45 +18,6 @@
   <class name="edm::Wrapper<l1sc::BxLookupHostCollection>" splitLevel="0"/>
   <!-- ___________ END ___________ -->
 
-  <!-- CandsClusterBxHostCollection -->
-  <!-- ClusterOffsetSoA -->
-  <class name="l1sc::ClusterOffsetsSoA"/>
-  <class name="l1sc::ClusterOffsetsSoA::View"/>
-  <class name="l1sc::ClusterOffsetsSoA::ConstView"/>
-  <!-- ClusterIndexSoA -->
-  <class name="l1sc::ClusterIndexSoA"/>
-  <class name="l1sc::ClusterIndexSoA::View"/>
-  <class name="l1sc::ClusterIndexSoA::ConstView"/>
-  <!-- LongOffsetsSoA -->
-  <class name="l1sc::LongOffsetsSoA"/>
-  <class name="l1sc::LongOffsetsSoA::View"/>
-  <class name="l1sc::LongOffsetsSoA::ConstView"/>
-  <!-- ROOT R/W recipies -->
-  <class name="portablecollection::CollectionImpl<0,l1sc::LongIndexLayout<128,false>,l1sc::ClusterOffsetsLayout<128,false>,l1sc::ClusterIndexLayout<128,false>,l1sc::LongOffsetsLayout<128,false> >"/>
-  <class name="portablecollection::CollectionImpl<1,l1sc::ClusterOffsetsLayout<128,false>,l1sc::ClusterIndexLayout<128,false>,l1sc::LongOffsetsLayout<128,false> >"/>
-  <class name="portablecollection::CollectionImpl<2,l1sc::ClusterIndexLayout<128,false>,l1sc::LongOffsetsLayout<128,false> >"/>
-  <class name="portablecollection::CollectionImpl<3,l1sc::LongOffsetsLayout<128,false> >"/>
-  <class name="portablecollection::CollectionLeaf<1,l1sc::ClusterOffsetsLayout<128,false> >"/>
-  <class name="portablecollection::CollectionLeaf<2,l1sc::ClusterIndexLayout<128,false> >"/>
-  <class name="portablecollection::CollectionLeaf<3,l1sc::LongOffsetsLayout<128,false> >"/>
-  <!-- PortableMultiCollection -->
-  <class name="l1sc::CandsClusterBxHostCollection"/>
-  <class name="edm::Wrapper<l1sc::CandsClusterBxHostCollection>" splitLevel="0"/>
-  <!-- ___________ END ___________ -->
-
-  <!-- LongAssociationMapHost -->
-  <!-- LongIndexSoA -->
-  <class name="l1sc::LongIndexSoA"/>
-  <class name="l1sc::LongIndexSoA::View"/>
-  <class name="l1sc::LongIndexSoA::ConstView"/>
-  <!-- ROOT R/W recipies -->
-  <class name="portablecollection::CollectionImpl<0,l1sc::LongIndexLayout<128,false>,l1sc::LongOffsetsLayout<128,false>>"/>
-  <class name="portablecollection::CollectionLeaf<0,l1sc::LongIndexLayout<128,false>>"/>
-  <!-- PortableMultiCollection -->
-  <class name="l1sc::LongAssociationMapHost"/>
-  <class name="edm::Wrapper<l1sc::LongAssociationMapHost>" splitLevel="0"/>
-  <!-- ___________ END ___________ -->
-
   <!-- AssociationMapHost -->
   <!-- IndexSoA -->
   <class name="l1sc::IndexSoA"/>

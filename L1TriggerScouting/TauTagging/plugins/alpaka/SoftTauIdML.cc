@@ -3,7 +3,6 @@
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/BxLookupDeviceCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/ClustersDeviceCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/PFCandidateDeviceCollection.h"
-#include "DataFormats/L1ScoutingSoA/interface/alpaka/CandsClusterBxDeviceCollection.h"
 #include "FWCore/ParameterSet/interface/ConfigurationDescriptions.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 #include "FWCore/ParameterSet/interface/ParameterSetDescription.h"
@@ -24,17 +23,17 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
   public:
     SoftTauIdML(const edm::ParameterSet &params)
         : EDProducer<>(params),
-          pf_token_(consumes(params.getParameter<edm::InputTag>("src"))),
-          candsclusterbx_token_(consumes(params.getParameter<edm::InputTag>("clusters"))),
+          pf_token_(consumes(params.getParameter<edm::InputTag>("pf"))),
+          association_map_token_{consumes(params.getParameter<edm::InputTag>("clusters"))},
           soft_tau_token_{produces()},
           model_(params.getParameter<edm::FileInPath>("model").fullPath()),
           max_batch_size_{params.getParameter<uint32_t>("maxBatchSize")} {}
 
     static void fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
       edm::ParameterSetDescription desc;
-      desc.add<edm::InputTag>("src");
-      desc.add<edm::InputTag>("clusters");
       desc.add<edm::FileInPath>("model");
+      desc.add<edm::InputTag>("pf");
+      desc.add<edm::InputTag>("clusters");
       desc.add<uint32_t>("maxBatchSize", std::numeric_limits<uint32_t>::max());
       descriptions.addWithDefaultLabel(desc);
     }
@@ -42,10 +41,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
     void produce(device::Event &event, const device::EventSetup &event_setup) override {
       // in/out collections
       const auto &pf = event.get(pf_token_);
-      const auto &candsclusterbx_map = event.get(candsclusterbx_token_);
-
-      // get the input_tensor
-      SoftTauInputDeviceTensor input_tensor = kernels::transform(event.queue(), pf, candsclusterbx_map);
+      const auto &association_map = event.get(association_map_token_);
+      SoftTauInputDeviceTensor input_tensor = kernels::transform(event.queue(), pf, association_map);
 
       const auto job_size = input_tensor.view().metadata().size();
       auto output_tensor = SoftTauOutputDeviceTensor(job_size, event.queue());
@@ -84,7 +81,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
     // get association map if runScouting=True
     const device::EDGetToken<BxLookupDeviceCollection> bx_lookup_token_;
     // clustering output
-    const device::EDGetToken<CandsClusterBxDeviceCollection> candsclusterbx_token_;
+    const device::EDGetToken<AssociationMapDevice> association_map_token_;
     // put ml output into event
     const device::EDPutToken<SoftTauOutputDeviceTensor> soft_tau_token_;
     // model

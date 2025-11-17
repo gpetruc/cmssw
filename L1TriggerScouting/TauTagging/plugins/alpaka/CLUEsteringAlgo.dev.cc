@@ -22,8 +22,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
     ALPAKA_FN_ACC void operator()(
         Acc1D const& acc,
         const float* weights,
-        LongIndexSoA::View indexes, 
-        LongOffsetsSoA::View offsets) const {
+        IndexSoA::View indexes, 
+        OffsetsSoA::View offsets) const {
       const uint8_t kSharedMemSize = 128;
       auto& indices_shared = alpaka::declareSharedVar<int[kSharedMemSize], __COUNTER__>(acc);
       auto& weights_shared = alpaka::declareSharedVar<float[kSharedMemSize], __COUNTER__>(acc); 
@@ -80,38 +80,16 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
     }
   };
 
-  // class UpdateAssociatorKernel {
-  // public:
-  //   ALPAKA_FN_ACC void operator()(
-  //     Acc1D const& acc, 
-  //     LongIndexSoA::View indexes, 
-  //     LongOffsetsSoA::View offsets, 
-  //     int32_t begin_indexes,
-  //     int32_t begin_offsets, 
-  //     int32_t num_indexes, 
-  //     int32_t num_offsets) const {
-  //       if (once_per_grid(acc)) {
-  //         for (auto ii = 0; ii < num_indexes; ++ii) { 
-  //           indexes.indexes()[ii] += begin_indexes;
-  //         }
-          
-  //         for (auto ii = 0; ii < num_offsets; ++ii) {
-  //           offsets.offsets()[ii] += begin_offsets;
-  //         }
-  //       }
-  //     } 
-  // };
-
   class UpdateAssociatorKernel {
   public:
     ALPAKA_FN_ACC void operator()(
       Acc1D const& acc, 
-      LongIndexSoA::View indexes, 
-      LongOffsetsSoA::View offsets, 
-      int32_t begin_indexes,
-      int32_t begin_offsets, 
-      int32_t num_indexes, 
-      int32_t num_offsets) const {
+      IndexSoA::View indexes, 
+      OffsetsSoA::View offsets, 
+      uint32_t begin_indexes,
+      uint32_t begin_offsets, 
+      uint32_t num_indexes, 
+      uint32_t num_offsets) const {
         for (auto thread_idx : alpaka::uniformElements(acc, num_indexes)) {
           indexes.indexes()[thread_idx] += begin_indexes;
         }
@@ -137,13 +115,25 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
     }
   };
 
+  struct CastIntToUintKernel {
+  ALPAKA_FN_ACC void operator()(Acc1D const& acc,
+                                uint32_t* dst,
+                                const int32_t* src,
+                                uint32_t size) const {
+    for (auto i : uniformElements(acc, size)) {
+      dst[i] = static_cast<uint32_t>(src[i]);
+    }
+  }
+};
+
   CLUEsteringAlgo::CLUEsteringAlgo(float dc, float rhoc, float dm, bool wrap_coords)
       : dc_(dc), rhoc_(rhoc), dm_(dm), wrap_coords_(wrap_coords) {}
 
-  CandsClusterBxDeviceCollection CLUEsteringAlgo::run(Queue& queue,
-                            const PFCandidateDeviceCollection& pf,
-                            const BxLookupDeviceCollection& bx_lookup,
-                            ClustersDeviceCollection& clusters) const {
+  std::tuple<BxLookupDeviceCollection, AssociationMapDevice>
+  CLUEsteringAlgo::run(Queue& queue,
+                      const PFCandidateDeviceCollection& pf,
+                      const BxLookupDeviceCollection& bx_lookup,
+                      ClustersDeviceCollection& clusters) const {
     const auto nbx = static_cast<int32_t>(bx_lookup.const_view<BxIndexSoA>().metadata().size());
     auto bx_lookup_host = BxLookupHostCollection({{nbx, nbx + 1}}, queue);
     alpaka::memcpy(queue, bx_lookup_host.buffer(), bx_lookup.buffer());
@@ -225,13 +215,15 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
     std::cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
 #endif
     
-    // *** ALLOCATE MULTICOLLECTION ***
-    CandsClusterBxDeviceCollection ccbMap({{clusteredTotal, clustersTotal + 1, clustersTotal, nbx + 1}}, queue);
-    //                                      LongIndexSoA    ClusterOffsetSoA   ClusterIndexSoA LongOffsetSoA
-    ccbMap.zeroInitialise(queue);
+    // *** Allocate Portable Collections ***
+    BxLookupDeviceCollection bx_clusters_map({{clustersTotal, nbx + 1}}, queue); // maps a range of cluster indexes to each BX
+    bx_clusters_map.zeroInitialise(queue);
 
-    // * FILL CLUSTER INDEX SOA *
-    std::vector<int32_t> cluster_indexes(clustersTotal);
+    AssociationMapDevice cluster_cands_map({{clusteredTotal, clustersTotal + 1}}, queue); // maps a range of candidates to each cluster
+    cluster_cands_map.zeroInitialise(queue);
+
+    // * FILL BxLookupDeviceCollection BxIndexSoA *
+    std::vector<uint32_t> cluster_indexes(clustersTotal);
     std::iota(cluster_indexes.begin(), cluster_indexes.end(), 0);
 
     auto srcClusterIndex = alpaka::createView(cms::alpakatools::host(), 
@@ -239,13 +231,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
                                               Vec1D{cluster_indexes.size()});
     
     auto dstClusterIndex = alpaka::createView(alpaka::getDev(queue), 
-                                              ccbMap.view<ClusterIndexSoA>().indexes().data(), 
+                                              bx_clusters_map.view<BxIndexSoA>().bx().data(), 
                                               Vec1D{clustersTotal});
                                                     
     alpaka::memcpy(queue, dstClusterIndex, srcClusterIndex);
 
-    // * FILL LAST LONG OFFSET SOA *
-    std::vector<int32_t> bx_offsets;
+    // * FILL BxLookupDeviceCollection OffsetsSoA *
+    std::vector<uint32_t> bx_offsets;
     bx_offsets.reserve(association_collection.size() + 1);
     bx_offsets.push_back(0); 
     
@@ -254,7 +246,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
     }
     
     auto dstClusterOffsets = alpaka::createView(alpaka::getDev(queue), 
-                                                ccbMap.view<LongOffsetsSoA>().offsets().data(), 
+                                                bx_clusters_map.view<OffsetsSoA>().offsets().data(), 
                                                 Vec1D{nbx + 1});
 
     auto srcClusterOffsets = alpaka::createView(cms::alpakatools::host(), 
@@ -263,10 +255,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
 
     alpaka::memcpy(queue, dstClusterOffsets, srcClusterOffsets);
     
-    // * FILL FIRST LONG INDEX SOA AND CLUSTER OFFSET SOA *
+    // * FILL AssociationMapDevice *
     // get initial pointers to where to insert data inside the SoAs
-    auto idxsInsertPtr = ccbMap.view<LongIndexSoA>().indexes().data();
-    auto offsInsertPtr = ccbMap.view<ClusterOffsetsSoA>().offsets().data() + 1; // the +1 here is fundamental
+    auto idxsInsertPtr = cluster_cands_map.view<IndexSoA>().indexes().data();
+    auto offsInsertPtr = cluster_cands_map.view<OffsetsSoA>().offsets().data() + 1; // the +1 here is fundamental
     
     // define begin of clusters and clustered candidates
     int32_t begin_offsets = 0;
@@ -287,7 +279,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
       //    returned by getClusters includes local indexes (i.e. each event starts from zero)
       // 2) as a consequence, to know which weights (pt values) to use to sort the 
       //    current association map
-      const auto begin_indexes = static_cast<int32_t>(bx_lookup_host.const_view<OffsetsSoA>().offsets()[idx]);
+      const auto begin_indexes = bx_lookup_host.const_view<OffsetsSoA>().offsets()[idx];
 
 #if defined(__DEBUG__) || defined(__DEBUGLITE__)
       std::cout << "NOW CREATING LOCAL AssociationMapDevice WITH INDEXES LENGTH = " << num_clustered[idx]
@@ -296,54 +288,53 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
 
       // copy current association map into association SoA 
       // pay attention to the asmap.size() + 1 because it is very important
-      auto asmap_soa = LongAssociationMapDevice({{num_clustered[idx], 
-                                                  static_cast<int32_t>(asmap.size() + 1)}}, 
-                                                  queue);
+      auto asmap_soa = AssociationMapDevice({{num_clustered[idx], 
+                                              static_cast<int32_t>(asmap.size() + 1)}}, 
+                                              queue);
       asmap_soa.zeroInitialise(queue);
 
-      // copy local indexes inside local association map
-      auto dstLocalIdx = alpaka::createView(alpaka::getDev(queue), 
-                                      asmap_soa.view<LongIndexSoA>().indexes().data(), 
-                                      Vec1D{asmap_soa.view<LongIndexSoA>().metadata().size()});
-
-      auto srcLocalIdx = alpaka::createView(alpaka::getDev(queue), // here creating srcLocalIdx is needed since we need to copy only the TRUE number of indexes
-                                      asmap.extract().values.data(), 
-                                      Vec1D{num_clustered[idx]});
-        
-      alpaka::memcpy(queue, dstLocalIdx, srcLocalIdx);  
+      // copy local index inside local association map
+      alpaka::exec<Acc1D>(queue,
+                          make_workdiv<Acc1D>(1, num_clustered[idx]),
+                          CastIntToUintKernel{},
+                          asmap_soa.view<IndexSoA>().indexes().data(), // dst
+                          asmap.extract().values.data(), // src
+                          num_clustered[idx]);
       
       // copy local offsets inside local association map
-      auto dstLocalOffs = alpaka::createView(alpaka::getDev(queue), 
-                                      asmap_soa.view<LongOffsetsSoA>().offsets().data(), 
-                                      Vec1D{asmap_soa.view<LongOffsetsSoA>().metadata().size()});
-
-      alpaka::memcpy(queue, dstLocalOffs, asmap.extract().keys);
+      alpaka::exec<Acc1D>(queue,
+                          make_workdiv<Acc1D>(1, asmap.size() + 1),
+                          CastIntToUintKernel{},
+                          asmap_soa.view<OffsetsSoA>().offsets().data(), // dst
+                          asmap.extract().keys.data(), // src
+                          asmap.size() + 1);
 
       // sort local association map
-      alpaka::exec<Acc1D>(queue, 
-        make_workdiv<Acc1D>(asmap.size(), 128), 
-        SortClustersKernel{}, 
-        pf.const_view().pt().data() + begin_indexes, // importanto to use begin indexes
-        asmap_soa.view<LongIndexSoA>(), 
-        asmap_soa.view<LongOffsetsSoA>());
+      // alpaka::exec<Acc1D>(queue, 
+      //   make_workdiv<Acc1D>(asmap.size(), 256), 
+      //   SortClustersKernel{}, 
+      //   pf.const_view().pt().data() + begin_indexes, // importanto to use begin indexes
+      //   asmap_soa.view<IndexSoA>(), 
+      //   asmap_soa.view<OffsetsSoA>());
       
-      // update the indexes of the local association map in order to
+      // update the indexes and the offsets of the local association map in order to
       // prepare it to be copied to the global association map
       alpaka::exec<Acc1D>(queue, 
-        make_workdiv<Acc1D>(1, 1), 
+        make_workdiv<Acc1D>(1, std::max(asmap_soa.view<IndexSoA>().metadata().size(), 
+                                        asmap_soa.view<OffsetsSoA>().metadata().size())), 
         UpdateAssociatorKernel{}, 
-        asmap_soa.view<LongIndexSoA>(), 
-        asmap_soa.view<LongOffsetsSoA>(),
+        asmap_soa.view<IndexSoA>(), 
+        asmap_soa.view<OffsetsSoA>(),
         begin_indexes, 
         begin_offsets,
-        asmap_soa.view<LongIndexSoA>().metadata().size(), 
-        asmap_soa.view<LongOffsetsSoA>().metadata().size());
+        asmap_soa.view<IndexSoA>().metadata().size(), 
+        asmap_soa.view<OffsetsSoA>().metadata().size());
 
 #if defined(__DEBUG__)
       std::cout << "begin_indexes: " << begin_indexes << std::endl;
       
       std::cout << "Original Indexes" << std::endl;                         
-      std::vector<int32_t> debug_clue_indexes(asmap.extents().values);
+      std::vector<uint32_t> debug_clue_indexes(asmap.extents().values);
       alpaka::memcpy(queue, debug_clue_indexes, asmap.extract().values);
       
       for (auto el : debug_clue_indexes) 
@@ -351,11 +342,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
       std::cout << "\n";
       
       std::cout << "Indexes (sorted) copied inside the local association map" << std::endl;
-      std::vector<int32_t> debug_soa_indexes(asmap_soa.view<LongIndexSoA>().metadata().size());
+      std::vector<uint32_t> debug_soa_indexes(asmap_soa.view<IndexSoA>().metadata().size());
       
       auto debugSrc = alpaka::createView(alpaka::getDev(queue),
-                                    asmap_soa.view<LongIndexSoA>().indexes().data(), 
-                                    Vec1D{asmap_soa.view<LongIndexSoA>().metadata().size()});
+                                    asmap_soa.view<IndexSoA>().indexes().data(), 
+                                    Vec1D{asmap_soa.view<IndexSoA>().metadata().size()});
       
       alpaka::memcpy(queue, debug_soa_indexes, debugSrc);
 
@@ -366,7 +357,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
       std::cout << "begin_offsets: " << begin_offsets << std::endl;
 
       std::cout << "Original Offsets" << std::endl;  
-      std::vector<int32_t> debug_clue_offsets(asmap.extents().keys);
+      std::vector<uint32_t> debug_clue_offsets(asmap.extents().keys);
       alpaka::memcpy(queue, debug_clue_offsets, asmap.extract().keys);
 
       for (auto el : debug_clue_offsets) 
@@ -374,10 +365,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
       std::cout << "\n";
       
       std::cout << "Offsets copied inside the local association map" << std::endl;
-      std::vector<int32_t> debug_soa_offsets(asmap_soa.view<LongOffsetsSoA>().metadata().size());
+      std::vector<int32_t> debug_soa_offsets(asmap_soa.view<OffsetsSoA>().metadata().size());
       debugSrc = alpaka::createView(alpaka::getDev(queue),
-                                    asmap_soa.view<LongOffsetsSoA>().offsets().data(), 
-                                    Vec1D{asmap_soa.view<LongOffsetsSoA>().metadata().size()}); 
+                                    asmap_soa.view<OffsetsSoA>().offsets().data(), 
+                                    Vec1D{asmap_soa.view<OffsetsSoA>().metadata().size()}); 
       
       alpaka::memcpy(queue, debug_soa_offsets, debugSrc);
 
@@ -389,22 +380,22 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
       // create view of the buffers to be updated with the content of the current map
       auto dstIdx = alpaka::createView(alpaka::getDev(queue),
                             idxsInsertPtr, 
-                            Vec1D{asmap_soa.view<LongIndexSoA>().metadata().size()});      
+                            Vec1D{asmap_soa.view<IndexSoA>().metadata().size()});      
       
       auto dstOffs = alpaka::createView(alpaka::getDev(queue), 
                             offsInsertPtr,
-                            Vec1D{asmap_soa.view<LongOffsetsSoA>().metadata().size() - 1});
+                            Vec1D{asmap_soa.view<OffsetsSoA>().metadata().size() - 1});
       
       // create view of the buffers to be copied
       auto srcIdx = alpaka::createView(alpaka::getDev(queue),
-                                      asmap_soa.view<LongIndexSoA>().indexes().data(), 
-                                      Vec1D{asmap_soa.view<LongIndexSoA>().metadata().size()});                          
+                                      asmap_soa.view<IndexSoA>().indexes().data(), 
+                                      Vec1D{asmap_soa.view<IndexSoA>().metadata().size()});                          
       
       // create "custom" view of the offset SoA since the first element has to be discarded
       // indeed the starting point is ...data() +1
       auto srcOffs = alpaka::createView(alpaka::getDev(queue), 
-                                        asmap_soa.view<LongOffsetsSoA>().offsets().data() + 1, 
-                                        Vec1D{asmap_soa.view<LongOffsetsSoA>().metadata().size() - 1});
+                                        asmap_soa.view<OffsetsSoA>().offsets().data() + 1, 
+                                        Vec1D{asmap_soa.view<OffsetsSoA>().metadata().size() - 1});
       
       alpaka::memcpy(queue, dstIdx, srcIdx);
       alpaka::memcpy(queue, dstOffs, srcOffs);
@@ -418,7 +409,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
       begin_offsets += num_clustered[idx];
     }
 
-    return ccbMap;
+    return std::make_tuple(std::move(bx_clusters_map), std::move(cluster_cands_map));
   }
 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels

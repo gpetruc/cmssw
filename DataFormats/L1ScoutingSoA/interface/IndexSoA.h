@@ -5,7 +5,7 @@
 
 namespace l1sc {
 
-  GENERATE_SOA_LAYOUT(IndexLayout, SOA_COLUMN(uint16_t, indexes))
+  GENERATE_SOA_LAYOUT(IndexLayout, SOA_COLUMN(uint32_t, indexes))
 
   using IndexSoA = IndexLayout<>;
 

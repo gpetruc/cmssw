@@ -64,8 +64,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
     ALPAKA_FN_ACC void operator()(
         Acc1D const& acc,
         PFCandidateDeviceCollection::ConstView pf,
-        LongIndexSoA::ConstView indexes, 
-        ClusterOffsetsSoA::ConstView offsets,
+        IndexSoA::ConstView indexes, 
+        OffsetsSoA::ConstView offsets,
         SoftTauInputDeviceTensor::View clue_taus) const {
       for (auto block_idx: independent_groups(acc, offsets.metadata().size() - 1)) {
         auto begin = offsets.offsets()[block_idx];
@@ -130,23 +130,19 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
 
   SoftTauInputDeviceTensor transform(Queue& queue, 
                  const PFCandidateDeviceCollection& pf,
-                 const CandsClusterBxDeviceCollection& candsClusterBx) {
-    const auto kNumClusters = candsClusterBx.const_view<ClusterOffsetsSoA>().metadata().size() - 1;
+                 const AssociationMapDevice& clusterCandsMap) {
+    const auto kNumClusters = clusterCandsMap.const_view<OffsetsSoA>().metadata().size() - 1;
     auto input_tensor = SoftTauInputDeviceTensor(kNumClusters, queue);
     input_tensor.zeroInitialise(queue);
 
-    std::cout << "CREATED SoftTauInputDeviceTensor" << std::endl;
-    
     alpaka::exec<Acc1D>(queue, 
       make_workdiv<Acc1D>(kNumClusters, 128), 
       ComputeClueTauFeaturesKernel{}, 
       pf.const_view(),
-      candsClusterBx.view<LongIndexSoA>(),
-      candsClusterBx.view<ClusterOffsetsSoA>(),
+      clusterCandsMap.view<IndexSoA>(),
+      clusterCandsMap.view<OffsetsSoA>(),
       input_tensor.view());
       
-    std::cout << "FILLED SoftTauInputDeviceTensor" << std::endl;
-    
     return input_tensor;
   }
 

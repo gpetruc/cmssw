@@ -1,5 +1,4 @@
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/AssociationMapDevice.h"
-#include "DataFormats/L1ScoutingSoA/interface/alpaka/CandsClusterBxDeviceCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/ClustersDeviceCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/PFCandidateDeviceCollection.h"
 #include "FWCore/ParameterSet/interface/ConfigurationDescriptions.h"
@@ -23,7 +22,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
           pf_candidates_token_{consumes(params.getParameter<edm::InputTag>("src"))},
           bx_lookup_token_{consumes(params.getParameter<edm::InputTag>("src"))},
           cluestering_token_{produces()},
-          candsclusterbx_token_{produces()},
+          bx_clusters_map_token_{produces()},
+          cluster_cands_map_token_{produces()},
           clustering_(static_cast<float>(params.getParameter<double>("dc")),
                       static_cast<float>(params.getParameter<double>("rhoc")),
                       static_cast<float>(params.getParameter<double>("dm")),
@@ -39,8 +39,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
 
       // run CLUEstering algo
       const auto &bx_lookup = event.get(bx_lookup_token_);
-      auto candsclusterbx_map = clustering_.run(event.queue(), pf, bx_lookup, clusters);
-      event.emplace(candsclusterbx_token_, std::move(candsclusterbx_map));
+      auto [bx_clusters_map, cluster_cands_map] = clustering_.run(event.queue(), pf, bx_lookup, clusters);
+      event.emplace(bx_clusters_map_token_, std::move(bx_clusters_map));
+      event.emplace(cluster_cands_map_token_, std::move(cluster_cands_map));
 
       // move clustering results to event storage
       event.emplace(cluestering_token_, std::move(clusters));
@@ -63,7 +64,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
     const device::EDGetToken<BxLookupDeviceCollection> bx_lookup_token_;
     // put device clustering data
     const device::EDPutToken<ClustersDeviceCollection> cluestering_token_;
-    const device::EDPutToken<CandsClusterBxDeviceCollection> candsclusterbx_token_;
+    const device::EDPutToken<BxLookupDeviceCollection> bx_clusters_map_token_;
+    const device::EDPutToken<AssociationMapDevice> cluster_cands_map_token_;
     // algorithm
     const kernels::CLUEsteringAlgo clustering_;
   };

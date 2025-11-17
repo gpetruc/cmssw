@@ -5,7 +5,6 @@
 #include "DataFormats/L1ScoutingSoA/interface/AssociationMapHost.h"
 #include "DataFormats/L1ScoutingSoA/interface/BxLookupHostCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/ClustersHostCollection.h"
-#include "DataFormats/L1ScoutingSoA/interface/CandsClusterBxHostCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/PFCandidateHostCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/SoftTauHostTensor.h"
 #include "FWCore/Framework/interface/Event.h"
@@ -34,12 +33,12 @@ namespace l1sc {
         : pf_token_{consumes(params.getUntrackedParameter<edm::InputTag>("src"))},
           bx_lookup_token_{consumes(params.getUntrackedParameter<edm::InputTag>("src"))},
           clusters_token_{consumes(params.getUntrackedParameter<edm::InputTag>("clusters"))},
-          candsclusterbx_token_{consumes(params.getUntrackedParameter<edm::InputTag>("clusters"))},
+          bx_clusters_map_token_{consumes(params.getUntrackedParameter<edm::InputTag>("clusters"))},
+          cluster_cands_map_token_{consumes(params.getUntrackedParameter<edm::InputTag>("clusters"))},
           taus_token_{consumes(params.getUntrackedParameter<edm::InputTag>("taus"))},
           pf_backend_{consumes(getBackendTag(params.getUntrackedParameter<edm::InputTag>("src")))},
           bx_lookup_backend_{consumes(getBackendTag(params.getUntrackedParameter<edm::InputTag>("src")))},
           clusters_backend_{consumes(getBackendTag(params.getUntrackedParameter<edm::InputTag>("clusters")))},
-          candsclusterbx_backend_{consumes(getBackendTag(params.getUntrackedParameter<edm::InputTag>("clusters")))},
           taus_backend_{consumes(getBackendTag(params.getUntrackedParameter<edm::InputTag>("taus")))},
           environment_{static_cast<Environment>(params.getUntrackedParameter<int>("environment"))},
           run_scout_{params.getParameter<bool>("run_scout")} {}
@@ -65,28 +64,32 @@ namespace l1sc {
 
         const auto pf_handle = event.getHandle(pf_token_);
         const auto clusters_handle = event.getHandle(clusters_token_);
-        const auto candsclusterbx_handle = event.getHandle(candsclusterbx_token_);
+        const auto bx_clusters_map_handle = event.getHandle(bx_clusters_map_token_);
+        const auto cluster_cands_map_handle = event.getHandle(cluster_cands_map_token_);
         const auto bx_lookup_handle = event.getHandle(bx_lookup_token_);
 
         if (pf_handle.isValid()) {
           auto const& pf = *pf_handle;
           auto const pf_backend = static_cast<Backend>(event.get(pf_backend_));
 
-          if (run_scout_ && bx_lookup_handle.isValid() && clusters_handle.isValid() && candsclusterbx_handle.isValid()) {
+          if (run_scout_ && bx_lookup_handle.isValid() && clusters_handle.isValid() && bx_clusters_map_handle.isValid() && cluster_cands_map_handle.isValid()) {
             auto const& clusters = *clusters_handle;
-            auto const& candsclusterbx = *candsclusterbx_handle;
+            auto const& bx_clusters_map = *bx_clusters_map_handle;
+            auto const& cluster_cands_map = *cluster_cands_map_handle;
             auto const& bx_lookup = *bx_lookup_handle;
             auto const clusters_backend = static_cast<Backend>(event.get(clusters_backend_));
-            auto const candsclusterbx_backend = static_cast<Backend>(event.get(candsclusterbx_backend_));
+            auto const bx_clusters_map_backend = static_cast<Backend>(event.get(bx_clusters_map_backend_));
+            auto const cluster_cands_map_backend = static_cast<Backend>(event.get(bx_clusters_map_backend_));
             auto const bx_lookup_backend = static_cast<Backend>(event.get(bx_lookup_backend_));
 
             assert(pf_backend == clusters_backend);
-            assert(pf_backend == candsclusterbx_backend);
+            assert(pf_backend == bx_clusters_map_backend);
+            assert(pf_backend == cluster_cands_map_backend);
             assert(pf_backend == bx_lookup_backend);
-            print(candsclusterbx.const_view<LongIndexSoA>(),
-                  candsclusterbx.const_view<ClusterOffsetsSoA>(),
-                  candsclusterbx.const_view<ClusterIndexSoA>(),
-                  candsclusterbx.const_view<LongOffsetsSoA>(),
+            print(cluster_cands_map.const_view<IndexSoA>(),
+                  cluster_cands_map.const_view<OffsetsSoA>(),
+                  bx_clusters_map.const_view<BxIndexSoA>(),
+                  bx_clusters_map.const_view<OffsetsSoA>(),
                   bx_lookup.const_view<BxIndexSoA>(),
                   bx_lookup.const_view<OffsetsSoA>(),
                   pf.const_view());
@@ -95,10 +98,10 @@ namespace l1sc {
       }
     }
 
-    void print(const LongIndexSoA::ConstView& clustered_index, 
-                const ClusterOffsetsSoA::ConstView& cluster_offset,
-                const ClusterIndexSoA::ConstView& cluster_index,
-                const LongOffsetsSoA::ConstView& cluster_bx_offset,
+    void print(const IndexSoA::ConstView& clustered_index, 
+                const OffsetsSoA::ConstView& cluster_offset,
+                const BxIndexSoA::ConstView& cluster_index,
+                const OffsetsSoA::ConstView& cluster_bx_offset,
                 const BxIndexSoA::ConstView& bx_index,
                 const OffsetsSoA::ConstView& pf_bx_offset,
                 const PFCandidateHostCollection::ConstView& pf) {
@@ -114,7 +117,7 @@ namespace l1sc {
       
       std::cout << "\n\nClusteredPF_Index\tCluster_Index\tBX";
       for (auto ii = 0; ii < cluster_index.metadata().size() && printed < max_clusters; ++ii) {
-        auto cluster_idx = cluster_index.indexes()[ii]; // reduntant but more clear? 
+        auto cluster_idx = cluster_index.bx()[ii]; // reduntant but more clear? 
         
         if (cluster_idx >= *next_cluster_bx_offset) {
           ++bx_idx_ptr;
@@ -536,13 +539,15 @@ namespace l1sc {
     const edm::EDGetTokenT<PFCandidateHostCollection> pf_token_;
     const edm::EDGetTokenT<BxLookupHostCollection> bx_lookup_token_;
     const edm::EDGetTokenT<ClustersHostCollection> clusters_token_;
-    const edm::EDGetTokenT<CandsClusterBxHostCollection> candsclusterbx_token_;
+    const edm::EDGetTokenT<BxLookupHostCollection> bx_clusters_map_token_;
+    const edm::EDGetTokenT<AssociationMapHost> cluster_cands_map_token_;
     const edm::EDGetTokenT<SoftTauOutputHostTensor> taus_token_;
     // backend query
     const edm::EDGetTokenT<unsigned short> pf_backend_;
     const edm::EDGetTokenT<unsigned short> bx_lookup_backend_;
     const edm::EDGetTokenT<unsigned short> clusters_backend_;
-    const edm::EDGetTokenT<unsigned short> candsclusterbx_backend_;
+    const edm::EDGetTokenT<unsigned short> bx_clusters_map_backend_;
+    const edm::EDGetTokenT<unsigned short> cluster_cands_map_backend_;
     const edm::EDGetTokenT<unsigned short> taus_backend_;
     // debug
     const Environment environment_;
