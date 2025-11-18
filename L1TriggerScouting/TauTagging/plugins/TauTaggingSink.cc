@@ -33,12 +33,12 @@ namespace l1sc {
         : pf_token_{consumes(params.getUntrackedParameter<edm::InputTag>("src"))},
           bx_lookup_token_{consumes(params.getUntrackedParameter<edm::InputTag>("src"))},
           clusters_token_{consumes(params.getUntrackedParameter<edm::InputTag>("clusters"))},
-          association_map_token_{consumes(params.getUntrackedParameter<edm::InputTag>("clusters"))},
+          bx_clusters_map_token_{consumes(params.getUntrackedParameter<edm::InputTag>("clusters"))},
+          cluster_cands_map_token_{consumes(params.getUntrackedParameter<edm::InputTag>("clusters"))},
           taus_token_{consumes(params.getUntrackedParameter<edm::InputTag>("taus"))},
           pf_backend_{consumes(getBackendTag(params.getUntrackedParameter<edm::InputTag>("src")))},
           bx_lookup_backend_{consumes(getBackendTag(params.getUntrackedParameter<edm::InputTag>("src")))},
           clusters_backend_{consumes(getBackendTag(params.getUntrackedParameter<edm::InputTag>("clusters")))},
-          association_map_backend_{consumes(getBackendTag(params.getUntrackedParameter<edm::InputTag>("clusters")))},
           taus_backend_{consumes(getBackendTag(params.getUntrackedParameter<edm::InputTag>("taus")))},
           environment_{static_cast<Environment>(params.getUntrackedParameter<int>("environment"))},
           run_scout_{params.getParameter<bool>("run_scout")} {}
@@ -55,66 +55,88 @@ namespace l1sc {
 
     void analyze(edm::Event const& event, edm::EventSetup const&) override {
       if (environment_ >= Environment::kDevelopment) {
-        constexpr int total_len = 100;
-        auto label = fmt::format("EVENT: {}", event.id().event());
-        int pad = total_len - static_cast<int>(label.size());
-        int pad_left = pad / 2;
-        int pad_right = pad - pad_left - 1;
-        fmt::print("\n{0} {1} {2}\n\n", std::string(pad_left, '-'), label, std::string(pad_right, '-'));
+        // constexpr int total_len = 100;
+        // auto label = fmt::format("EVENT: {}", event.id().event());
+        // int pad = total_len - static_cast<int>(label.size());
+        // int pad_left = pad / 2;
+        // int pad_right = pad - pad_left - 1;
+        // fmt::print("\n{0} {1} {2}\n\n", std::string(pad_left, '-'), label, std::string(pad_right, '-'));
 
-        // unpacking/decoding step debugging
         const auto pf_handle = event.getHandle(pf_token_);
-        const auto bx_lookup_handle = event.getHandle(bx_lookup_token_);
         const auto clusters_handle = event.getHandle(clusters_token_);
-        const auto association_map_handle = event.getHandle(association_map_token_);
-        const auto taus_handle = event.getHandle(taus_token_);
+        const auto bx_clusters_map_handle = event.getHandle(bx_clusters_map_token_);
+        const auto cluster_cands_map_handle = event.getHandle(cluster_cands_map_token_);
+        const auto bx_lookup_handle = event.getHandle(bx_lookup_token_);
 
         if (pf_handle.isValid()) {
-          // pf
           auto const& pf = *pf_handle;
           auto const pf_backend = static_cast<Backend>(event.get(pf_backend_));
 
-          if (clusters_handle.isValid()) {
-            // clusters
+          if (run_scout_ && bx_lookup_handle.isValid() && clusters_handle.isValid() && bx_clusters_map_handle.isValid() && cluster_cands_map_handle.isValid()) {
             auto const& clusters = *clusters_handle;
-            auto const& association_map = *association_map_handle;
+            auto const& bx_clusters_map = *bx_clusters_map_handle;
+            auto const& cluster_cands_map = *cluster_cands_map_handle;
+            auto const& bx_lookup = *bx_lookup_handle;
             auto const clusters_backend = static_cast<Backend>(event.get(clusters_backend_));
-            auto const association_map_backend = static_cast<Backend>(event.get(association_map_backend_));
-            if (run_scout_ && bx_lookup_handle.isValid()) {
-              // bx lookup
-              auto const& bx_lookup = *bx_lookup_handle;
-              auto const bx_lookup_backend = static_cast<Backend>(event.get(bx_lookup_backend_));
-              assert(pf_backend == bx_lookup_backend);
-              assert(pf_backend == clusters_backend);
-              print(pf.const_view(),
-                    bx_lookup.const_view<BxIndexSoA>(),
-                    bx_lookup.const_view<OffsetsSoA>(),
-                    clusters.const_view(),
-                    toString(bx_lookup_backend));
-            } else {
-              // clusters info
-              assert(pf_backend == clusters_backend);
-              print(pf.const_view(), clusters.const_view(), toString(clusters_backend));
-              // taus
-              if (taus_handle.isValid()) {
-                auto const& taus = *taus_handle;
-                auto const& taus_backend = static_cast<Backend>(event.get(taus_backend_));
-                print(association_map.const_view<OffsetsSoA>(), taus.const_view(), toString(taus_backend));
-              }
-            }
-          } else {
-            if (run_scout_ && bx_lookup_handle.isValid()) {
-              // bx lookup
-              auto const& bx_lookup = *bx_lookup_handle;
-              auto const bx_lookup_backend = static_cast<Backend>(event.get(bx_lookup_backend_));
-              assert(pf_backend == bx_lookup_backend);
-              print(pf.const_view(), bx_lookup.const_view<BxIndexSoA>(), bx_lookup.const_view<OffsetsSoA>(), toString(pf_backend));
-            } else {
-              // debug unpacker only
-              print(pf.const_view(), toString(pf_backend));
-            }
-          }
+            auto const bx_clusters_map_backend = static_cast<Backend>(event.get(bx_clusters_map_backend_));
+            auto const cluster_cands_map_backend = static_cast<Backend>(event.get(bx_clusters_map_backend_));
+            auto const bx_lookup_backend = static_cast<Backend>(event.get(bx_lookup_backend_));
+
+            assert(pf_backend == clusters_backend);
+            assert(pf_backend == bx_clusters_map_backend);
+            assert(pf_backend == cluster_cands_map_backend);
+            assert(pf_backend == bx_lookup_backend);
+            print(cluster_cands_map.const_view<IndexSoA>(),
+                  cluster_cands_map.const_view<OffsetsSoA>(),
+                  bx_clusters_map.const_view<BxIndexSoA>(),
+                  bx_clusters_map.const_view<OffsetsSoA>(),
+                  bx_lookup.const_view<BxIndexSoA>(),
+                  bx_lookup.const_view<OffsetsSoA>(),
+                  pf.const_view());
+          } 
         }
+      }
+    }
+
+    void print(const IndexSoA::ConstView& clustered_index, 
+                const OffsetsSoA::ConstView& cluster_offset,
+                const BxIndexSoA::ConstView& cluster_index,
+                const OffsetsSoA::ConstView& cluster_bx_offset,
+                const BxIndexSoA::ConstView& bx_index,
+                const OffsetsSoA::ConstView& pf_bx_offset,
+                const PFCandidateHostCollection::ConstView& pf) {
+      const auto num_cands = pf.metadata().size();
+      if (num_cands == 0)
+        return;
+
+      const int max_clusters = (environment_ > Environment::kTest) ? cluster_index.metadata().size() : 50;
+      int printed = 0;
+      
+      auto bx_idx_ptr = bx_index.bx().data();
+      auto next_cluster_bx_offset = cluster_bx_offset.offsets().data() + 1;
+      
+      std::cout << "\n\nClusteredPF_Index\tCluster_Index\tBX";
+      for (auto ii = 0; ii < cluster_index.metadata().size() && printed < max_clusters; ++ii) {
+        auto cluster_idx = cluster_index.bx()[ii]; // reduntant but more clear? 
+        
+        if (cluster_idx >= *next_cluster_bx_offset) {
+          ++bx_idx_ptr;
+          ++next_cluster_bx_offset;
+        }
+
+        auto begin_cluster = cluster_offset.offsets()[cluster_idx];
+        auto end_cluster = cluster_offset.offsets()[cluster_idx + 1];
+        auto size_cluster = end_cluster - begin_cluster;
+
+        for (auto jj = begin_cluster; jj < begin_cluster + size_cluster; ++jj) {
+          fmt::print(
+            "| {:5d} | {:5d} | {:5d} |\n", 
+            clustered_index.indexes()[jj], 
+            cluster_idx, 
+            *bx_idx_ptr);
+        }
+
+        ++printed;
       }
     }
 
@@ -517,13 +539,15 @@ namespace l1sc {
     const edm::EDGetTokenT<PFCandidateHostCollection> pf_token_;
     const edm::EDGetTokenT<BxLookupHostCollection> bx_lookup_token_;
     const edm::EDGetTokenT<ClustersHostCollection> clusters_token_;
-    const edm::EDGetTokenT<AssociationMapHost> association_map_token_;
+    const edm::EDGetTokenT<BxLookupHostCollection> bx_clusters_map_token_;
+    const edm::EDGetTokenT<AssociationMapHost> cluster_cands_map_token_;
     const edm::EDGetTokenT<SoftTauOutputHostTensor> taus_token_;
     // backend query
     const edm::EDGetTokenT<unsigned short> pf_backend_;
     const edm::EDGetTokenT<unsigned short> bx_lookup_backend_;
     const edm::EDGetTokenT<unsigned short> clusters_backend_;
-    const edm::EDGetTokenT<unsigned short> association_map_backend_;
+    const edm::EDGetTokenT<unsigned short> bx_clusters_map_backend_;
+    const edm::EDGetTokenT<unsigned short> cluster_cands_map_backend_;
     const edm::EDGetTokenT<unsigned short> taus_backend_;
     // debug
     const Environment environment_;

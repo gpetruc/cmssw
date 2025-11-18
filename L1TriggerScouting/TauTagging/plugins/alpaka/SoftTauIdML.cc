@@ -81,7 +81,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc {
     // get association map if runScouting=True
     const device::EDGetToken<BxLookupDeviceCollection> bx_lookup_token_;
     // clustering output
-    const device::EDGetToken<ClustersDeviceCollection> clusters_token_;
     const device::EDGetToken<AssociationMapDevice> association_map_token_;
     // put ml output into event
     const device::EDPutToken<SoftTauOutputDeviceTensor> soft_tau_token_;
