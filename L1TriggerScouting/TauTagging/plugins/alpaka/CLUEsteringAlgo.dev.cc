@@ -190,12 +190,40 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
       if (wrap_coords_)
         clue_algo.setWrappedCoordinates({{0, 1}});
       clue_algo.make_clusters(queue, points_device);
+#if 0
+      // temporary workaround: check if any cluster found
+      auto p_found = alpaka::allocAsyncBuf<uint32_t, Idx>(queue, Vec1D{1});
+      alpaka::exec<Acc1D>(queue, 
+        make_workdiv<Acc1D>(1, 1), 
+        [] ALPAKA_FN_ACC(Acc1D const& acc,
+                        const int * clusters,
+                        uint32_t npoints,
+                        uint32_t* nfound) {
+          if (once_per_grid(acc)) {
+            for (int i = 0; i < npoints; i++) {
+              if (clusters[i] != -1) {
+                (*nfound)++;
+                break;
+              }
+            }
+          }
+        }, 
+        clusters.view().cluster().data() + begin,
+        n_points,
+        p_found);
+      auto p_found_host = alpaka::allocBuf<uint32_t, Idx>(alpaka::getDevHost(), Vec1D{1});
+      alpaka::memcpy(queue, p_found_host, p_found);
+      alpaka::wait(queue);
+      if (p_found_host.data()[0] == 0)
+        continue;
+#endif      
+      // get clusters
       auto associator = clue_algo.getClusters(queue, points_device);
 
       // concatenate the association maps (could be done better!)
       auto nclusters = associator.size();
       auto nclustered = associator.extents().values;
-      std::cout << "BX " << idx << ": found " << nclusters << " clusters from " << n_points << " PF candidates of which " << nclustered << " are clustered." << std::endl;
+      //std::cout << "BX " << idx << ": found " << nclusters << " clusters from " << n_points << " PF candidates of which " << nclustered << " are clustered." << std::endl;
       alpaka::exec<Acc1D>(queue, 
         make_workdiv<Acc1D>(1, 1), 
         [] ALPAKA_FN_ACC(Acc1D const& acc,

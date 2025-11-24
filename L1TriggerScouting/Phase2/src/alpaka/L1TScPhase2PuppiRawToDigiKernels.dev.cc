@@ -1,4 +1,4 @@
-#include "L1TriggerScouting/Phase2/plugins/alpaka/L1TScPhase2PuppiRawToDigiKernels.h"
+#include "L1TriggerScouting/Phase2/interface/alpaka/L1TScPhase2PuppiRawToDigiKernels.h"
 
 #include "HeterogeneousCore/AlpakaInterface/interface/prefixScan.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/workdivision.h"
@@ -39,9 +39,15 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
 
         // convert to real values
         puppi.pt()[idx] = hwPt * 0.25f;
+        #if 0
         puppi.eta()[idx] = hwEta * kPi720<Acc1D>.get();
         puppi.phi()[idx] = hwPhi * kPi720<Acc1D>.get();
-        puppi.pdgid()[idx] = kPdgid<Acc1D>.get()[pid];
+        #else
+        constexpr float pi_720 = alpaka::math::constants::pi / 720.0f;
+        puppi.eta()[idx] = hwEta * pi_720;
+        puppi.phi()[idx] = hwPhi * pi_720;
+        #endif
+        puppi.pdgid()[idx] = pid; // kPdgid<Acc1D>.get()[pid];
 
         if (pid > 1) {
           auto hwZ0 = decodeBitsSigned<int16_t, 40, 10>(data);
@@ -54,7 +60,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
           puppi.quality()[idx] = hwQual;
         } else {
           auto hwPuppiw = decodeBits<uint16_t, 40, 10>(data);
-          auto hwQual = decodeBits<uint8_t, 50, 6>(data);
+          auto hwQual = decodeBits<uint32_t, 50, 6>(data);
 
           puppi.z0()[idx] = 0.0f;
           puppi.dxy()[idx] = 0.0f;

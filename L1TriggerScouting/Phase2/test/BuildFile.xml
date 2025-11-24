@@ -1,0 +1,10 @@
+<bin name="testL1TScPhase2PuppiRawToDigi" file="alpaka/testL1TScPhase2PuppiRawToDigi.dev.cc">
+  <use name="alpaka"/>
+  <use name="DataFormats/L1ScoutingSoA"/>
+  <use name="FWCore/Utilities"/>
+  <use name="HeterogeneousCore/AlpakaCore"/>
+  <use name="HeterogeneousCore/AlpakaInterface"/>
+  <use name="L1TriggerScouting/Phase2"/>
+  <flags CXXFLA="-ggdb"/>
+  <flags ALPAKA_BACKENDS="serial cuda"/>
+</bin>

@@ -1,5 +1,5 @@
-#ifndef L1TriggerScouting_Phase2_plugins_alpaka_L1TScPhase2BitsEncoding_h
-#define L1TriggerScouting_Phase2_plugins_alpaka_L1TScPhase2BitsEncoding_h
+#ifndef L1TriggerScouting_Phase2_interface_alpaka_L1TScPhase2BitsEncoding_h
+#define L1TriggerScouting_Phase2_interface_alpaka_L1TScPhase2BitsEncoding_h
 
 #include <cstdint>
 #include <alpaka/alpaka.hpp>
