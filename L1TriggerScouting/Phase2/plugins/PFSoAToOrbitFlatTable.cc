@@ -58,11 +58,10 @@ void PFSoAToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm::Even
   edm::Handle<l1sc::PFCandidateHostCollection> srcPF;
   iEvent.getByToken(srcPF_, srcPF);
 
-  const auto *bxs = srcBx->const_view<l1sc::OffsetsSoA>().offsets().data();
-  const unsigned int nbx = srcBx->const_view<l1sc::OffsetsSoA>().metadata().size();
-  std::vector<unsigned int> bxOffsets;
-  bxOffsets.push_back(0);
-  bxOffsets.insert(bxOffsets.end(), bxs, bxs + nbx);
+  const auto *offsets = srcBx->const_view<l1sc::OffsetsSoA>().offsets().data();
+  const unsigned int noff = srcBx->const_view<l1sc::OffsetsSoA>().metadata().size();
+  std::vector<unsigned int> bxOffsets{0u};
+  bxOffsets.insert(bxOffsets.end(), offsets, offsets + noff);
 
   const auto *pt = srcPF->const_view().pt().data();
   const auto *eta = srcPF->const_view().eta().data();

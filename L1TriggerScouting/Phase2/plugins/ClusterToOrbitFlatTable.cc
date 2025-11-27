@@ -92,13 +92,15 @@ void ClusterToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm::Ev
     auto bx_size = bx_end - bx_start;
     
     // loop over the clusters indexes of the clusters in the current bx
-    for (auto cl_idx = cluster_idx[bx_start]; cl_idx < cluster_idx[bx_start] + bx_size; ++cl_idx) {
+    for (unsigned int ii = 0; ii < bx_size; ++ii) {
+      auto cl_idx = cluster_idx[bx_start + ii];
       auto cluster_start = cluster_off[cl_idx];
       auto cluster_end = cluster_off[cl_idx + 1];
       auto cluster_size = cluster_end - cluster_start;
 
       // loop over the candidates indexes of the candidats in the current cluster
-      for (auto cand_idx = candidate_idx[cluster_start]; cand_idx < candidate_idx[cluster_start] + cluster_size; ++cand_idx) {
+      for (unsigned int jj = 0; jj < cluster_size; ++jj) {
+        auto cand_idx = candidate_idx[cluster_start + jj];
         pts.push_back(pt[cand_idx]);
         etas.push_back(eta[cand_idx]);
         phis.push_back(phi[cand_idx]);

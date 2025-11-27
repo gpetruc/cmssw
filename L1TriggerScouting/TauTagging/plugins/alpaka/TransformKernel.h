@@ -3,6 +3,8 @@
 
 #include <alpaka/alpaka.hpp>
 
+#include <cstdio>
+
 #include "DataFormats/Portable/interface/PortableHostCollection.h"
 #include "DataFormats/Portable/interface/PortableHostObject.h"
 #include "DataFormats/Portable/interface/alpaka/PortableObject.h"
@@ -13,6 +15,8 @@
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/ClustersDeviceCollection.h"
 #include "DataFormats/L1ScoutingSoA/interface/alpaka/PFCandidateDeviceCollection.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
+
+// #define __DEBUG__
 
 // These definitions are not stored in DataFormats/L1ScoutingSoA/
 // since are designed to be used as helper types in the kernels

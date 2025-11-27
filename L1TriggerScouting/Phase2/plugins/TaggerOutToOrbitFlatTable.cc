@@ -89,7 +89,7 @@ void TaggerOutToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm::
   const auto *phi = srcCandidates->const_view().phi().data();
 
   const auto *cls = srcOut->const_view().cls().data();
-  const auto *pt_reg = srcOut->const_view().vz().data();
+  const auto *pt_reg = srcOut->const_view().pt().data();
   const auto *vz_reg = srcOut->const_view().vz().data();
   const auto *charge_reg = srcOut->const_view().charge().data();
   const auto num_outputs = srcOut->const_view().metadata().size(); 
@@ -116,19 +116,19 @@ void TaggerOutToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm::
   for (unsigned int bx_idx = 0; bx_idx < nbx; ++bx_idx) {
     auto bx_start = bx_offsets[bx_idx];
     auto bx_end = bx_offsets[bx_idx + 1];
-    auto bx_size = bx_end - bx_start;
     
     // loop over the clusters indexes of the clusters in the current bx
-    for (auto cl_idx = cluster_idx[bx_start]; cl_idx < cluster_idx[bx_start] + bx_size; ++cl_idx) {
-      auto cluster_start = cluster_off[cl_idx];
-      auto cluster_end = cluster_off[cl_idx + 1];
-      auto cluster_size = cluster_end - cluster_start;
+    for (auto ii = bx_start; ii < bx_end; ++ii) {
+      auto clu_idx = cluster_idx[ii];
+      auto cluster_start = cluster_off[clu_idx];
+      auto cluster_end = cluster_off[clu_idx + 1];
 
-      LorentzVector sum(0., 0., 0., 0.);
+      LorentzVector sum(0.0f, 0.0f, 0.0f, 0.0f);
 
-      // loop over the candidates indexes of the candidats in the current cluster
+      // loop over the candidates indexes of the candidates in the current cluster
       int32_t cand_counter = 0;
-      for (auto cand_idx = candidate_idx[cluster_start]; cand_idx < candidate_idx[cluster_start] + cluster_size && cand_counter < 16; ++cand_idx) {
+      for (auto jj = cluster_start; jj < cluster_end && cand_counter < 16; ++jj) {
+        auto cand_idx = candidate_idx[jj];
         LorentzVector cand_lv(pt[cand_idx], eta[cand_idx], phi[cand_idx], 0.13957f);
         sum += cand_lv;
         ++cand_counter;
@@ -137,7 +137,7 @@ void TaggerOutToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm::
       pts.push_back(sum.Pt());
       etas.push_back(sum.Eta());
       phis.push_back(sum.Phi());
-      clusters.push_back(cl_idx);
+      clusters.push_back(clu_idx);
     }
 
     bxOffsets.push_back(pts.size());

@@ -40,7 +40,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
 
   template <typename TAcc, typename T>
   ALPAKA_FN_ACC T jet_eta(const TAcc& acc, T Pt, T Pz) {
-    return (Pt > 0.0) ? alpaka::math::asinh(acc, Pz / Pt) : 0.0; // ask simone later 
+    return (Pt > 0.0) ? alpaka::math::asinh(acc, Pz / Pt) : 0.0; 
   }
 
   template <typename TAcc, typename T>
@@ -74,6 +74,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
         if (block_dim == 0)
           continue;
 
+#if defined(__DEBUG__)
+        printf("[ComputeClueTauFeaturesKernel] Cluster %u, block_dim = %u\n", block_idx, block_dim);
+#endif        
         auto E = 0.0f;
         auto Px = 0.0f;
         auto Py = 0.0f;
@@ -85,7 +88,19 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
         // auto mass = 0.0f;
         if (once_per_block(acc)) {
           for (auto i = 0; i < block_dim; i++) {
+#if defined(__DEBUG__)
+            if (i + begin > indexes.metadata().size()) {
+              printf("\t[ComputeClueTauFeaturesKernel] WARNING! i + begin = %u exceeds pf.metadata().size() = %u\n", i + begin, indexes.metadata().size());
+            }
+#endif
+
             auto idx = indexes.indexes()[i+begin];
+
+#if defined(__DEBUG__)
+            if (idx > pf.metadata().size()) {
+              printf("\t[ComputeClueTauFeaturesKernel] WARNING! idx = %u exceeds pf.metadata().size() = %u\n", idx, pf.metadata().size());
+            }
+#endif
             auto px_v = px(acc, pf.pt()[idx], pf.phi()[idx]);
             auto py_v = py(acc, pf.pt()[idx], pf.phi()[idx]);
             auto pz_v = pz(acc, pf.pt()[idx], pf.eta()[idx]);
@@ -95,18 +110,35 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
             Pz += pz_v;
             E += e_v;
           }
-
+          
           Pt = jet_pt(acc, Px, Py);
           Eta = jet_eta(acc, Pt, Pz);
           Phi = jet_phi(acc, Py, Px);
         }
 
+#if defined(__DEBUG__)
+        printf("[ComputeClueTauFeaturesKernel] Pt = %f, Eta = %f, Phi = %f\n", Pt, Eta, Phi);
+#endif
+
         auto clue_tau = clue_taus[block_idx];
         auto cluster_size = (block_dim > JetFeatures::RowsAtCompileTime) ? JetFeatures::RowsAtCompileTime : block_dim;
         for (auto tid : independent_group_elements(acc, cluster_size)) {
           auto thread_idx = tid + begin; 
+
+#if defined(__DEBUG__)    
+          if (thread_idx > indexes.metadata().size()) {
+            printf("\t[ComputeClueTauFeaturesKernel] WARNING! thread_idx = %u exceeds indexes.metadata().size() = %u\n", thread_idx, indexes.metadata().size());
+          }
+#endif
+
           auto index = indexes.indexes()[thread_idx];
 
+#if defined(__DEBUG__)
+          if (index > pf.metadata().size()) {
+            printf("\t[ComputeClueTauFeaturesKernel] WARNING! index = %u exceeds pf.metadata().size() = %u\n", index, pf.metadata().size());
+          }
+#endif
+          
           auto pdgid_abs = alpaka::math::abs(acc, static_cast<int>(pf.pdgid()[index]));
           // features
           clue_tau.features()(tid, 0) = pf.pt()[index];
@@ -120,9 +152,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
           clue_tau.features()(tid, 7) = (pdgid_abs == 11) ? 1.0f : 0.0f;
           clue_tau.features()(tid, 8) = (pdgid_abs == 13) ? 1.0f : 0.0f;
           clue_tau.features()(tid, 9) = (pdgid_abs == 22) ? 1.0f : 0.0f;
-
+          
           // pad mask
           clue_tau.pad_mask()(tid) = 1.0f;
+
+#if defined(__DEBUG__)
+          printf("\t[ComputeClueTauFeaturesKernel] Updated input features for candidate %u\n", index);
+#endif
         }
       }
     }
@@ -131,9 +167,19 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
   SoftTauInputDeviceTensor transform(Queue& queue, 
                  const PFCandidateDeviceCollection& pf,
                  const AssociationMapDevice& clusterCandsMap) {
-    const auto kNumClusters = clusterCandsMap.const_view<OffsetsSoA>().metadata().size() - 1;
+    const auto nOffsets = clusterCandsMap.const_view<OffsetsSoA>().metadata().size();
+    
+    uint32_t kNumClusters = 0;
+    if (nOffsets > 0) {
+      kNumClusters = nOffsets - 1;
+    }
+
     auto input_tensor = SoftTauInputDeviceTensor(kNumClusters, queue);
     input_tensor.zeroInitialise(queue);
+
+    if (kNumClusters == 0) {
+      return input_tensor;
+    }
 
     alpaka::exec<Acc1D>(queue, 
       make_workdiv<Acc1D>(kNumClusters, 128), 

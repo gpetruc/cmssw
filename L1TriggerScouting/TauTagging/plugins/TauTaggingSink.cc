@@ -55,13 +55,6 @@ namespace l1sc {
 
     void analyze(edm::Event const& event, edm::EventSetup const&) override {
       if (environment_ >= Environment::kDevelopment) {
-        // constexpr int total_len = 100;
-        // auto label = fmt::format("EVENT: {}", event.id().event());
-        // int pad = total_len - static_cast<int>(label.size());
-        // int pad_left = pad / 2;
-        // int pad_right = pad - pad_left - 1;
-        // fmt::print("\n{0} {1} {2}\n\n", std::string(pad_left, '-'), label, std::string(pad_right, '-'));
-
         const auto pf_handle = event.getHandle(pf_token_);
         const auto clusters_handle = event.getHandle(clusters_token_);
         const auto bx_clusters_map_handle = event.getHandle(bx_clusters_map_token_);
@@ -79,7 +72,7 @@ namespace l1sc {
             auto const& bx_lookup = *bx_lookup_handle;
             auto const clusters_backend = static_cast<Backend>(event.get(clusters_backend_));
             auto const bx_clusters_map_backend = static_cast<Backend>(event.get(bx_clusters_map_backend_));
-            auto const cluster_cands_map_backend = static_cast<Backend>(event.get(bx_clusters_map_backend_));
+            auto const cluster_cands_map_backend = static_cast<Backend>(event.get(cluster_cands_map_backend_));
             auto const bx_lookup_backend = static_cast<Backend>(event.get(bx_lookup_backend_));
 
             assert(pf_backend == clusters_backend);

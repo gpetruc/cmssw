@@ -27,9 +27,18 @@ def parse_args():
     parser.add_argument(
         "-o", "--only",
         nargs="+",
-        default=["tagging"],
-        choices=["unpacking", "clustering", "tagging"],
+        default=["tagging_inf"],
+        choices=["unpacking", "clustering", "tagging_pre", "tagging_inf"],
         help="Run only the specified pipeline stages"
+    )
+
+    # dump
+    parser.add_argument(
+        "-d", "--dump",
+        nargs="+",
+        default=["none"],
+        choices=["none", "candidates", "clusters", "inference", "all_no_cands", "all"],
+        help="Select which artifacts to dump on NanoAOD file"
     )
 
     # Backend and environment

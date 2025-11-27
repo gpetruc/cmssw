@@ -20,7 +20,7 @@ process.load("Configuration.StandardSequences.Accelerators_cff")
 
 # logging configuration
 process.load("FWCore.MessageService.MessageLogger_cfi")
-process.MessageLogger.cerr.FwkReport.reportEvery = 10
+process.MessageLogger.cerr.FwkReport.reportEvery = 1
 
 process.path = cms.Path()
 # process a limited number of events
@@ -83,6 +83,17 @@ if args.runScouting:
         src = cms.InputTag('rawDataCollector'),
         environment = cms.untracked.int32(args.environment),
     )
+    process.path += process.PFCandidatesProducer
+
+    if "candidates" in args.dump or "all" in args.dump:
+        from L1TriggerScouting.Phase2.modules import PFSoAToOrbitFlatTable
+        process.PFToOrbit = PFSoAToOrbitFlatTable(
+            srcBx = "PFCandidatesProducer", 
+            srcPF = "PFCandidatesProducer", 
+            name = "L1PF"
+        )
+        process.path += process.PFToOrbit
+
 else:
     from L1TriggerScouting.TauTagging.modules import l1sc_PFCandidateAoSToSoA_alpaka
     process.PFCandidatesProducer = l1sc_PFCandidateAoSToSoA_alpaka(
@@ -94,7 +105,7 @@ else:
 process.path += process.PFCandidatesProducer
 
 # CLUEstering
-if "clustering" in args.only or "tagging" in args.only:
+if "clustering" in args.only or "tagging_pre" in args.only or "tagging_inf" in args.only:
     from L1TriggerScouting.TauTagging.modules import l1sc_CLUETaus_alpaka
     process.CLUETaus = l1sc_CLUETaus_alpaka(
         alpaka = cms.untracked.PSet(
@@ -108,17 +119,24 @@ if "clustering" in args.only or "tagging" in args.only:
     )
     process.path += process.CLUETaus
 
-    from L1TriggerScouting.Phase2.modules import ClusterToOrbitFlatTable
-    process.CLUEToOrbit = ClusterToOrbitFlatTable(
-        srcClusters = "CLUETaus", 
-        srcCandidates = "PFCandidatesProducer", 
-        name = "CLUETaus", 
-        doc = ""
-    )
-    process.path += process.CLUEToOrbit
+    if "clusters" in args.dump or "all" in args.dump or "all_nocands" in args.dump:
+        from L1TriggerScouting.Phase2.modules import ClusterToOrbitFlatTable
+        process.CLUEToOrbit = ClusterToOrbitFlatTable(
+            srcClusters = "CLUETaus", 
+            srcCandidates = "PFCandidatesProducer", 
+            name = "CLUETaus", 
+            doc = ""
+        )
+        process.path += process.CLUEToOrbit
 
 # Tagging
-if "tagging" in args.only:
+if "tagging_pre" in args.only or "tagging_inf" in args.only:
+    if "tagging_pre" in args.only:
+        do_inference = cms.bool(False)
+    
+    if "tagging_inf" in args.only:
+        do_inference = cms.bool(True)
+
     from L1TriggerScouting.TauTagging.modules import l1sc_SoftTauIdML_alpaka
     process.SoftTauId = l1sc_SoftTauIdML_alpaka(
         alpaka = cms.untracked.PSet(
@@ -127,29 +145,32 @@ if "tagging" in args.only:
         pf = 'PFCandidatesProducer',
         clusters = 'CLUETaus',
         model = cms.FileInPath(args.model),
+        do_inference = do_inference,
         maxBatchSize = cms.uint32(150)
     )
     process.path += process.SoftTauId
 
-    from L1TriggerScouting.Phase2.modules import TaggerOutToOrbitFlatTable
-    process.TaggerOutToOrbit = TaggerOutToOrbitFlatTable(
-        srcClusters = "CLUETaus", 
-        srcCandidates = "PFCandidatesProducer", 
-        srcOut = "SoftTauId", 
-        name = "TaggerOut", 
-        doc = ""
-    )
-    process.path += process.TaggerOutToOrbit
+    if "tagging_inf" in args.dump or "all" in args.dump or "all_nocands" in args.dump:
+        from L1TriggerScouting.Phase2.modules import TaggerOutToOrbitFlatTable
+        process.TaggerOutToOrbit = TaggerOutToOrbitFlatTable(
+            srcClusters = "CLUETaus", 
+            srcCandidates = "PFCandidatesProducer", 
+            srcOut = "SoftTauId", 
+            name = "TaggerOut", 
+            doc = ""
+        )
+        process.path += process.TaggerOutToOrbit
 
-process.out = cms.OutputModule("OrbitNanoAODOutputModule",
-    fileName = cms.untracked.string("orbitNanoClusters.root"),
-    SelectEvents = cms.untracked.PSet(SelectEvents = cms.vstring()),  # keep all events
-    outputCommands = cms.untracked.vstring(
-        "drop *",
-        "keep l1ScoutingRun3OrbitFlatTable_*_*_*",
-    )
-)   
-process.end = cms.EndPath(process.out)
+if args.dump != "none":
+    process.out = cms.OutputModule("OrbitNanoAODOutputModule",
+        fileName = cms.untracked.string("orbitNanoClusters.root"),
+        SelectEvents = cms.untracked.PSet(SelectEvents = cms.vstring()),  # keep all events
+        outputCommands = cms.untracked.vstring(
+            "drop *",
+            "keep l1ScoutingRun3OrbitFlatTable_*_*_*",
+        )
+    )   
+    process.end = cms.EndPath(process.out)
 
 # # debug sink
 # process.TauTaggingSink = l1sc_TauTaggingSink(

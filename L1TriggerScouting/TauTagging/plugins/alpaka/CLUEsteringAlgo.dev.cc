@@ -205,6 +205,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
     // bring number of clustered candidates per event back to the host
     std::vector<int32_t> num_clustered(nbx);
     alpaka::memcpy(queue, num_clustered, num_clustered_d);
+    alpaka::wait(queue);
 
     // accumulate over the entries of the num_clustered vector in order to get the 
     // total number of clustered candidates in the current orbit
@@ -244,6 +245,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
     for (auto const& m : association_collection) {
       bx_offsets.push_back(bx_offsets.back() + m.size());
     }
+
+#if defined(__DEBUG__) || defined(__DEBUGLITE__)
+    std::cout << "Bx Offsets:" << std::endl;
+    for (auto el : bx_offsets)
+      std::cout << el << " : ";
+    std::cout << "\n";
+#endif
     
     auto dstClusterOffsets = alpaka::createView(alpaka::getDev(queue), 
                                                 bx_clusters_map.view<OffsetsSoA>().offsets().data(), 
@@ -286,6 +294,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
                 << " OFFSETS LENGTH = " << asmap.size() + 1 << std::endl;
 #endif
 
+      if (asmap.size() == 0) {
+        continue;
+      }
+
       // copy current association map into association SoA 
       // pay attention to the asmap.size() + 1 because it is very important
       auto asmap_soa = AssociationMapDevice({{num_clustered[idx], 
@@ -310,12 +322,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
                           asmap.size() + 1);
 
       // sort local association map
-      // alpaka::exec<Acc1D>(queue, 
-      //   make_workdiv<Acc1D>(asmap.size(), 256), 
-      //   SortClustersKernel{}, 
-      //   pf.const_view().pt().data() + begin_indexes, // importanto to use begin indexes
-      //   asmap_soa.view<IndexSoA>(), 
-      //   asmap_soa.view<OffsetsSoA>());
+      alpaka::exec<Acc1D>(queue, 
+        make_workdiv<Acc1D>(asmap.size(), 256), 
+        SortClustersKernel{}, 
+        pf.const_view().pt().data() + begin_indexes, // importanto to use begin indexes
+        asmap_soa.view<IndexSoA>(), 
+        asmap_soa.view<OffsetsSoA>());
       
       // update the indexes and the offsets of the local association map in order to
       // prepare it to be copied to the global association map
@@ -338,7 +350,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
       alpaka::memcpy(queue, debug_clue_indexes, asmap.extract().values);
       
       for (auto el : debug_clue_indexes) 
-      std::cout << el << " : ";
+        std::cout << el << " : ";
       std::cout << "\n";
       
       std::cout << "Indexes (sorted) copied inside the local association map" << std::endl;
