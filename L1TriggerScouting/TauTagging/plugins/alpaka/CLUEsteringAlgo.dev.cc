@@ -95,7 +95,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::l1sc::kernels {
         }
 
         for (auto thread_idx : alpaka::uniformElements(acc, num_offsets)) {
-          offsets.offsets()[thread_idx] += begin_indexes;
+          offsets.offsets()[thread_idx] += begin_offsets;
         }
       } 
   };
