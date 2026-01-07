@@ -60,7 +60,7 @@ void PFSoAToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm::Even
 
   const auto *offsets = srcBx->const_view<l1sc::OffsetsSoA>().offsets().data();
   const unsigned int noff = srcBx->const_view<l1sc::OffsetsSoA>().metadata().size();
-  std::vector<unsigned int> bxOffsets{0u};
+  std::vector<unsigned int> bxOffsets{1u};
   bxOffsets.insert(bxOffsets.end(), offsets, offsets + noff);
 
   const auto *pt = srcPF->const_view().pt().data();

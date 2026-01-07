@@ -83,7 +83,7 @@ void ClusterToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm::Ev
   // for every bx with respect to the candidates that are within it.
   // But none of the offsets inside the CandsClusterBxHostCollection 
   // contain such information
-  std::vector<uint32_t> bxOffsets{1u, 0u};
+  std::vector<uint32_t> bxOffsets{0u, 0u};
 
   // loop over the bxs in the orbit
   for (unsigned int bx_idx = 0; bx_idx < nbx; ++bx_idx) {

@@ -163,7 +163,7 @@ if "tagging_pre" in args.only or "tagging_inf" in args.only:
 
 if args.dump != "none":
     process.out = cms.OutputModule("OrbitNanoAODOutputModule",
-        fileName = cms.untracked.string("orbitNanoClusters.root"),
+        fileName = cms.untracked.string("orbitNanoClusters_1000.root"),
         SelectEvents = cms.untracked.PSet(SelectEvents = cms.vstring()),  # keep all events
         outputCommands = cms.untracked.vstring(
             "drop *",
