@@ -50,10 +50,7 @@ private:
   std::tuple<bool, float> deltar(float eta1, float eta2, float phi1, float phi2) const;
 
   template <typename T, typename U>
-  float tripletmass(const std::array<unsigned int, 2> &t, const T *candsGamma, const U *candsMeson);
-
-  template <typename T, typename U>
-  float tripletpt(const std::array<unsigned int, 2> &t, const T *candsGamma, const U *candsMeson);
+  ROOT::Math::PtEtaPhiMVector tripletP4(const std::array<unsigned int, 2> &t, const T *candsGamma, const U *candsMeson);
 
   unsigned long countStruct_;
   unsigned long passStruct_;
@@ -107,11 +104,13 @@ void ScPhase2BosonToRecMesonGamma::runObj(const OrbitCollection<T> &srcGamma,
   std::array<unsigned int, 2> bestTriplet;
   float mass = 0.0f;
   float bestTripletScore = 0.;
+  float bestTripletMass = 0.;
   bool bestTripletFound;
 
   for (unsigned int bx = 1; bx <= OrbitCollection<T>::NBX; ++bx) {
     nTry++;
     bestTripletFound = false;
+    bestTripletScore = 0.;
 
     auto range = srcGamma.bxIterator(bx);
     auto nGamma = range.size();
@@ -133,8 +132,8 @@ void ScPhase2BosonToRecMesonGamma::runObj(const OrbitCollection<T> &srcGamma,
           continue;
 
         std::array<unsigned int, 2> pair{{i1, i2}};
-        mass = tripletmass(pair, candsGamma, candsMeson);
-        float pt = tripletpt(pair, candsGamma, candsMeson);
+        auto p4 = tripletP4(pair, candsGamma, candsMeson);
+        float mass = p4.M(), pt = p4.Pt();
 
         if (!(mass >= minMassBoson_ and mass <= maxMassBoson_))
           continue;
@@ -143,6 +142,7 @@ void ScPhase2BosonToRecMesonGamma::runObj(const OrbitCollection<T> &srcGamma,
           bestTripletFound = true;
           bestTriplet = pair;
           bestTripletScore = pt;
+          bestTripletMass = mass;
         }
       }
     }
@@ -152,7 +152,7 @@ void ScPhase2BosonToRecMesonGamma::runObj(const OrbitCollection<T> &srcGamma,
 
     ret->emplace_back(bx);
     nPass++;
-    masses.push_back(mass);
+    masses.push_back(bestTripletMass);
     i0s.push_back(candsMeson[bestTriplet[0]].daughterIds(0));
     i1s.push_back(candsMeson[bestTriplet[0]].daughterIds(1));
     i2s.push_back(bestTriplet[1]);
@@ -171,25 +171,13 @@ void ScPhase2BosonToRecMesonGamma::runObj(const OrbitCollection<T> &srcGamma,
 }
 
 template <typename T, typename U>
-float ScPhase2BosonToRecMesonGamma::tripletmass(const std::array<unsigned int, 2> &t,
-                                                const T *candsGamma,
-                                                const U *candsMeson) {
+ROOT::Math::PtEtaPhiMVector ScPhase2BosonToRecMesonGamma::tripletP4(const std::array<unsigned int, 2> &t,
+                                                                    const T *candsGamma,
+                                                                    const U *candsMeson) {
   ROOT::Math::PtEtaPhiMVector p1(
       candsMeson[t[0]].pt(), candsMeson[t[0]].eta(), candsMeson[t[0]].phi(), candsMeson[t[0]].mass());
   ROOT::Math::PtEtaPhiMVector p2(candsGamma[t[1]].pt(), candsGamma[t[1]].eta(), candsGamma[t[1]].phi(), 0);
-  float mass = (p1 + p2).M();
-  return mass;
-}
-
-template <typename T, typename U>
-float ScPhase2BosonToRecMesonGamma::tripletpt(const std::array<unsigned int, 2> &t,
-                                              const T *candsGamma,
-                                              const U *candsMeson) {
-  ROOT::Math::PtEtaPhiMVector p1(
-      candsMeson[t[0]].pt(), candsMeson[t[0]].eta(), candsMeson[t[0]].phi(), candsMeson[t[0]].mass());
-  ROOT::Math::PtEtaPhiMVector p2(candsGamma[t[1]].pt(), candsGamma[t[1]].eta(), candsGamma[t[1]].phi(), 0);
-  float pt = (p1 + p2).Pt();
-  return pt;
+  return (p1 + p2);
 }
 
 void ScPhase2BosonToRecMesonGamma::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
