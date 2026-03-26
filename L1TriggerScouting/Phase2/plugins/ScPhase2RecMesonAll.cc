@@ -44,6 +44,8 @@ private:
     double maxMesonMass;
     double dauMass1;
     double dauMass2;
+    int pdgId;
+    bool muonDaughters;
   };
 
   std::vector<mesonTypeStruct> mesonTypes_;
@@ -55,7 +57,7 @@ private:
   double minPtDau_;
   double maxZIsolation_;
 
-  float isolationQ(int itype, unsigned int pidex1, unsigned int pidex2, const T *cands, unsigned int size) const;
+  float isolationQ(unsigned int pidex1, unsigned int pidex2, const T *cands, unsigned int size) const;
 };
 
 template <typename T>
@@ -76,6 +78,13 @@ ScPhase2RecMesonAll<T>::ScPhase2RecMesonAll(const edm::ParameterSet &iConfig)
     mt.maxMesonMass = pset.getParameter<double>("maxMesonMass");
     mt.dauMass1 = pset.getParameter<double>("dauMass1");
     mt.dauMass2 = pset.getParameter<double>("dauMass2");
+    mt.pdgId = pset.getParameter<int>("pdgId");
+    if constexpr (std::is_same_v<T, l1Scouting::TTrack>) {
+      // for TTracks, the pdgId can never be the muon one so this parameter is not useful
+      mt.muonDaughters = false;
+    } else {
+      mt.muonDaughters = pset.getParameter<bool>("muonDaughters");
+    }
     mesonTypes_.push_back(mt);
 
     // Register output collections with instance labels
@@ -105,12 +114,12 @@ void ScPhase2RecMesonAll<T>::runObj(const OrbitCollection<T> &src, edm::Event &i
     std::vector<std::vector<l1Scouting::RecMeson<2>>> all_mesonVec_thisBx(mesonTypes_.size());
 
     auto range = src.bxIterator(bx);
-    const T *cands = &range.front();
     auto size = range.size();
+    const T *cands = (size > 0) ? &range.front() : nullptr;
 
     ix.clear();
     for (unsigned int i = 0; i < size; ++i) {  //make list of all hadrons
-      if ((std::abs(pdgId(cands[i])) == 211 or std::abs(pdgId(cands[i])) == 11)) {
+      if ((std::abs(pdgId(cands[i])) == 211 or std::abs(pdgId(cands[i])) == 11 or std::abs(pdgId(cands[i])) == 13)) {
         if (cands[i].pt() >= minPtDau_)
           ix.push_back(i);
       }
@@ -130,9 +139,18 @@ void ScPhase2RecMesonAll<T>::runObj(const OrbitCollection<T> &src, edm::Event &i
         if (dZ > maxDeltaZ_)
           continue;
 
-        float isoDR0p25 = isolationQ(0, ix[i1], ix[i2], cands, size);
+        if ((std::abs(pdgId(cands[ix[i1]])) == 13) != (std::abs(pdgId(cands[ix[i2]])) == 13)) {
+          // if one daughter is a muon, the other must be a muon as well
+          continue;
+        }
+
+        float isoDR0p25 = isolationQ(ix[i1], ix[i2], cands, size);
 
         for (unsigned int itype = 0; itype < mesonTypes_.size(); ++itype) {
+          if (mesonTypes_[itype].muonDaughters != (std::abs(pdgId(cands[ix[i1]])) == 13)) {
+            // if the meson type requires muon daughters, but these are not muons (or vice versa), skip
+            continue;
+          }
           auto p4_1 = ROOT::Math::PtEtaPhiMVector(
               cands[ix[i1]].pt(), cands[ix[i1]].eta(), cands[ix[i1]].phi(), mesonTypes_[itype].dauMass1);
           auto p4_2 = ROOT::Math::PtEtaPhiMVector(
@@ -151,7 +169,7 @@ void ScPhase2RecMesonAll<T>::runObj(const OrbitCollection<T> &src, edm::Event &i
                                                   recMeson_quad.phi(),
                                                   recMeson_quad.mass(),
                                                   0,
-                                                  211,
+                                                  mesonTypes_[itype].pdgId,
                                                   isoDR0p25,
                                                   daughterMasses,
                                                   daughterIds);
@@ -167,6 +185,7 @@ void ScPhase2RecMesonAll<T>::runObj(const OrbitCollection<T> &src, edm::Event &i
 
   for (unsigned int itype = 0; itype < mesonTypes_.size(); ++itype) {
     std::vector<std::vector<l1Scouting::RecMeson<2>>> mesonVec_perType;
+    mesonVec_perType.reserve(all_mesonVec.size());
     for (auto &bxVec : all_mesonVec) {
       mesonVec_perType.push_back(std::move(bxVec[itype]));
     }
@@ -187,13 +206,13 @@ int ScPhase2RecMesonAll<T>::pdgId(const l1Scouting::TTrack &p) {
 }
 
 template <typename T>
-float ScPhase2RecMesonAll<T>::isolationQ(
-    int itype, unsigned int pidex1, unsigned int pidex2, const T *cands, unsigned int size) const {
+float ScPhase2RecMesonAll<T>::isolationQ(unsigned int pidex1,
+                                         unsigned int pidex2,
+                                         const T *cands,
+                                         unsigned int size) const {
   float psum = 0;
-  auto p4_1 = ROOT::Math::PtEtaPhiMVector(
-      cands[pidex1].pt(), cands[pidex1].eta(), cands[pidex1].phi(), mesonTypes_[itype].dauMass1);
-  auto p4_2 = ROOT::Math::PtEtaPhiMVector(
-      cands[pidex2].pt(), cands[pidex2].eta(), cands[pidex2].phi(), mesonTypes_[itype].dauMass2);
+  auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[pidex1].pt(), cands[pidex1].eta(), cands[pidex1].phi(), 0.0);
+  auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[pidex2].pt(), cands[pidex2].eta(), cands[pidex2].phi(), 0.0);
   float ptQ = (p4_1 + p4_2).pt();
   float etaQ = (p4_1 + p4_2).eta();
   float phiQ = (p4_1 + p4_2).phi();
@@ -212,8 +231,7 @@ float ScPhase2RecMesonAll<T>::isolationQ(
     if (dr2 >= minDeltaR_ && dr2 <= maxDeltaR_)
       psum += cands[j].pt();
   }
-  // protect from 0 division?
-  return psum / ptQ;
+  return psum / std::max(ptQ, 0.1f);  // protect from 0 division
 }
 
 template <typename T>
@@ -224,6 +242,8 @@ void ScPhase2RecMesonAll<T>::fillDescriptions(edm::ConfigurationDescriptions &de
   mesonDesc.add<double>("maxMesonMass");
   mesonDesc.add<double>("dauMass1");
   mesonDesc.add<double>("dauMass2");
+  mesonDesc.add<int>("pdgId", 0);
+  mesonDesc.add<bool>("muonDaughters", false);
 
   edm::ParameterSetDescription desc;
   desc.add<edm::InputTag>("src");
