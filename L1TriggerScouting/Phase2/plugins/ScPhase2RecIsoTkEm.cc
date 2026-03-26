@@ -43,9 +43,6 @@ private:
 
   template <typename T>
   bool isolationTkEm(float pt, float eta, float phi, const T *cands, unsigned int size) const;
-
-  unsigned long countStruct_;
-  unsigned long passStruct_;
 };
 
 ScPhase2RecIsoTkEm::ScPhase2RecIsoTkEm(const edm::ParameterSet &iConfig)
@@ -76,8 +73,6 @@ void ScPhase2RecIsoTkEm::endStream() {}
 
 template <typename T, typename U>
 void ScPhase2RecIsoTkEm::runObj(const OrbitCollection<T> &src, const OrbitCollection<U> &srcTkEm, edm::Event &iEvent) {
-  auto ret = std::make_unique<std::vector<unsigned>>();
-
   std::vector<std::vector<l1Scouting::TkEm>> photons_vec;
 
   ROOT::RVec<unsigned int> ig;
@@ -87,12 +82,12 @@ void ScPhase2RecIsoTkEm::runObj(const OrbitCollection<T> &src, const OrbitCollec
     std::vector<l1Scouting::TkEm> photon_thisBx;
 
     auto rangeTkEm = srcTkEm.bxIterator(bx);
-    const U *candsTkEm = &rangeTkEm.front();
     auto sizeTkEm = rangeTkEm.size();
+    const U *candsTkEm = (sizeTkEm > 0 ? &rangeTkEm.front() : nullptr);
 
     auto range = src.bxIterator(bx);
-    const T *cands = &range.front();
     auto size = range.size();
+    const T *cands = (size > 0 ? &range.front() : nullptr);
 
     ig.clear();
     photon_thisBx.clear();
