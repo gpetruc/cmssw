@@ -24,7 +24,7 @@ scPhase2RecIsoTkEmMaskedStructToTable = scPhase2RecIsoTkEmStructToTable.clone(
 
 # Reconstructed mesons
 scPhase2RecMesonPhiStructToTable = cms.EDProducer("ScRecMesonToOrbitFlatTable",
-    src = cms.InputTag("recMesonStruct", "phi"),
+    src = cms.InputTag("puppiRecMesonStruct", "phi"),
     name = cms.string("recMesonPhi"),
     doc = cms.string("Reconstructed Phi Meson candidates"),
 )
@@ -34,7 +34,7 @@ scPhase2RecMesonPhiMaskedStructToTable = scPhase2RecMesonPhiStructToTable.clone(
 )
 
 scPhase2RecMesonRhoStructToTable = cms.EDProducer("ScRecMesonToOrbitFlatTable",
-    src = cms.InputTag("recMesonStruct", "rho"),
+    src = cms.InputTag("puppiRecMesonStruct", "rho"),
     name = cms.string("recMesonRho"),
     doc = cms.string("Reconstructed Rho Meson candidates"),
 )
@@ -44,7 +44,7 @@ scPhase2RecMesonRhoMaskedStructToTable = scPhase2RecMesonRhoStructToTable.clone(
 )
 
 scPhase2RecMesonJpsiStructToTable = cms.EDProducer("ScRecMesonToOrbitFlatTable",
-    src = cms.InputTag("recMesonStruct", "jpsi"),
+    src = cms.InputTag("puppiRecMesonStruct", "jpsi"),
     name = cms.string("recMesonJpsi"),
     doc = cms.string("Reconstructed J/psi Meson candidates"),
 )
@@ -107,7 +107,7 @@ scPhase2PFMaskedStructToTable = scPhase2PFStructToTable.clone(
     src = "scPhase2PFMasked"
 )
 
-tableProducersTkEmTask = cms.Task(
+scPhase2TkEgTableProducersTask = cms.Task(
     scPhase2TkEmStructToTable,
     scPhase2TkEleStructToTable,
 )
@@ -120,15 +120,15 @@ scPhase2RecMesonStructToTable = cms.Task(
 
 tableProducersTask = cms.Task(
     scPhase2PuppiStructToTable,
-    scPhase2RecIsoTkEmStructToTable,
-    scPhase2RecMesonStructToTable,
-    tableProducersTkEmTask,
+    scPhase2TkEgTableProducersTask,
     scPhase2TrackerMuonStructToTable,
     scPhase2TrackerTrackStructToTable,
     scPhase2PFStructToTable,
+    scPhase2RecIsoTkEmStructToTable,
+    scPhase2RecMesonStructToTable,
 )
 
-maskedTableProducersTkEmTask = cms.Task(
+scPhase2TkEgMaskedTableProducersTask = cms.Task(
     scPhase2TkEmMaskedStructToTable,
     scPhase2TkEleMaskedStructToTable,
 )
@@ -141,12 +141,12 @@ scPhase2RecMesonMaskedStructToTable = cms.Task(
 
 maskedTableProducersTask = cms.Task(
     scPhase2PuppiMaskedStructToTable,
-    scPhase2RecIsoTkEmMaskedStructToTable,
-    scPhase2RecMesonMaskedStructToTable,
-    maskedTableProducersTkEmTask,
+    scPhase2TkEgMaskedTableProducersTask,
     scPhase2TrackerMuonMaskedStructToTable,
     scPhase2TrackerTrackMaskedStructToTable,
     scPhase2PFMaskedStructToTable,
+    scPhase2RecIsoTkEmMaskedStructToTable,
+    scPhase2RecMesonMaskedStructToTable,
 )
 
 scPhase2NanoAll = cms.OutputModule("OrbitNanoAODOutputModule",

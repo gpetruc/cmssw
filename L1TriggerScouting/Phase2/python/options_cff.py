@@ -109,12 +109,6 @@ options.register ('run',
                   VarParsing.VarParsing.varType.string,          # string, int, or float
                   "'inclusive', 'selected', 'both' (default).")
 
-options.register ('candReco',
-                  [], # default value
-                  VarParsing.VarParsing.multiplicity.list,
-                  VarParsing.VarParsing.varType.string,          # string, int, or float
-                  "reconstructions: any list of recIsoTkEm, recMeson, recMesonPhi, recMesonRho, recMesonJpsi")
-
 options.register ('analyses',
                   [], # default value
                   VarParsing.VarParsing.multiplicity.list,

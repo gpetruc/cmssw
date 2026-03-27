@@ -12,6 +12,7 @@
 #include "DataFormats/L1TParticleFlow/interface/L1ScoutingTkEm.h"
 #include "L1TriggerScouting/Utilities/interface/BxOffsetsFiller.h"
 
+#include "DataFormats/Math/interface/deltaR.h"
 #include <ROOT/RVec.hxx>
 #include <Math/Vector4D.h>
 #include <Math/GenVector/LorentzVector.h>
@@ -45,6 +46,7 @@ private:
   double maxMassBoson_;
   double minPtQ_;
   double minPtGamma_;
+  double maxRelIsoQ_;
   std::string analysisName_;
 
   std::tuple<bool, float> deltar(float eta1, float eta2, float phi1, float phi2) const;
@@ -61,6 +63,7 @@ ScPhase2BosonToRecMesonGamma::ScPhase2BosonToRecMesonGamma(const edm::ParameterS
       maxMassBoson_(iConfig.getParameter<double>("maxMassBoson")),
       minPtQ_(iConfig.getParameter<double>("minPtQ")),
       minPtGamma_(iConfig.getParameter<double>("minPtGamma")),
+      maxRelIsoQ_(iConfig.getParameter<double>("maxRelIsoQ")),
       analysisName_(iConfig.getParameter<std::string>("analysisName")) {
   structGammaToken_ = consumes<OrbitCollection<l1Scouting::TkEm>>(iConfig.getParameter<edm::InputTag>("srcGamma"));
   structMesonToken_ =
@@ -101,8 +104,7 @@ void ScPhase2BosonToRecMesonGamma::runObj(const OrbitCollection<T> &srcGamma,
   auto ret = std::make_unique<std::vector<unsigned>>();
   std::vector<float> masses;
   std::vector<uint8_t> i0s, i1s, i2s;
-  std::array<unsigned int, 2> bestTriplet;
-  float mass = 0.0f;
+  std::array<unsigned int, 2> bestTriplet{{0, 0}};
   float bestTripletScore = 0.;
   float bestTripletMass = 0.;
   bool bestTripletFound;
@@ -124,7 +126,7 @@ void ScPhase2BosonToRecMesonGamma::runObj(const OrbitCollection<T> &srcGamma,
     const T *candsGamma = &range.front();
     const U *candsMeson = &rangeMesons.front();
     for (unsigned int i1 = 0; i1 < nMesons; ++i1) {
-      if (candsMeson[i1].pt() < minPtQ_)
+      if (candsMeson[i1].pt() < minPtQ_ || candsMeson[i1].isoDR0p25() > maxRelIsoQ_)
         continue;
 
       for (unsigned int i2 = 0; i2 < nGamma; ++i2) {
@@ -133,15 +135,15 @@ void ScPhase2BosonToRecMesonGamma::runObj(const OrbitCollection<T> &srcGamma,
 
         std::array<unsigned int, 2> pair{{i1, i2}};
         auto p4 = tripletP4(pair, candsGamma, candsMeson);
-        float mass = p4.M(), pt = p4.Pt();
+        float mass = p4.M(), score = candsMeson[i1].pt() + candsGamma[i2].pt();
 
         if (!(mass >= minMassBoson_ and mass <= maxMassBoson_))
           continue;
 
-        if (pt > bestTripletScore) {
+        if (score > bestTripletScore) {
           bestTripletFound = true;
           bestTriplet = pair;
-          bestTripletScore = pt;
+          bestTripletScore = score;
           bestTripletMass = mass;
         }
       }
@@ -189,6 +191,7 @@ void ScPhase2BosonToRecMesonGamma::fillDescriptions(edm::ConfigurationDescriptio
   desc.add<double>("maxMassBoson");
   desc.add<double>("minPtQ");
   desc.add<double>("minPtGamma");
+  desc.add<double>("maxRelIsoQ");
   desc.add<std::string>("analysisName");
   descriptions.addDefault(desc);
 }

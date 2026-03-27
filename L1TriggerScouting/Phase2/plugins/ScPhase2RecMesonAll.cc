@@ -5,14 +5,16 @@
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 #include "FWCore/Utilities/interface/StreamID.h"
 
-#include "DataFormats/Math/interface/deltaR.h"
 #include "DataFormats/L1Scouting/interface/OrbitCollection.h"
 #include "DataFormats/L1Scouting/interface/OrbitFlatTable.h"
 #include "DataFormats/L1TParticleFlow/interface/L1ScoutingPuppi.h"
 #include "DataFormats/L1TParticleFlow/interface/L1ScoutingTTrack.h"
+#include "DataFormats/L1TParticleFlow/interface/L1ScoutingTkEm.h"
+#include "DataFormats/L1TMuonPhase2/interface/L1ScoutingTrackerMuon.h"
 #include "DataFormats/L1TParticleFlow/interface/RecMeson.h"
 #include "L1TriggerScouting/Utilities/interface/BxOffsetsFiller.h"
 
+#include "DataFormats/Math/interface/deltaR.h"
 #include <ROOT/RVec.hxx>
 #include <Math/Vector4D.h>
 #include <Math/GenVector/LorentzVector.h>
@@ -35,6 +37,8 @@ private:
   void runObj(const OrbitCollection<T> &src, edm::Event &out);
   int pdgId(const l1Scouting::Puppi &p);
   int pdgId(const l1Scouting::TTrack &p);
+  int pdgId(const l1Scouting::TrackerMuon &p);
+  int pdgId(const l1Scouting::TkEle &p);
 
   edm::EDGetTokenT<OrbitCollection<T>> structToken_;
 
@@ -50,12 +54,13 @@ private:
 
   std::vector<mesonTypeStruct> mesonTypes_;
 
-  double minDeltaR_;
-  double maxDeltaR_;
-  double maxDeltaRDaus_;
+  double isolationMinDeltaR2_;
+  double isolationMaxDeltaR2_;
+  double isolationMaxDeltaZ_;
+  double isolationMaxRelIso_;
+  double maxDeltaR2Daus_;
   double maxDeltaZ_;
   double minPtDau_;
-  double maxZIsolation_;
 
   float isolationQ(unsigned int pidex1, unsigned int pidex2, const T *cands, unsigned int size) const;
 };
@@ -63,12 +68,13 @@ private:
 template <typename T>
 ScPhase2RecMesonAll<T>::ScPhase2RecMesonAll(const edm::ParameterSet &iConfig)
     : structToken_(consumes<OrbitCollection<T>>(iConfig.getParameter<edm::InputTag>("src"))),
-      minDeltaR_(iConfig.getParameter<double>("minDeltaR")),
-      maxDeltaR_(iConfig.getParameter<double>("maxDeltaR")),
-      maxDeltaRDaus_(iConfig.getParameter<double>("maxDeltaRDaus")),
+      isolationMinDeltaR2_(std::pow(iConfig.getParameter<double>("isolationMinDeltaR"), 2)),
+      isolationMaxDeltaR2_(std::pow(iConfig.getParameter<double>("isolationMaxDeltaR"), 2)),
+      isolationMaxDeltaZ_(iConfig.getParameter<double>("isolationMaxDeltaZ")),
+      isolationMaxRelIso_(iConfig.getParameter<double>("isolationMaxRelIso")),
+      maxDeltaR2Daus_(std::pow(iConfig.getParameter<double>("maxDeltaRDaus"), 2)),
       maxDeltaZ_(iConfig.getParameter<double>("maxDeltaZ")),
-      minPtDau_(iConfig.getParameter<double>("minPtDau")),
-      maxZIsolation_(iConfig.getParameter<double>("maxZIsolation")) {
+      minPtDau_(iConfig.getParameter<double>("minPtDau")) {
   std::vector<edm::ParameterSet> mesonPsets = iConfig.getParameter<std::vector<edm::ParameterSet>>("mesonTypes");
 
   for (const auto &pset : mesonPsets) {
@@ -79,11 +85,11 @@ ScPhase2RecMesonAll<T>::ScPhase2RecMesonAll(const edm::ParameterSet &iConfig)
     mt.dauMass1 = pset.getParameter<double>("dauMass1");
     mt.dauMass2 = pset.getParameter<double>("dauMass2");
     mt.pdgId = pset.getParameter<int>("pdgId");
-    if constexpr (std::is_same_v<T, l1Scouting::TTrack>) {
-      // for TTracks, the pdgId can never be the muon one so this parameter is not useful
-      mt.muonDaughters = false;
-    } else {
+    if constexpr (std::is_same_v<T, l1Scouting::Puppi>) {
+      // only for Puppi we have meaningful PDG IDs
       mt.muonDaughters = pset.getParameter<bool>("muonDaughters");
+    } else {
+      mt.muonDaughters = true;
     }
     mesonTypes_.push_back(mt);
 
@@ -131,11 +137,11 @@ void ScPhase2RecMesonAll<T>::runObj(const OrbitCollection<T> &src, edm::Event &i
         if (!(cands[ix[i1]].charge() * cands[ix[i2]].charge() < 0))
           continue;
 
-        float drQ = reco::deltaR(cands[ix[i1]], cands[ix[i2]]);
-        if (drQ > maxDeltaRDaus_)
+        float dr2Q = reco::deltaR2(cands[ix[i1]], cands[ix[i2]]);
+        if (dr2Q > maxDeltaR2Daus_)
           continue;
 
-        float dZ = abs(cands[ix[i1]].z0() - cands[ix[i2]].z0());
+        float dZ = std::abs(cands[ix[i1]].z0() - cands[ix[i2]].z0());
         if (dZ > maxDeltaZ_)
           continue;
 
@@ -145,10 +151,12 @@ void ScPhase2RecMesonAll<T>::runObj(const OrbitCollection<T> &src, edm::Event &i
         }
 
         float isoDR0p25 = isolationQ(ix[i1], ix[i2], cands, size);
+        if (isoDR0p25 > isolationMaxRelIso_)
+          continue;
 
         for (unsigned int itype = 0; itype < mesonTypes_.size(); ++itype) {
-          if (mesonTypes_[itype].muonDaughters != (std::abs(pdgId(cands[ix[i1]])) == 13)) {
-            // if the meson type requires muon daughters, but these are not muons (or vice versa), skip
+          if ((std::abs(pdgId(cands[ix[i1]])) == 13) && !mesonTypes_[itype].muonDaughters) {
+            // if the meson type requires non-muon daughters, but these are muons, skip
             continue;
           }
           auto p4_1 = ROOT::Math::PtEtaPhiMVector(
@@ -206,6 +214,16 @@ int ScPhase2RecMesonAll<T>::pdgId(const l1Scouting::TTrack &p) {
 }
 
 template <typename T>
+int ScPhase2RecMesonAll<T>::pdgId(const l1Scouting::TrackerMuon &p) {
+  return p.charge() * (-13);
+}
+
+template <typename T>
+int ScPhase2RecMesonAll<T>::pdgId(const l1Scouting::TkEle &p) {
+  return p.charge() * (-11);
+}
+
+template <typename T>
 float ScPhase2RecMesonAll<T>::isolationQ(unsigned int pidex1,
                                          unsigned int pidex2,
                                          const T *cands,
@@ -213,25 +231,23 @@ float ScPhase2RecMesonAll<T>::isolationQ(unsigned int pidex1,
   float psum = 0;
   auto p4_1 = ROOT::Math::PtEtaPhiMVector(cands[pidex1].pt(), cands[pidex1].eta(), cands[pidex1].phi(), 0.0);
   auto p4_2 = ROOT::Math::PtEtaPhiMVector(cands[pidex2].pt(), cands[pidex2].eta(), cands[pidex2].phi(), 0.0);
-  float ptQ = (p4_1 + p4_2).pt();
+  float htQ = cands[pidex1].pt() + cands[pidex2].pt();
   float etaQ = (p4_1 + p4_2).eta();
   float phiQ = (p4_1 + p4_2).phi();
+  // only consider particles with a small distance in z from the candidates for the isolation calculation
+  float z_pair = (cands[pidex1].z0() * cands[pidex1].pt() + cands[pidex2].z0() * cands[pidex2].pt()) / htQ;
   for (unsigned int j = 0u; j < size; ++j) {  //loop over other particles
     if (pidex1 == j or pidex2 == j)
       continue;
 
-    // only consider particles with a small distance in z from the candidates for the isolation calculation
-    float z_boson = (cands[pidex1].z0() * cands[pidex1].pt() + cands[pidex2].z0() * cands[pidex2].pt()) /
-                    (cands[pidex1].pt() + cands[pidex2].pt());
-    if (abs(z_boson - cands[j].z0()) > maxZIsolation_)
+    if (cands[j].charge() != 0 && std::abs(z_pair - cands[j].z0()) > isolationMaxDeltaZ_)
       continue;
 
-    float deta = etaQ - cands[j].eta(), dphi = ROOT::VecOps::DeltaPhi<float>(phiQ, cands[j].phi());
-    float dr2 = deta * deta + dphi * dphi;
-    if (dr2 >= minDeltaR_ && dr2 <= maxDeltaR_)
+    float dr2 = reco::deltaR2(etaQ, phiQ, cands[j].eta(), cands[j].phi());
+    if (dr2 >= isolationMinDeltaR2_ && dr2 <= isolationMaxDeltaR2_)
       psum += cands[j].pt();
   }
-  return psum / std::max(ptQ, 0.1f);  // protect from 0 division
+  return psum / htQ;  // htQ can never be zero
 }
 
 template <typename T>
@@ -248,17 +264,22 @@ void ScPhase2RecMesonAll<T>::fillDescriptions(edm::ConfigurationDescriptions &de
   edm::ParameterSetDescription desc;
   desc.add<edm::InputTag>("src");
   desc.addVPSet("mesonTypes", mesonDesc);
-  desc.add<double>("minDeltaR");
-  desc.add<double>("maxDeltaR");
+  desc.add<double>("isolationMinDeltaR");
+  desc.add<double>("isolationMaxDeltaR");
+  desc.add<double>("isolationMaxDeltaZ");
+  desc.add<double>("isolationMaxRelIso");
   desc.add<double>("maxDeltaRDaus");
   desc.add<double>("maxDeltaZ");
   desc.add<double>("minPtDau");
-  desc.add<double>("maxZIsolation");
   descriptions.addDefault(desc);
 }
 
 typedef ScPhase2RecMesonAll<l1Scouting::Puppi> ScPhase2PuppiRecMesonAll;
 typedef ScPhase2RecMesonAll<l1Scouting::TTrack> ScPhase2TTrackRecMesonAll;
+typedef ScPhase2RecMesonAll<l1Scouting::TrackerMuon> ScPhase2TrackerMuonRecMesonAll;
+typedef ScPhase2RecMesonAll<l1Scouting::TkEle> ScPhase2TkEleRecMesonAll;
 
 DEFINE_FWK_MODULE(ScPhase2PuppiRecMesonAll);
 DEFINE_FWK_MODULE(ScPhase2TTrackRecMesonAll);
+DEFINE_FWK_MODULE(ScPhase2TrackerMuonRecMesonAll);
+DEFINE_FWK_MODULE(ScPhase2TkEleRecMesonAll);

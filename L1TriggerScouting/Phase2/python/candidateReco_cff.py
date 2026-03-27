@@ -4,9 +4,9 @@ recIsoTkEmStruct = cms.EDProducer("ScPhase2RecIsoTkEm",
     src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
     srcTkEm = cms.InputTag("scPhase2TkEmRawToDigiStruct"),
     minPtGamma = cms.double(20),
-    minDeltaR = cms.double(0.05 * 0.05),
-    maxDeltaR = cms.double(0.25 * 0.25),
-    maxIso = cms.double(0.25)
+    isolationMinDeltaR = cms.double(0.05),
+    isolationMaxDeltaR = cms.double(0.25),
+    maxRelIso = cms.double(0.25)
 )
 
 mesonTypes = cms.VPSet(
@@ -40,21 +40,56 @@ mesonTypes = cms.VPSet(
 puppiRecMesonStruct = cms.EDProducer("ScPhase2PuppiRecMesonAll",
     src = cms.InputTag("scPhase2PuppiRawToDigiStruct"),
     mesonTypes = mesonTypes,
-    minDeltaR = cms.double(0.05 * 0.05),
-    maxDeltaR = cms.double(0.25 * 0.25),
-    maxDeltaRDaus = cms.double(0.40 * 0.40),
+    isolationMinDeltaR = cms.double(0.05),
+    isolationMaxDeltaR = cms.double(0.25),
+    isolationMaxDeltaZ = cms.double(1),
+    isolationMaxRelIso = cms.double(0.5),
+    maxDeltaRDaus = cms.double(0.40),
     maxDeltaZ = cms.double(1),
     minPtDau = cms.double(5.0),
-    maxZIsolation = cms.double(1)
+)
+
+tkMuonRecMesonStruct = cms.EDProducer("ScPhase2TrackerMuonRecMesonAll",
+    src = cms.InputTag("scPhase2TrackerMuonRawToDigiStruct"),
+    mesonTypes = cms.VPSet(m for m in mesonTypes if m.name.value() == "jpsi"),
+    isolationMinDeltaR = cms.double(0.05),
+    isolationMaxDeltaR = cms.double(0.25),
+    isolationMaxDeltaZ = cms.double(1),
+    isolationMaxRelIso = cms.double(0.5),
+    maxDeltaRDaus = cms.double(0.40),
+    maxDeltaZ = cms.double(1),
+    minPtDau = cms.double(2.0),
+)
+
+
+tkEleRecMesonStruct = cms.EDProducer("ScPhase2TrackerMuonRecMesonAll",
+    src = cms.InputTag("scPhase2TkEmRawToDigiStruct"),
+    mesonTypes = cms.VPSet(m.clone(dauMass1=0.0005, dauMass2=0.0005) for m in mesonTypes if m.name.value() == "jpsi"),
+    isolationMinDeltaR = cms.double(0.05),
+    isolationMaxDeltaR = cms.double(0.25),
+    isolationMaxDeltaZ = cms.double(1),
+    isolationMaxRelIso = cms.double(0.5),
+    maxDeltaRDaus = cms.double(0.40),
+    maxDeltaZ = cms.double(1),
+    minPtDau = cms.double(5.0),
 )
 
 ttrackRecMesonStruct = cms.EDProducer("ScPhase2TTrackRecMesonAll",
     src = cms.InputTag("scPhase2TrackerTrackRawToDigiStruct"),
     mesonTypes = mesonTypes,
-    minDeltaR = cms.double(0.05 * 0.05),
-    maxDeltaR = cms.double(0.25 * 0.25),
-    maxDeltaRDaus = cms.double(0.40 * 0.40),
+    isolationMinDeltaR = cms.double(0.05),
+    isolationMaxDeltaR = cms.double(0.25),
+    isolationMaxDeltaZ = cms.double(1),
+    isolationMaxRelIso = cms.double(0.5),
+    maxDeltaRDaus = cms.double(0.40),
     maxDeltaZ = cms.double(1),
     minPtDau = cms.double(5.0),
-    maxZIsolation = cms.double(1)
+)
+
+candRecoTasks = cms.Task(
+    recIsoTkEmStruct,
+    puppiRecMesonStruct,
+    tkMuonRecMesonStruct,
+    tkEleRecMesonStruct,
+    ttrackRecMesonStruct,
 )

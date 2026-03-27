@@ -39,21 +39,21 @@ scPhase2RecIsoTkEmMasked = cms.EDProducer("MaskOrbitBxScoutingTkEm",
 )
 
 scPhase2RecMesonPhiMasked = cms.EDProducer("MaskOrbitBxScoutingRecMeson2",
-    dataTag = cms.InputTag("recMesonStruct", "phi"),
+    dataTag = cms.InputTag("puppiRecMesonStruct", "phi"),
     selectBxs = cms.InputTag("scPhase2SelectedBXs","SelBx"),
 )
 
 scPhase2RecMesonRhoMasked = cms.EDProducer("MaskOrbitBxScoutingRecMeson2",
-    dataTag = cms.InputTag("recMesonStruct", "rho"),
+    dataTag = cms.InputTag("puppiRecMesonStruct", "rho"),
     selectBxs = cms.InputTag("scPhase2SelectedBXs","SelBx"),
 )
 
 scPhase2RecMesonJpsiMasked = cms.EDProducer("MaskOrbitBxScoutingRecMeson2",
-    dataTag = cms.InputTag("recMesonStruct", "jpsi"),
+    dataTag = cms.InputTag("puppiRecMesonStruct", "jpsi"),
     selectBxs = cms.InputTag("scPhase2SelectedBXs","SelBx"),
 )
 
-scPhase2RecMesonMasked = cms.Sequence(
+scPhase2RecMesonsMasked = cms.Sequence(
     scPhase2RecMesonPhiMasked +
     scPhase2RecMesonRhoMasked +
     scPhase2RecMesonJpsiMasked
@@ -64,9 +64,9 @@ s_maskedCollections = cms.Sequence(
     scPhase2PuppiMasked +
     scPhase2TkEmMasked +
     scPhase2TkEleMasked +
-    scPhase2TrackerTrackMasked +
     scPhase2TrackerMuonMasked +
+    scPhase2TrackerTrackMasked +
     scPhase2PFMasked +
     scPhase2RecIsoTkEmMasked +
-    scPhase2RecMesonMasked
+    scPhase2RecMesonsMasked
 )

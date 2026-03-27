@@ -5,15 +5,15 @@ import os
 from L1TriggerScouting.Phase2.options_cff import options
 options.parseArguments()
 if options.buNumStreams == []:
-    options.buNumStreams.append(20)
-fullCandRecoList = ["recIsoTkEm", "puppiRecMeson"]
-fullAnalysesList = ["w3pi", "wdsg", "wpig",
+    options.buNumStreams.append(3)
+fullAnalysesList = ["w3pi", "wdsg", "wpig", "zdee",
                     "z2phiRecMeson", "z2rhoRecMeson",
+                    "z2phiTTrackRecMeson", "z2rhoTTrackRecMeson",
                     "h2phiRecMeson", "h2rhoRecMeson", "hphijpsiRecMeson",
-                    "hphigammaRecMeson", "hrhogammaRecMeson", "hjpsigammaRecMeson"]
-candReco = options.candReco if options.candReco else fullCandRecoList
+                    "h2phiTTrackRecMeson", "h2rhoTTrackRecMeson", "hphijpsiTTrackRecMeson",
+                    "hphigammaRecMeson", "hrhogammaRecMeson", "hjpsigammaRecMeson",
+                    "hphigammaTTrackRecMeson", "hrhogammaTTrackRecMeson", "hjpsigammaTTrackRecMeson"]
 analyses = options.analyses if options.analyses else fullAnalysesList
-print(f"Candidate reconstructions set to {candReco}")
 print(f"Analyses set to {analyses}")
 
 process = cms.Process("SCPU")
@@ -33,10 +33,11 @@ process.MessageLogger.cerr.FwkReport.reportEvery = 100
 if len(options.buNumStreams) != len(options.buBaseDir):
     raise RuntimeError("Mismatch between buNumStreams (%d) and buBaseDirs (%d)" % (len(options.buNumStreams), len(options.buBaseDir)))
 
-if options.puppiStreamIDs == [] and options.tkEmStreamIDs == [] and options.ttrackStreamIDs == []:
-    puppiStreamIDs = list(range(0,1))       # first one
-    tkEmStreamIDs = list(range(1,2))        # second one
-    ttrackStreamIDs = list(range(2,2+18))   # the other 18, assuming TM18
+if options.puppiStreamIDs == [] and options.tkEmStreamIDs ==  []:
+    nStreamsTot = sum(options.buNumStreams)
+    puppiStreamIDs = list(range(nStreamsTot//3)) # take first third
+    tkEmStreamIDs = list(range(nStreamsTot//3, 2*nStreamsTot//3)) # take second third
+    ttrackStreamIDs = list(range(2*nStreamsTot//3, nStreamsTot)) # take third third
 else:
     puppiStreamIDs = options.puppiStreamIDs
     tkEmStreamIDs = options.tkEmStreamIDs
@@ -92,6 +93,7 @@ process.load("L1TriggerScouting.Phase2.unpackers_cff")
 process.load("L1TriggerScouting.Phase2.candidateReco_cff")
 # Declare rare decay analyses to run
 process.load("L1TriggerScouting.Phase2.rareDecayAnalyses_cff")
+process.load("L1TriggerScouting.Phase2.darkPhotonAnalyses_cff")
 # Declare the filter of the data that keeps only data
 # belonging to selected BXs
 process.load("L1TriggerScouting.Phase2.maskedCollections_cff")
@@ -101,21 +103,8 @@ process.load("L1TriggerScouting.Phase2.nanoAODOutputs_cff")
 ## Configure unpackers
 process.scPhase2PuppiRawToDigiStruct.fedIDs = [*puppiStreamIDs]
 process.scPhase2TkEmRawToDigiStruct.fedIDs = [*tkEmStreamIDs]
-process.scPhase2TrackerTrackRawToDigiStruct.fedIDs = [*ttrackStreamIDs]
 process.goodOrbitsByNBX.nbxMin = 3564 * options.timeslices // options.tmuxPeriod
 process.goodOrbitsByNBX.unpackers = [ "scPhase2PuppiRawToDigiStruct", "scPhase2TkEmRawToDigiStruct", "scPhase2TrackerTrackRawToDigiStruct"]
-
-## Configure reconstruction modules
-if "puppiRecMeson" in candReco:
-    idx = candReco.index("puppiRecMeson")
-    process.recMesonStruct = getattr(process,"puppiRecMesonStruct").clone()
-    candReco[idx] = "recMeson"
-elif "ttrackRecMeson" in candReco:
-    idx = candReco.index("ttrackRecMeson")
-    process.recMesonStruct = getattr(process,"ttrackRecMesonStruct").clone()
-    candReco[idx] = "recMeson"
-candRecoModules = [getattr(process,f"{r}Struct") for r in candReco]
-process.s_candReco = cms.Sequence(sum(candRecoModules[1:], candRecoModules[0]))
 
 ## Configure analyses
 analysisModules = [getattr(process,f"{a}Struct") for a in analyses]
@@ -123,6 +112,7 @@ process.s_analyses = cms.Sequence(sum(analysisModules[1:], analysisModules[0]))
 
 ## Configure selected outputs
 process.scPhase2SelectedBXs.analysisLabels = [cms.InputTag(f"{a}Struct", "selectedBx") for a in analyses]
+process.scPhase2SelectedBXs.nPrint = cms.untracked.uint32(1000)
 
 ## Define inclusive processing (ZeroBias)
 from FWCore.Modules.preScaler_cfi import preScaler
@@ -131,31 +121,30 @@ process.p_inclusive = cms.Path(
   process.s_unpackers +
   process.prescaleInclusive
 )
-
+process.p_inclusive.associate(process.candRecoTasks)
 process.p_inclusive.associate(cms.Task(
     process.scPhase2PuppiStructToTable,
-    process.tableProducersTkEmTask,
-    process.scPhase2TrackerTrackStructToTable,
-    *[getattr(process,f"scPhase2{r[0].upper()+r[1:]}StructToTable") for r in candReco]
+    process.scPhase2TkEgTableProducersTask,
+    process.scPhase2RecIsoTkEmStructToTable,
+    process.scPhase2RecMesonStructToTable,
 ))
 
 ## Define selected processing (Physics streams)
 process.p_selected = cms.Path(
   process.s_unpackers +
-  process.s_candReco +
   process.s_analyses +
   process.scPhase2SelectedBXs +
-  sum([getattr(process,f"scPhase2{r[0].upper()+r[1:]}Masked") for r in candReco], cms.Sequence()) +
   process.scPhase2PuppiMasked +
   process.scPhase2TkEmMasked +
-  process.scPhase2TkEleMasked +
-  process.scPhase2TrackerTrackMasked
+  process.scPhase2TkEleMasked + 
+  process.scPhase2RecIsoTkEmMasked +
+  process.scPhase2RecMesonsMasked
 )
 process.p_selected.associate(cms.Task(
     process.scPhase2PuppiMaskedStructToTable,
-    process.maskedTableProducersTkEmTask,
-    process.scPhase2TrackerTrackMaskedStructToTable,
-    *[getattr(process,f"scPhase2{r[0].upper()+r[1:]}MaskedStructToTable") for r in candReco]
+    process.scPhase2TkEgMaskedTableProducersTask,
+    process.scPhase2RecIsoTkEmMaskedStructToTable,
+    process.scPhase2RecMesonMaskedStructToTable
 ))
 
 process.scPhase2NanoAll.fileName = options.outFile.replace(".root","")+".inclusive.root"

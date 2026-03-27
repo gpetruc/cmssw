@@ -12,6 +12,7 @@
 #include "DataFormats/L1TParticleFlow/interface/L1ScoutingTkEm.h"
 #include "L1TriggerScouting/Utilities/interface/BxOffsetsFiller.h"
 
+#include "DataFormats/Math/interface/deltaR.h"
 #include <ROOT/RVec.hxx>
 #include <Math/Vector4D.h>
 #include <Math/GenVector/LorentzVector.h>
@@ -37,9 +38,9 @@ private:
   edm::EDGetTokenT<OrbitCollection<l1Scouting::TkEm>> structTkEmToken_;
 
   double minPtGamma_;
-  double minDeltaR_;
-  double maxDeltaR_;
-  double maxIso_;
+  double minDeltaR2_;
+  double maxDeltaR2_;
+  double maxRelIso_;
 
   template <typename T>
   bool isolationTkEm(float pt, float eta, float phi, const T *cands, unsigned int size) const;
@@ -49,9 +50,9 @@ ScPhase2RecIsoTkEm::ScPhase2RecIsoTkEm(const edm::ParameterSet &iConfig)
     : structToken_(consumes<OrbitCollection<l1Scouting::Puppi>>(iConfig.getParameter<edm::InputTag>("src"))),
       structTkEmToken_(consumes<OrbitCollection<l1Scouting::TkEm>>(iConfig.getParameter<edm::InputTag>("srcTkEm"))),
       minPtGamma_(iConfig.getParameter<double>("minPtGamma")),
-      minDeltaR_(iConfig.getParameter<double>("minDeltaR")),
-      maxDeltaR_(iConfig.getParameter<double>("maxDeltaR")),
-      maxIso_(iConfig.getParameter<double>("maxIso")) {
+      minDeltaR2_(std::pow(iConfig.getParameter<double>("isolationMinDeltaR"), 2)),
+      maxDeltaR2_(std::pow(iConfig.getParameter<double>("isolationMaxDeltaR"), 2)),
+      maxRelIso_(iConfig.getParameter<double>("maxRelIso")) {
   produces<OrbitCollection<l1Scouting::TkEm>>();
 }
 
@@ -123,12 +124,11 @@ bool ScPhase2RecIsoTkEm::isolationTkEm(float pt, float eta, float phi, const T *
   bool passed = false;
   float psum = 0;
   for (unsigned int j = 0u; j < size; ++j) {  //loop over other particles
-    float deta = eta - cands[j].eta(), dphi = ROOT::VecOps::DeltaPhi<float>(phi, cands[j].phi());
-    float dr2 = deta * deta + dphi * dphi;
-    if (dr2 >= minDeltaR_ && dr2 <= maxDeltaR_)
+    float dr2 = reco::deltaR2(eta, phi, cands[j].eta(), cands[j].phi());
+    if (dr2 >= minDeltaR2_ && dr2 <= maxDeltaR2_)
       psum += cands[j].pt();
   }
-  if (psum <= maxIso_ * pt)
+  if (psum <= maxRelIso_ * pt)
     passed = true;
   return passed;
 }
@@ -138,9 +138,9 @@ void ScPhase2RecIsoTkEm::fillDescriptions(edm::ConfigurationDescriptions &descri
   desc.add<edm::InputTag>("src");
   desc.add<edm::InputTag>("srcTkEm");
   desc.add<double>("minPtGamma");
-  desc.add<double>("maxIso");
-  desc.add<double>("minDeltaR");
-  desc.add<double>("maxDeltaR");
+  desc.add<double>("maxRelIso");
+  desc.add<double>("isolationMinDeltaR");
+  desc.add<double>("isolationMaxDeltaR");
   descriptions.addDefault(desc);
 }
 

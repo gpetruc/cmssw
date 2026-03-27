@@ -12,6 +12,7 @@
 #include "DataFormats/L1TParticleFlow/interface/L1ScoutingTkEm.h"
 #include "L1TriggerScouting/Utilities/interface/BxOffsetsFiller.h"
 
+#include "DataFormats/Math/interface/deltaR.h"
 #include <ROOT/RVec.hxx>
 #include <Math/Vector4D.h>
 #include <Math/GenVector/LorentzVector.h>

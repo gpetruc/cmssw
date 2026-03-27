@@ -6,7 +6,11 @@ from L1TriggerScouting.Phase2.options_cff import options
 options.parseArguments()
 if options.buNumStreams == []:
     options.buNumStreams.append(1)
-analyses = options.analyses if options.analyses else ["w3pi", "hphijpsi", "h2rho", "h2phi"]
+analyses = options.analyses if options.analyses else [
+    "w3pi", 
+    "hphijpsi", "h2rho", "h2phi",
+    "z2phiRecMeson", "z2rhoRecMeson",
+    "h2phiRecMeson", "h2rhoRecMeson", "hphijpsiRecMeson"]
 print(f"Analyses set to {analyses}")
 
 if options.run not in ("both", "inclusive", "selected", "candidate", "soa", "all", "fast"):
@@ -52,6 +56,9 @@ process.load( "HLTrigger.Timer.FastTimerService_cfi" )
 process.FastTimerService.writeJSONSummary = cms.untracked.bool(True)
 process.FastTimerService.jsonFileName = cms.untracked.string(f'resources.{os.uname()[1]}.{options.task}.json')
 #process.MessageLogger.cerr.FastReport = cms.untracked.PSet( limit = cms.untracked.int32( 10000000 ) )
+process.FastTimerService.enableTimingPaths = cms.untracked.bool(True)
+process.FastTimerService.enableTimingModules = cms.untracked.bool(True)
+process.FastTimerService.useRealTimeClock = cms.untracked.bool(True)
 
 fuDir = options.fuBaseDir+("/run%06d" % options.runNumber)
 buDirs = [b+("/run%06d" % options.runNumber) for b in options.buBaseDir]
@@ -77,6 +84,7 @@ process.source = cms.Source("DAQSource",
 os.system("touch " + buDirs[0] + "/" + "fu.lock")
 
 process.load("L1TriggerScouting.Phase2.unpackers_cff")
+process.load("L1TriggerScouting.Phase2.candidateReco_cff")
 process.load("L1TriggerScouting.Phase2.rareDecayAnalyses_cff")
 process.load("L1TriggerScouting.Phase2.maskedCollections_cff")
 process.load("L1TriggerScouting.Phase2.nanoAODOutputs_cff")
@@ -103,8 +111,12 @@ process.p_inclusive = cms.Path(
   process.scPhase2PuppiRawToDigiStruct +
   process.goodOrbitsByNBX +
   process.prescaleInclusive +
-  process.scPhase2PuppiStructToTable
+  process.scPhase2PuppiStructToTable +
+  process.scPhase2RecMesonPhiStructToTable +
+  process.scPhase2RecMesonRhoStructToTable +
+  process.scPhase2RecMesonJpsiStructToTable
 )
+process.p_inclusive.associate(process.candRecoTasks)
 
 ## Define selected processing (Physics streams)
 process.p_selected = cms.Path(
@@ -113,8 +125,15 @@ process.p_selected = cms.Path(
   process.s_analyses +
   process.scPhase2SelectedBXs +
   process.scPhase2PuppiMasked + 
-  process.scPhase2PuppiMaskedStructToTable
+  process.scPhase2RecMesonPhiMasked +
+  process.scPhase2RecMesonRhoMasked +
+  process.scPhase2RecMesonJpsiMasked +
+  process.scPhase2PuppiMaskedStructToTable +
+  process.scPhase2RecMesonPhiMaskedStructToTable +
+  process.scPhase2RecMesonRhoMaskedStructToTable +
+  process.scPhase2RecMesonJpsiMaskedStructToTable
 )
+process.p_inclusive.associate(process.candRecoTasks)
 
 # Additional modules and paths for benchmarking different data structures
 process.scPhase2PuppiRawToDigiCandidate = process.scPhase2PuppiRawToDigiStruct.clone(
