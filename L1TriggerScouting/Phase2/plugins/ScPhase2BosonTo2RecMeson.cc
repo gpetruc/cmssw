@@ -69,10 +69,8 @@ ScPhase2BosonTo2RecMeson::ScPhase2BosonTo2RecMeson(const edm::ParameterSet &iCon
       minPtQ_(iConfig.getParameter<double>("minPtQ")),
       maxIso_(iConfig.getParameter<double>("maxIso")),
       analysisName_(iConfig.getParameter<std::string>("analysisName")) {
-  structToken1_ =
-      consumes<OrbitCollection<l1Scouting::RecMeson<2>>>(iConfig.getParameter<edm::InputTag>("srcMeson1"));
-  structToken2_ =
-      consumes<OrbitCollection<l1Scouting::RecMeson<2>>>(iConfig.getParameter<edm::InputTag>("srcMeson2"));
+  structToken1_ = consumes<OrbitCollection<l1Scouting::RecMeson<2>>>(iConfig.getParameter<edm::InputTag>("srcMeson1"));
+  structToken2_ = consumes<OrbitCollection<l1Scouting::RecMeson<2>>>(iConfig.getParameter<edm::InputTag>("srcMeson2"));
   sameMesonCollection_ =
       (iConfig.getParameter<edm::InputTag>("srcMeson1") == iConfig.getParameter<edm::InputTag>("srcMeson2"));
   produces<std::vector<unsigned>>("selectedBx");
@@ -111,7 +109,7 @@ void ScPhase2BosonTo2RecMeson::runObj(const OrbitCollection<T> &srcMeson1,
   auto ret = std::make_unique<std::vector<unsigned>>();
   std::vector<float> masses;
   std::vector<uint8_t> i0s, i1s, i2s, i3s;
-  std::array<unsigned int, 2> bestMesonPair;
+  std::array<unsigned int, 2> bestMesonPair{{0, 0}};
   float bestMesonPairScore;
   bool bestMesonPairFound;
 
