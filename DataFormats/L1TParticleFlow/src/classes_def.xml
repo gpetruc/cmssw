@@ -1,13 +1,13 @@
 <lcgdict>
-                      
+
   <class name="l1t::PFCluster" ClassVersion="4">
    <version ClassVersion="4" checksum="3917005656"/>
         <version ClassVersion="3" checksum="1668592434"/>
-  </class> 
+  </class>
   <class name="l1t::PFClusterCollection"/>
   <class name="edm::Wrapper<l1t::PFClusterCollection>" />
   <class name="edm::Ref<l1t::PFClusterCollection>" />
-  <class name="edm::RefVector<l1t::PFClusterCollection>" /> 
+  <class name="edm::RefVector<l1t::PFClusterCollection>" />
 
   <class name="l1t::PFTrack::TrackRef" />
   <class name="l1t::PFTrack"  ClassVersion="4">
@@ -17,8 +17,18 @@
   <class name="l1t::PFTrackCollection" />
   <class name="edm::Wrapper<l1t::PFTrackCollection>" />
   <class name="edm::Ref<l1t::PFTrackCollection>" />
-  <class name="edm::RefVector<l1t::PFTrackCollection>" /> 
+  <class name="edm::RefVector<l1t::PFTrackCollection>" />
   <class name="std::vector<edm::Ref<l1t::PFTrackCollection> >" />
+
+  <class name="l1Scouting::RecMesonBase"/>
+  <class name="std::vector<l1Scouting::RecMesonBase>"/>
+  <class name="OrbitCollection<l1Scouting::RecMesonBase>" />
+  <class name="edm::Wrapper<OrbitCollection<l1Scouting::RecMesonBase>>" />
+
+  <class name="l1Scouting::RecMeson<2>" />
+  <class name="std::vector<l1Scouting::RecMeson<2>>"/>
+  <class name="OrbitCollection<l1Scouting::RecMeson<2>>" />
+  <class name="edm::Wrapper<OrbitCollection<l1Scouting::RecMeson<2>>>" />
 
   <class name="l1t::PFCandidate"  ClassVersion="7">
         <version ClassVersion="7" checksum="2118795037"/>
@@ -36,6 +46,7 @@
   <class name="edm::Wrapper<l1t::RegionalOutput<l1t::PFCandidateCollection>>" />
   <class name="OrbitCollection<l1t::PFCandidate>" />
   <class name="edm::Wrapper<OrbitCollection<l1t::PFCandidate>>" />
+
   <class name="l1Scouting::Puppi"  ClassVersion="3">
         <version ClassVersion="3" checksum="3223900940"/>
   </class>
@@ -46,18 +57,25 @@
   <class name="edm::Wrapper<l1Scouting::PuppiSOA>" />
 
   <class name="l1Scouting::TkEm"  ClassVersion="3">
-	<version ClassVersion="3" checksum="429045954"/>
+	<version ClassVersion="3" checksum="4140587620"/>
   </class>
   <class name="std::vector<l1Scouting::TkEm>" />
   <class name="OrbitCollection<l1Scouting::TkEm>" />
   <class name="edm::Wrapper<OrbitCollection<l1Scouting::TkEm>>" />
 
   <class name="l1Scouting::TkEle"  ClassVersion="3">
-	<version ClassVersion="3" checksum="1583094166"/>
+	<version ClassVersion="3" checksum="407081992"/>
   </class>
   <class name="std::vector<l1Scouting::TkEle>" />
   <class name="OrbitCollection<l1Scouting::TkEle>" />
   <class name="edm::Wrapper<OrbitCollection<l1Scouting::TkEle>>" />
+
+  <class name="l1Scouting::TTrack"  ClassVersion="3">
+        <version ClassVersion="3" checksum="2404234549"/>
+  </class>
+  <class name="std::vector<l1Scouting::TTrack>" />
+  <class name="OrbitCollection<l1Scouting::TTrack>" />
+  <class name="edm::Wrapper<OrbitCollection<l1Scouting::TTrack>>" />
 
   <class name="l1t::PFJet"  ClassVersion="6">
         <version ClassVersion="6" checksum="2599349078"/>
@@ -78,9 +96,9 @@
   </class>
   <class name="l1t::PFTauCollection" />
   <class name="edm::Wrapper<l1t::PFTauCollection>" />
-  <class name="edm::Ref<l1t::PFTauCollection>" /> 
-  <class name="edm::RefVector<l1t::PFTauCollection>" /> 
-  <class name="std::vector<edm::Ref<l1t::PFTauCollection> >" /> 
+  <class name="edm::Ref<l1t::PFTauCollection>" />
+  <class name="edm::RefVector<l1t::PFTauCollection>" />
+  <class name="std::vector<edm::Ref<l1t::PFTauCollection> >" />
 
   <class name="l1t::HPSPFTau" ClassVersion="14">
     <version ClassVersion="14" checksum="927489833"/>
@@ -91,7 +109,7 @@
   <class name="l1t::HPSPFTauCollection"/>
   <class name="edm::Wrapper<l1t::HPSPFTauCollection>"/>
   <class name="edm::Ref<l1t::HPSPFTauCollection>" />
-  <class name="edm::RefVector<l1t::HPSPFTauCollection>" /> 
+  <class name="edm::RefVector<l1t::HPSPFTauCollection>" />
   <class name="std::vector<edm::Ref<l1t::HPSPFTauCollection> >" />
 
 </lcgdict>

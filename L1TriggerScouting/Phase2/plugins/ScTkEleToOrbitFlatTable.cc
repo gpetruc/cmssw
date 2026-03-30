@@ -71,7 +71,7 @@ void ScTkEleToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm::Ev
   out->addColumn<float>("pt", pt, "pt (GeV)");
   out->addColumn<float>("eta", eta, "eta (natural units)");
   out->addColumn<float>("phi", phi, "phi (natural units)");
-  out->addColumn<uint8_t>("quality", quality, "quality (8 bits");
+  out->addColumn<uint8_t>("quality", quality, "quality (8 bits)");
   out->addColumn<float>("isolation", isolation, "isolation (natural units)");
   out->addColumn<int16_t>("charge", charge, "charge");
   out->addColumn<float>("z0", z0, "z0 (cm)");

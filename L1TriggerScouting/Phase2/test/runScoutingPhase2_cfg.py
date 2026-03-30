@@ -6,7 +6,16 @@ from L1TriggerScouting.Phase2.options_cff import options
 options.parseArguments()
 if options.buNumStreams == []:
     options.buNumStreams.append(3)
-analyses = options.analyses if options.analyses else ["w3pi", "wdsg", "wpig", "hrhog", "hphig", "hjpsig", "hphijpsi", "h2rho", "h2phi", "zdee", "dimu"]
+analyses = options.analyses if options.analyses else [
+    "w3pi", "wdsg", "wpig", 
+    "hrhog", "hphig", "hjpsig", "hphijpsi", "h2rho", "h2phi", 
+    "z2phiRecMeson", "z2rhoRecMeson",
+    "h2phiRecMeson", "h2rhoRecMeson", "hphijpsiRecMeson",
+    "hphigammaRecMeson", "hrhogammaRecMeson", "hjpsigammaRecMeson",
+    "hphijpsiMuMuRecMeson", "hjpsigammaMuMuRecMeson", 
+    "hphijpsiEERecMeson", "hjpsigammaEERecMeson",
+    "zdee", "dimu"
+]
 print(f"Analyses set to {analyses}")
 
 process = cms.Process("SCPU")
@@ -55,6 +64,9 @@ process.load( "HLTrigger.Timer.FastTimerService_cfi" )
 process.FastTimerService.writeJSONSummary = cms.untracked.bool(True)
 process.FastTimerService.jsonFileName = cms.untracked.string(f'resources.{os.uname()[1]}.{options.task}.json')
 #process.MessageLogger.cerr.FastReport = cms.untracked.PSet( limit = cms.untracked.int32( 10000000 ) )
+process.FastTimerService.enableTimingPaths = cms.untracked.bool(True)
+process.FastTimerService.enableTimingModules = cms.untracked.bool(True)
+process.FastTimerService.useRealTimeClock = cms.untracked.bool(True)
 
 fuDir = options.fuBaseDir+("/run%06d" % options.runNumber)
 buDirs = [b+("/run%06d" % options.runNumber) for b in options.buBaseDir]
@@ -80,6 +92,7 @@ process.source = cms.Source("DAQSource",
 os.system("touch " + buDirs[0] + "/" + "fu.lock")
 
 process.load("L1TriggerScouting.Phase2.unpackers_cff")
+process.load("L1TriggerScouting.Phase2.candidateReco_cff")
 process.load("L1TriggerScouting.Phase2.rareDecayAnalyses_cff")
 process.load("L1TriggerScouting.Phase2.darkPhotonAnalyses_cff")
 process.load("L1TriggerScouting.Phase2.maskedCollections_cff")
@@ -90,6 +103,7 @@ process.scPhase2PuppiRawToDigiStruct.fedIDs = [*puppiStreamIDs]
 process.scPhase2TkEmRawToDigiStruct.fedIDs = [*tkEmStreamIDs]
 process.scPhase2TrackerMuonRawToDigiStruct.fedIDs = [*tkMuStreamIDs]
 process.goodOrbitsByNBX.nbxMin = 3564 * options.timeslices // options.tmuxPeriod
+process.goodOrbitsByNBX.unpackers = [ "scPhase2PuppiRawToDigiStruct", "scPhase2TkEmRawToDigiStruct", "scPhase2TrackerMuonRawToDigiStruct"]
 
 ## Configure analyses
 analysisModules = [getattr(process,f"{a}Struct") for a in analyses]
@@ -106,14 +120,16 @@ process.p_inclusive = cms.Path(
   process.s_unpackers +
   process.prescaleInclusive
 )
+process.p_inclusive.associate(process.candRecoTasks)
 process.p_inclusive.associate(process.tableProducersTask)
 
 ## Define selected processing (Physics streams)
 process.p_selected = cms.Path(
-  process.s_unpackers + 
+  process.s_unpackers +
   process.s_analyses +
   process.s_maskedCollections
 )
+process.p_selected.associate(process.candRecoTasks)
 process.p_selected.associate(process.maskedTableProducersTask)
 
 process.scPhase2NanoAll.fileName = options.outFile.replace(".root","")+".inclusive.root"
@@ -128,7 +144,8 @@ process.o_nanoSelected = cms.EndPath(process.scPhase2NanoSelected)
 process.o_nanoBoth = cms.EndPath(process.scPhase2NanoAll + process.scPhase2NanoSelected)
 
 sched = [ process.p_inclusive, process.p_selected ]
-if options.run != "both":  [ getattr(process, "p_" + options.run)]
+if options.run != "both":
+    sched = [ getattr(process, "p_" + options.run)]
 
 if options.outMode != "none":
   sched.append(getattr(process, "o_"+options.outMode))
