@@ -9,7 +9,8 @@ if options.buNumStreams == []:
 fullAnalysesList = ["w3pi", "wdsg", "wpig", "zdee",
                     "z2phiRecMeson", "z2rhoRecMeson",
                     "h2phiRecMeson", "h2rhoRecMeson", "hphijpsiRecMeson",
-                    "hphigammaRecMeson", "hrhogammaRecMeson", "hjpsigammaRecMeson"]
+                    "hphigammaRecMeson", "hrhogammaRecMeson", "hjpsigammaRecMeson",
+                    "hphijpsiEERecMeson", "hjpsigammaEERecMeson"]
 analyses = options.analyses if options.analyses else fullAnalysesList
 print(f"Analyses set to {analyses}")
 
@@ -136,6 +137,7 @@ process.p_selected = cms.Path(
   process.scPhase2RecIsoTkEmMasked +
   process.scPhase2RecMesonsMasked
 )
+process.p_selected.associate(process.candRecoTasks)
 process.p_selected.associate(cms.Task(
     process.scPhase2PuppiMaskedStructToTable,
     process.scPhase2TkEgMaskedTableProducersTask,

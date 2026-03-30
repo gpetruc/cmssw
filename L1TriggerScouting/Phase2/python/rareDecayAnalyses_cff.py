@@ -15,6 +15,14 @@ hjpsigammaTTrackRecMesonStruct = hjpsigammaRecMesonStruct.clone(
     srcMeson = "ttrackRecMesonStruct:jpsi",
     analysisName = "HJPsiGammaTTrack",
 )
+hjpsigammaMuMuRecMesonStruct = hjpsigammaRecMesonStruct.clone(
+    srcMeson = "puppiRecMesonStruct:jpsi",
+    analysisName = "HJPsiGammaMuMu",
+)
+hjpsigammaEERecMesonStruct = hjpsigammaRecMesonStruct.clone(
+    srcMeson = "ttrackRecMesonStruct:jpsi",
+    analysisName = "HJPsiGammaEE",
+)
 
 h2phiRecMesonStruct = cms.EDProducer("ScPhase2BosonTo2RecMeson",
     srcMeson1 = cms.InputTag("puppiRecMesonStruct", "phi"),
@@ -60,6 +68,16 @@ hphijpsiTTrackRecMesonStruct = hphijpsiRecMesonStruct.clone(
     srcMeson1 = "ttrackRecMesonStruct:phi",
     srcMeson2 = "ttrackRecMesonStruct:jpsi",
     analysisName = "HPhiJPsiTTrack",
+)
+hphijpsiMuMuRecMesonStruct = hphijpsiRecMesonStruct.clone(
+    srcMeson1 = "puppiRecMesonStruct:phi",
+    srcMeson2 = "tkMuonRecMesonStruct:jpsi",
+    analysisName = "HPhiJPsiMuMu",
+)
+hphijpsiEERecMesonStruct = hphijpsiRecMesonStruct.clone(
+    srcMeson1 = "puppiRecMesonStruct:phi",
+    srcMeson2 = "tkEleRecMesonStruct:jpsi",
+    analysisName = "HPhiJPsiEE",
 )
 
 

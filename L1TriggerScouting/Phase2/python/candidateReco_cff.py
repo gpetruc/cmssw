@@ -51,7 +51,7 @@ puppiRecMesonStruct = cms.EDProducer("ScPhase2PuppiRecMesonAll",
 
 tkMuonRecMesonStruct = cms.EDProducer("ScPhase2TrackerMuonRecMesonAll",
     src = cms.InputTag("scPhase2TrackerMuonRawToDigiStruct"),
-    mesonTypes = cms.VPSet(m for m in mesonTypes if m.name.value() == "jpsi"),
+    mesonTypes = cms.VPSet(*[m for m in mesonTypes if m.name.value() == "jpsi"]),
     isolationMinDeltaR = cms.double(0.05),
     isolationMaxDeltaR = cms.double(0.25),
     isolationMaxDeltaZ = cms.double(1),
@@ -62,9 +62,9 @@ tkMuonRecMesonStruct = cms.EDProducer("ScPhase2TrackerMuonRecMesonAll",
 )
 
 
-tkEleRecMesonStruct = cms.EDProducer("ScPhase2TrackerMuonRecMesonAll",
+tkEleRecMesonStruct = cms.EDProducer("ScPhase2TkEleRecMesonAll",
     src = cms.InputTag("scPhase2TkEmRawToDigiStruct"),
-    mesonTypes = cms.VPSet(m.clone(dauMass1=0.0005, dauMass2=0.0005) for m in mesonTypes if m.name.value() == "jpsi"),
+    mesonTypes = cms.VPSet(*[m.clone(dauMass1=0.0005, dauMass2=0.0005) for m in mesonTypes if m.name.value() == "jpsi"]),
     isolationMinDeltaR = cms.double(0.05),
     isolationMaxDeltaR = cms.double(0.25),
     isolationMaxDeltaZ = cms.double(1),

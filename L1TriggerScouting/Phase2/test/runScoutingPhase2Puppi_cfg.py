@@ -133,7 +133,7 @@ process.p_selected = cms.Path(
   process.scPhase2RecMesonRhoMaskedStructToTable +
   process.scPhase2RecMesonJpsiMaskedStructToTable
 )
-process.p_inclusive.associate(process.candRecoTasks)
+process.p_selected.associate(process.candRecoTasks)
 
 # Additional modules and paths for benchmarking different data structures
 process.scPhase2PuppiRawToDigiCandidate = process.scPhase2PuppiRawToDigiStruct.clone(

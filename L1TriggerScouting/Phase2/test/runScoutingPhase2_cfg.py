@@ -12,6 +12,8 @@ analyses = options.analyses if options.analyses else [
     "z2phiRecMeson", "z2rhoRecMeson",
     "h2phiRecMeson", "h2rhoRecMeson", "hphijpsiRecMeson",
     "hphigammaRecMeson", "hrhogammaRecMeson", "hjpsigammaRecMeson",
+    "hphijpsiMuMuRecMeson", "hjpsigammaMuMuRecMeson", 
+    "hphijpsiEERecMeson", "hjpsigammaEERecMeson",
     "zdee", "dimu"
 ]
 print(f"Analyses set to {analyses}")
