@@ -67,6 +67,18 @@ options.register ('tkMuStreamIDs',
                   VarParsing.VarParsing.varType.int,          # string, int, or float
                   "Stream IDs for the TkMu inputs")
 
+options.register ('ttrackStreamIDs',
+                  [], # default value
+                  VarParsing.VarParsing.multiplicity.list,
+                  VarParsing.VarParsing.varType.int,          # string, int, or float
+                  "Stream IDs for the Tracker Track inputs")
+
+options.register ('pfStreamIDs',
+                  [], # default value
+                  VarParsing.VarParsing.multiplicity.list,
+                  VarParsing.VarParsing.varType.int,          # string, int, or float
+                  "Stream IDs for the PF inputs")
+
 options.register ('fuBaseDir',
                   '/dev/shm/data', # default value
                   VarParsing.VarParsing.multiplicity.singleton,
@@ -110,11 +122,11 @@ options.register ('prescaleInclusive',
                   "Prescale factor for the inclusive stream.")
 
 options.register ('outMode',
-                  'none', # default value
+                  'nanoBoth', # default value
                   VarParsing.VarParsing.multiplicity.singleton,
                   VarParsing.VarParsing.varType.string,          # string, int, or float
                   "output (none, nanoSelected, nanoInclusive, nanoBoth)")
-                   
+
 options.register ('outFile',
                   "NanoOutput.root",
                   VarParsing.VarParsing.multiplicity.singleton,

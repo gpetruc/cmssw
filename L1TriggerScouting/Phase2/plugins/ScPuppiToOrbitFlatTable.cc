@@ -77,7 +77,7 @@ void ScPuppiToOrbitFlatTable::produce(edm::StreamID, edm::Event& iEvent, edm::Ev
   out->addColumn<float>("dxy", dxy, "dxy (cm)");
   out->addColumn<float>("puppiw", puppiw, "puppi weight (range [0,1])");
   out->addColumn<int16_t>("pdgId", pdgId, "pdgId (natural units)");
-  out->addColumn<uint8_t>("quality", quality, "quality (8 bits");
+  out->addColumn<uint8_t>("quality", quality, "quality (8 bits)");
   iEvent.put(std::move(out));
 }
 

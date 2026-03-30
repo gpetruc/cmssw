@@ -12,6 +12,7 @@
 #include "DataFormats/L1TParticleFlow/interface/L1ScoutingTkEm.h"
 #include "L1TriggerScouting/Utilities/interface/BxOffsetsFiller.h"
 
+#include "DataFormats/Math/interface/deltaR.h"
 #include <ROOT/RVec.hxx>
 #include <Math/Vector4D.h>
 #include <Math/GenVector/LorentzVector.h>
@@ -41,7 +42,7 @@ private:
   edm::EDGetTokenT<OrbitCollection<l1Scouting::Puppi>> structToken_;
 
   struct Cuts {
-    float minptD = 10;
+    float minptD = 5;
     float minptQ = 30;
     float maxdeltarD2 = 0.40 * 0.40;
     float minmassH = 100;
@@ -56,15 +57,15 @@ private:
   } cuts;
 
   template <typename T>
-  bool isolationQ(unsigned int pidex1, unsigned int pidex2, const T *cands, unsigned int size) const;
+  std::tuple<bool, float> isolationQ(
+      float eta, float phi, unsigned int pidex1, unsigned int pidex2, const T *cands, unsigned int size) const;
 
   std::tuple<bool, float> deltar(float eta1, float eta2, float phi1, float phi2) const;
 
   template <typename T>
-  static float pairmass(const std::array<unsigned int, 2> &t, const T *cands, const std::array<float, 2> &massD);
-
-  template <typename T>
-  static float quadrupletmass(const std::array<unsigned int, 4> &t, const T *cands, const std::array<float, 4> &massD);
+  static ROOT::Math::PtEtaPhiMVector pairP4(const std::array<unsigned int, 2> &t,
+                                            const T *cands,
+                                            const std::array<float, 2> &massD);
 
   unsigned long countStruct_;
   unsigned long passStruct_;
@@ -116,11 +117,12 @@ void ScPhase2PuppiHPhiJPsiDemo::runObj(const OrbitCollection<T> &src,
   std::array<unsigned int, 2> bestPair1, bestPair2;
   bool bestPair1Found, bestPair2Found;
   float bestPair1Score, bestPair2Score;
+  ROOT::Math::PtEtaPhiMVector p4Q1, p4Q2;
   for (unsigned int bx = 1; bx <= OrbitCollection<T>::NBX; ++bx) {
     nTry++;
     auto range = src.bxIterator(bx);
-    const T *cands = &range.front();
     auto size = range.size();
+    const T *cands = (size > 0) ? &range.front() : nullptr;
 
     ix.clear();
     for (unsigned int i = 0; i < size; ++i) {  //make list of all hadrons
@@ -131,87 +133,80 @@ void ScPhase2PuppiHPhiJPsiDemo::runObj(const OrbitCollection<T> &src,
     if (ndaus < 4)
       continue;
 
-    // Q1 candidate from closest OS pair with mass compatible with mQ
+    // Q1 candidate from highest pT OS pair with mass compatible with mQ
     bestPair1Found = false;
-    bestPair1Score = 999;
+    bestPair1Score = cuts.minptQ;
     for (unsigned int i1 = 0; i1 < ndaus; ++i1) {
-      if (cands[ix[i1]].pt() < cuts.minptD)
-        continue;  // D1 pt cut
-      for (unsigned int i2 = 0; i2 < ndaus; ++i2) {
-        if (i2 == i1 || cands[ix[i2]].pt() < cuts.minptD)
-          continue;  // D2 pt cut
-
+      for (unsigned int i2 = i1 + 1; i2 < ndaus; ++i2) {
         if (!(cands[ix[i1]].charge() * cands[ix[i2]].charge() < 0))
           continue;
 
-        auto mass2 = pairmass({{ix[i1], ix[i2]}}, cands, {{0.4937, 0.4937}});
-        if (mass2 >= cuts.minmassQ1 and mass2 <= cuts.maxmassQ1)
+        auto p4 = pairP4({{ix[i1], ix[i2]}}, cands, {{0.4937, 0.4937}});
+        auto mass2 = p4.M();
+        if (!(mass2 >= cuts.minmassQ1 and mass2 <= cuts.maxmassQ1))
           continue;
 
-        auto [drcond, drQ] = deltar(cands[ix[i1]].eta(), cands[ix[i2]].eta(), cands[ix[i1]].phi(), cands[ix[i2]].phi());
+        auto [drcond, dr2Q] =
+            deltar(cands[ix[i1]].eta(), cands[ix[i2]].eta(), cands[ix[i1]].phi(), cands[ix[i2]].phi());
         if (!drcond)
           continue;  // angular sep of top 2 tracks
 
+        auto [isolated, psum] = isolationQ(p4.eta(), p4.phi(), ix[i1], ix[i2], cands, size);
+        if (!isolated)
+          continue;  // Q isolation
+
         std::array<unsigned int, 2> pair{{ix[i1], ix[i2]}};  // pair of indices
-        if (drQ < bestPair1Score) {
+        if (p4.pt() > bestPair1Score) {
           std::copy_n(pair.begin(), 2, bestPair1.begin());
-          bestPair1Score = drQ;
-          if (bestPair1Score * bestPair1Score < cuts.maxdeltarD2)
-            bestPair1Found = true;
+          bestPair1Found = true;
+          bestPair1Score = p4.pt();
+          p4Q1 = p4;
         }
       }
     }
     if (!bestPair1Found)
       continue;  // pair was found
-    auto ptQ = (cands[bestPair1[0]].p4() + cands[bestPair1[1]].p4()).pt();
-    if (ptQ < cuts.minptQ)
-      continue;  // Q pt
-    if (!isolationQ(bestPair1[0], bestPair1[1], cands, size))
-      continue;  // Q isolation
 
-    // Q2 candidate from closest OS pair with mass compatible with mQ
+    // Q2 candidate from highest pT OS pair with mass compatible with mQ
     bestPair2Found = false;
-    bestPair2Score = 999;
+    bestPair2Score = cuts.minptQ;
     for (unsigned int i3 = 0; i3 < ndaus; ++i3) {
-      if (cands[ix[i3]].pt() < cuts.minptD)
-        continue;  // D1 pt cut
       if (ix[i3] == bestPair1[0] or ix[i3] == bestPair1[1])
         continue;  // don't reuse candidates from previous pair
-      for (unsigned int i4 = 0; i4 < ndaus; ++i4) {
-        if (i4 == i3 || cands[ix[i4]].pt() < cuts.minptD)
-          continue;  // D2 pt cut
+      for (unsigned int i4 = i3 + 1; i4 < ndaus; ++i4) {
         if (ix[i4] == bestPair1[0] or ix[i4] == bestPair1[1])
           continue;  // don't reuse candidates from previous pair
         if (!(cands[ix[i3]].charge() * cands[ix[i4]].charge() < 0))
           continue;  // OS pair
-        auto mass2 = pairmass(
-            {{ix[i3], ix[i4]}}, cands, {{0.1057, 0.1057}});  // (cands[ix[i3]].p4() + cands[ix[i4]].p4()).mass();
-        if (mass2 >= cuts.minmassQ2 and mass2 <= cuts.maxmassQ2)
+        auto p4 =
+            pairP4({{ix[i3], ix[i4]}}, cands, {{0.1057, 0.1057}});  // (cands[ix[i3]].p4() + cands[ix[i4]].p4()).mass();
+        auto mass2 = p4.M();
+        if (!(mass2 >= cuts.minmassQ2 and mass2 <= cuts.maxmassQ2))
           continue;  // Q mass
-        auto [drcond, drQ] = deltar(cands[ix[i3]].eta(), cands[ix[i4]].eta(), cands[ix[i3]].phi(), cands[ix[i4]].phi());
+        auto [drcond, dr2Q] =
+            deltar(cands[ix[i3]].eta(), cands[ix[i4]].eta(), cands[ix[i3]].phi(), cands[ix[i4]].phi());
         if (!drcond)
           continue;  // angular sep of top 2 tracks
 
+        auto [isolated, psum] = isolationQ(p4.eta(), p4.phi(), ix[i3], ix[i4], cands, size);
+        if (!isolated)
+          continue;  // Q isolation
+
         std::array<unsigned int, 2> pair{{ix[i3], ix[i4]}};  // pair of indices
-        if (drQ < bestPair2Score) {
+        if (p4.pt() > bestPair2Score) {
           std::copy_n(pair.begin(), 2, bestPair2.begin());
-          bestPair2Score = drQ;
-          if (bestPair2Score * bestPair2Score < cuts.maxdeltarD2)
-            bestPair2Found = true;
+          bestPair2Found = true;
+          bestPair2Score = p4.pt();
+          p4Q2 = p4;
         }
       }
     }
     if (!bestPair2Found)
       continue;  // pair was found
-    ptQ = (cands[bestPair2[0]].p4() + cands[bestPair2[1]].p4()).pt();
-    if (ptQ < cuts.minptQ)
-      continue;  // Q pt
-    if (!isolationQ(bestPair2[0], bestPair2[1], cands, size))
-      continue;  // Q isolation
 
     std::array<unsigned int, 4> bestQuadruplet{{bestPair1[0], bestPair1[1], bestPair2[0], bestPair2[1]}};
     // H mass
-    auto mass = quadrupletmass(bestQuadruplet, cands, {{0.4937, 0.4937, 0.1057, 0.1057}});
+    auto mass = (p4Q1 + p4Q2).M();
     if (!(mass >= cuts.minmassH and mass <= cuts.maxmassH))
       continue;
 
@@ -239,59 +234,33 @@ void ScPhase2PuppiHPhiJPsiDemo::runObj(const OrbitCollection<T> &src,
 
 //TEST functions
 template <typename T>
-bool ScPhase2PuppiHPhiJPsiDemo::isolationQ(unsigned int pidex1,
-                                           unsigned int pidex2,
-                                           const T *cands,
-                                           unsigned int size) const {
-  bool passed = false;
+std::tuple<bool, float> ScPhase2PuppiHPhiJPsiDemo::isolationQ(
+    float eta, float phi, unsigned int pidex1, unsigned int pidex2, const T *cands, unsigned int size) const {
   float psum = 0;
-  float eta = cands[pidex1].eta();  //center cone around leading track
-  float phi = cands[pidex1].phi();
   for (unsigned int j = 0u; j < size; ++j) {  //loop over other particles
     if (pidex1 == j or pidex2 == j)
       continue;
-    float deta = eta - cands[j].eta(), dphi = ROOT::VecOps::DeltaPhi<float>(phi, cands[j].phi());
-    float dr2 = deta * deta + dphi * dphi;
+    float dr2 = reco::deltaR2(eta, phi, cands[j].eta(), cands[j].phi());
     if (dr2 >= cuts.mindr2 && dr2 <= cuts.maxdr2)
       psum += cands[j].pt();
   }
-  if (psum <= cuts.maxiso * (cands[pidex1].pt() + cands[pidex2].pt()))
-    passed = true;
-  return passed;
+  bool passed = (psum <= cuts.maxiso * (cands[pidex1].pt() + cands[pidex2].pt()));
+  return std::tuple(passed, psum);
 }
 
 std::tuple<bool, float> ScPhase2PuppiHPhiJPsiDemo::deltar(float eta1, float eta2, float phi1, float phi2) const {
-  bool passed = true;
-  float deta = eta1 - eta2;
-  float dphi = ROOT::VecOps::DeltaPhi<float>(phi1, phi2);
-  float dr2 = deta * deta + dphi * dphi;
-  if (dr2 > cuts.maxdeltarD2) {
-    passed = false;
-    return std::tuple(passed, dr2);
-  }
+  float dr2 = reco::deltaR2(eta1, phi1, eta2, phi2);
+  bool passed = (dr2 <= cuts.maxdeltarD2);
   return std::tuple(passed, dr2);
 }
 
 template <typename T>
-float ScPhase2PuppiHPhiJPsiDemo::pairmass(const std::array<unsigned int, 2> &t,
-                                          const T *cands,
-                                          const std::array<float, 2> &massD) {
+ROOT::Math::PtEtaPhiMVector ScPhase2PuppiHPhiJPsiDemo::pairP4(const std::array<unsigned int, 2> &t,
+                                                              const T *cands,
+                                                              const std::array<float, 2> &massD) {
   ROOT::Math::PtEtaPhiMVector p1(cands[t[0]].pt(), cands[t[0]].eta(), cands[t[0]].phi(), massD[0]);
   ROOT::Math::PtEtaPhiMVector p2(cands[t[1]].pt(), cands[t[1]].eta(), cands[t[1]].phi(), massD[1]);
-  float mass = (p1 + p2).M();
-  return mass;
-}
-
-template <typename T>
-float ScPhase2PuppiHPhiJPsiDemo::quadrupletmass(const std::array<unsigned int, 4> &t,
-                                                const T *cands,
-                                                const std::array<float, 4> &massD) {
-  ROOT::Math::PtEtaPhiMVector p1(cands[t[0]].pt(), cands[t[0]].eta(), cands[t[0]].phi(), massD[0]);
-  ROOT::Math::PtEtaPhiMVector p2(cands[t[1]].pt(), cands[t[1]].eta(), cands[t[1]].phi(), massD[1]);
-  ROOT::Math::PtEtaPhiMVector p3(cands[t[2]].pt(), cands[t[2]].eta(), cands[t[2]].phi(), massD[2]);
-  ROOT::Math::PtEtaPhiMVector p4(cands[t[3]].pt(), cands[t[3]].eta(), cands[t[3]].phi(), massD[3]);
-  float mass = (p1 + p2 + p3 + p4).M();
-  return mass;
+  return p1 + p2;
 }
 
 void ScPhase2PuppiHPhiJPsiDemo::fillDescriptions(edm::ConfigurationDescriptions &descriptions) {

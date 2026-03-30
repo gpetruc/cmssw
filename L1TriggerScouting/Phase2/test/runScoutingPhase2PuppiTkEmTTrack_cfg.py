@@ -5,16 +5,16 @@ import os
 from L1TriggerScouting.Phase2.options_cff import options
 options.parseArguments()
 if options.buNumStreams == []:
-    options.buNumStreams.append(1)
-analyses = options.analyses if options.analyses else [
-    "w3pi", 
-    "hphijpsi", "h2rho", "h2phi",
-    "z2phiRecMeson", "z2rhoRecMeson",
-    "h2phiRecMeson", "h2rhoRecMeson", "hphijpsiRecMeson"]
+    options.buNumStreams.append(3)
+fullAnalysesList = ["w3pi", "wdsg", "wpig", "zdee",
+                    "z2phiRecMeson", "z2rhoRecMeson",
+                    "z2phiTTrackRecMeson", "z2rhoTTrackRecMeson",
+                    "h2phiRecMeson", "h2rhoRecMeson", "hphijpsiRecMeson",
+                    "h2phiTTrackRecMeson", "h2rhoTTrackRecMeson", "hphijpsiTTrackRecMeson",
+                    "hphigammaRecMeson", "hrhogammaRecMeson", "hjpsigammaRecMeson",
+                    "hphigammaTTrackRecMeson", "hrhogammaTTrackRecMeson", "hjpsigammaTTrackRecMeson"]
+analyses = options.analyses if options.analyses else fullAnalysesList
 print(f"Analyses set to {analyses}")
-
-if options.run not in ("both", "inclusive", "selected", "candidate", "soa", "all", "fast"):
-    raise RuntimeError("Unsupported run mode %r" % options.run)
 
 process = cms.Process("SCPU")
 process.maxEvents = cms.untracked.PSet(
@@ -33,10 +33,15 @@ process.MessageLogger.cerr.FwkReport.reportEvery = 100
 if len(options.buNumStreams) != len(options.buBaseDir):
     raise RuntimeError("Mismatch between buNumStreams (%d) and buBaseDirs (%d)" % (len(options.buNumStreams), len(options.buBaseDir)))
 
-if options.puppiStreamIDs == []:
-    puppiStreamIDs = list(range(sum(options.buNumStreams))) # take all 
+if options.puppiStreamIDs == [] and options.tkEmStreamIDs ==  []:
+    nStreamsTot = sum(options.buNumStreams)
+    puppiStreamIDs = list(range(nStreamsTot//3)) # take first third
+    tkEmStreamIDs = list(range(nStreamsTot//3, 2*nStreamsTot//3)) # take second third
+    ttrackStreamIDs = list(range(2*nStreamsTot//3, nStreamsTot)) # take third third
 else:
     puppiStreamIDs = options.puppiStreamIDs
+    tkEmStreamIDs = options.tkEmStreamIDs
+    ttrackStreamIDs = options.ttrackStreamIDs
 
 process.EvFDaqDirector = cms.Service("EvFDaqDirector",
     useFileBroker = cms.untracked.bool(options.broker != "none"),
@@ -55,7 +60,6 @@ process.FastMonitoringService = cms.Service("FastMonitoringService")
 process.load( "HLTrigger.Timer.FastTimerService_cfi" )
 process.FastTimerService.writeJSONSummary = cms.untracked.bool(True)
 process.FastTimerService.jsonFileName = cms.untracked.string(f'resources.{os.uname()[1]}.{options.task}.json')
-#process.MessageLogger.cerr.FastReport = cms.untracked.PSet( limit = cms.untracked.int32( 10000000 ) )
 process.FastTimerService.enableTimingPaths = cms.untracked.bool(True)
 process.FastTimerService.enableTimingModules = cms.untracked.bool(True)
 process.FastTimerService.useRealTimeClock = cms.untracked.bool(True)
@@ -71,9 +75,9 @@ process.source = cms.Source("DAQSource",
     dataMode = cms.untracked.string(options.daqSourceMode),
     verifyChecksum = cms.untracked.bool(True),
     useL1EventID = cms.untracked.bool(False),
-    eventChunkBlock = cms.untracked.uint32(2 * 1024),
-    eventChunkSize = cms.untracked.uint32(2 * 1024),
-    maxChunkSize = cms.untracked.uint32(4 * 1024),
+    eventChunkBlock = cms.untracked.uint32(2 * 2 * 1024),
+    eventChunkSize = cms.untracked.uint32(2 * 2 * 1024),
+    maxChunkSize = cms.untracked.uint32(4 * 4 * 1024),
     numBuffers = cms.untracked.uint32(4),
     maxBufferedFiles = cms.untracked.uint32(4),
     fileListMode = cms.untracked.bool(options.broker == "none"),
@@ -83,22 +87,28 @@ process.source = cms.Source("DAQSource",
 )
 os.system("touch " + buDirs[0] + "/" + "fu.lock")
 
+# Declare analysis to run
 process.load("L1TriggerScouting.Phase2.unpackers_cff")
+# Declare candidates reconstruction
 process.load("L1TriggerScouting.Phase2.candidateReco_cff")
+# Declare rare decay analyses to run
 process.load("L1TriggerScouting.Phase2.rareDecayAnalyses_cff")
+process.load("L1TriggerScouting.Phase2.darkPhotonAnalyses_cff")
+# Declare the filter of the data that keeps only data
+# belonging to selected BXs
 process.load("L1TriggerScouting.Phase2.maskedCollections_cff")
+# Declare the flat table (ntuples) output
 process.load("L1TriggerScouting.Phase2.nanoAODOutputs_cff")
 
 ## Configure unpackers
 process.scPhase2PuppiRawToDigiStruct.fedIDs = [*puppiStreamIDs]
+process.scPhase2TkEmRawToDigiStruct.fedIDs = [*tkEmStreamIDs]
 process.goodOrbitsByNBX.nbxMin = 3564 * options.timeslices // options.tmuxPeriod
-process.goodOrbitsByNBX.unpackers = [ "scPhase2PuppiRawToDigiStruct" ]
-
+process.goodOrbitsByNBX.unpackers = [ "scPhase2PuppiRawToDigiStruct", "scPhase2TkEmRawToDigiStruct", "scPhase2TrackerTrackRawToDigiStruct"]
 
 ## Configure analyses
 analysisModules = [getattr(process,f"{a}Struct") for a in analyses]
 process.s_analyses = cms.Sequence(sum(analysisModules[1:], analysisModules[0]))
-
 
 ## Configure selected outputs
 process.scPhase2SelectedBXs.analysisLabels = [cms.InputTag(f"{a}Struct", "selectedBx") for a in analyses]
@@ -108,85 +118,38 @@ process.scPhase2SelectedBXs.nPrint = cms.untracked.uint32(1000)
 from FWCore.Modules.preScaler_cfi import preScaler
 process.prescaleInclusive = preScaler.clone(prescaleFactor = options.prescaleInclusive)
 process.p_inclusive = cms.Path(
-  process.scPhase2PuppiRawToDigiStruct +
-  process.goodOrbitsByNBX +
-  process.prescaleInclusive +
-  process.scPhase2PuppiStructToTable +
-  process.scPhase2RecMesonPhiStructToTable +
-  process.scPhase2RecMesonRhoStructToTable +
-  process.scPhase2RecMesonJpsiStructToTable
+  process.s_unpackers +
+  process.prescaleInclusive
 )
 process.p_inclusive.associate(process.candRecoTasks)
+process.p_inclusive.associate(cms.Task(
+    process.scPhase2PuppiStructToTable,
+    process.scPhase2TkEgTableProducersTask,
+    process.scPhase2RecIsoTkEmStructToTable,
+    process.scPhase2RecMesonStructToTable,
+))
 
 ## Define selected processing (Physics streams)
 process.p_selected = cms.Path(
-  process.scPhase2PuppiRawToDigiStruct +
-  process.goodOrbitsByNBX +
+  process.s_unpackers +
   process.s_analyses +
   process.scPhase2SelectedBXs +
-  process.scPhase2PuppiMasked + 
-  process.scPhase2RecMesonPhiMasked +
-  process.scPhase2RecMesonRhoMasked +
-  process.scPhase2RecMesonJpsiMasked +
-  process.scPhase2PuppiMaskedStructToTable +
-  process.scPhase2RecMesonPhiMaskedStructToTable +
-  process.scPhase2RecMesonRhoMaskedStructToTable +
-  process.scPhase2RecMesonJpsiMaskedStructToTable
+  process.scPhase2PuppiMasked +
+  process.scPhase2TkEmMasked +
+  process.scPhase2TkEleMasked + 
+  process.scPhase2RecIsoTkEmMasked +
+  process.scPhase2RecMesonsMasked
 )
-process.p_selected.associate(process.candRecoTasks)
-
-# Additional modules and paths for benchmarking different data structures
-process.scPhase2PuppiRawToDigiCandidate = process.scPhase2PuppiRawToDigiStruct.clone(
-    runStructUnpacker = cms.bool(False),
-    runCandidateUnpacker = cms.bool(True),
-)
-process.scPhase2PuppiRawToDigiSOA = process.scPhase2PuppiRawToDigiStruct.clone(
-    runStructUnpacker = cms.bool(False),
-    runSOAUnpacker = cms.bool(True),
-)
-
-process.w3piCandidate = process.w3piStruct.clone(
-    runStruct = cms.bool(False),
-    runCandidate = cms.bool(True),
-)
-
-process.w3piSOA = process.w3piStruct.clone(
-    runStruct = cms.bool(False),
-    runSOA = cms.bool(True),
-)
-
-process.p_candidate = cms.Path(
-  process.scPhase2PuppiRawToDigiCandidate +
-  process.w3piCandidate
-)
-
-process.p_soa = cms.Path(
-  process.scPhase2PuppiRawToDigiSOA +
-  process.w3piSOA
-)
-
-process.p_all = cms.Path(
-  process.scPhase2PuppiRawToDigiCandidate +
-  process.scPhase2PuppiRawToDigiStruct +
-  process.scPhase2PuppiRawToDigiSOA +
-  process.scPhase2PuppiStructToTable +
-  process.w3piCandidate +
-  process.w3piStruct +
-  process.w3piSOA
-)
-
-process.p_fast = cms.Path(
-  process.scPhase2PuppiRawToDigiStruct +
-  process.scPhase2PuppiRawToDigiSOA +
-  process.scPhase2PuppiStructToTable +
-  process.w3piStruct +
-  process.w3piSOA
-)
-
+process.p_selected.associate(cms.Task(
+    process.scPhase2PuppiMaskedStructToTable,
+    process.scPhase2TkEgMaskedTableProducersTask,
+    process.scPhase2RecIsoTkEmMaskedStructToTable,
+    process.scPhase2RecMesonMaskedStructToTable
+))
 
 process.scPhase2NanoAll.fileName = options.outFile.replace(".root","")+".inclusive.root"
 process.scPhase2NanoAll.SelectEvents.SelectEvents = ['p_inclusive']
- 
+
 process.scPhase2NanoSelected.fileName = options.outFile.replace(".root","")+".selected.root"
 process.scPhase2NanoSelected.SelectEvents.SelectEvents = ['p_selected']
 process.scPhase2NanoSelected.outputCommands += [ f"keep *_{a}Struct_*_*" for a in analyses ]
@@ -196,7 +159,8 @@ process.o_nanoSelected = cms.EndPath(process.scPhase2NanoSelected)
 process.o_nanoBoth = cms.EndPath(process.scPhase2NanoAll + process.scPhase2NanoSelected)
 
 sched = [ process.p_inclusive, process.p_selected ]
-if options.run != "both":  [ getattr(process, "p_" + options.run)]
+if options.run != "both":
+    sched = [ getattr(process, "p_" + options.run)]
 
 if options.outMode != "none":
   sched.append(getattr(process, "o_"+options.outMode))
