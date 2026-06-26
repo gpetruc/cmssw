@@ -334,6 +334,8 @@
   <class name="l1t::VertexWord::VertexRef"/>
   <class name="edm::Wrapper<l1t::VertexWordCollection>"/>
   <class name="edm::Ref<l1t::VertexWordCollection>" />
+  <class name="OrbitCollection<l1t::VertexWord>" />
+  <class name="edm::Wrapper<OrbitCollection<l1t::VertexWord>>" />
 
   <class name="l1t::DisplacedTrackVertex" ClassVersion="3">
     <version ClassVersion="3" checksum="698293252"/>

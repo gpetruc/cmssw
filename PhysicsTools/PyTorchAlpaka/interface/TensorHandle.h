@@ -103,7 +103,7 @@ namespace cms::torch::alpakatools {
       sizes_ = std::vector<long int>(dims_.size() + 1);
       sizes_[0] = dims_.batch_size();
       std::copy(dims_.begin(), dims_.end(), sizes_.begin() + 1);
-      if (dims_.size() >= 1 && dims_[0] == 1) {
+      if (!dims_.empty() && dims_[0] == 1) {
         sizes_.erase(sizes_.begin() + 1);
       }
     }

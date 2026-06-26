@@ -50,6 +50,13 @@
   <class name="l1sc::PuppiHostCollection"/>
   <class name="edm::Wrapper<l1sc::PuppiHostCollection>" splitLevel="0"/>
 
+  <!-- VertexHostCollection -->
+  <class name="l1sc::VertexSoA"/>
+  <class name="l1sc::VertexSoA::View"/>
+  <class name="l1sc::VertexSoA::ConstView"/>
+  <class name="l1sc::VertexHostCollection"/>
+  <class name="edm::Wrapper<l1sc::VertexHostCollection>" splitLevel="0"/>
+
   <!-- TkEmHostCollection -->
   <class name="l1sc::TkEmSoA"/>
   <class name="l1sc::TkEmSoA::View"/>

@@ -22,6 +22,11 @@
   <class name="edm::DeviceProduct<alpaka_rocm_async::l1sc::PuppiDeviceCollection>" persistent="false"/>
   <class name="edm::Wrapper<edm::DeviceProduct<alpaka_rocm_async::l1sc::PuppiDeviceCollection>>" persistent="false"/>
 
+  <!-- VertexDeviceCollection -->
+  <class name="alpaka_rocm_async::l1sc::VertexDeviceCollection" persistent="false"/>
+  <class name="edm::DeviceProduct<alpaka_rocm_async::l1sc::VertexDeviceCollection>" persistent="false"/>
+  <class name="edm::Wrapper<edm::DeviceProduct<alpaka_rocm_async::l1sc::VertexDeviceCollection>>" persistent="false"/>
+
   <!-- TkEmDeviceCollection -->
   <class name="alpaka_rocm_async::PortableCollection<l1sc::TkEmSoA>" persistent="false"/>
   <class name="alpaka_rocm_async::l1sc::TkEmDeviceCollection" persistent="false"/>

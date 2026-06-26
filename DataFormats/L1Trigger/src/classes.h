@@ -40,3 +40,4 @@
 #include "DataFormats/L1Trigger/interface/P2GTCandidate.h"
 #include "DataFormats/L1Trigger/interface/P2GTAlgoBlock.h"
 #include "DataFormats/L1Trigger/interface/DisplacedVertex.h"
+#include "DataFormats/L1Scouting/interface/OrbitCollection.h"

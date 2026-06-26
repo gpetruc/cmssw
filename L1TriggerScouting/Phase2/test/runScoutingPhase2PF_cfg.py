@@ -156,7 +156,7 @@ process.source = cms.Source("DAQSource",
     )
 )
 
-os.system("touch " + buDirs[0] + "/" + "fu.lock")
+open(os.path.join(buDirs[0], "fu.lock"), "a").close()
 
 process.load("L1TriggerScouting.Phase2.unpackers_cff")
 
