@@ -565,6 +565,7 @@ public:
       bool preScaleVariationGroup = true;
 
       std::regex weightgroupmg26x("<weightgroup\\s+(?:name|type)=\"(.*)\"\\s+combine=\"(.*)\"\\s*>");
+      std::regex weightgroupmg29x("<weightgroup\\s+(?:name|type)=\"(.*)\"\\s+weight_name_strategy=\"(.*)\"\\s*>");
       std::regex weightgroup("<weightgroup\\s+combine=\"(.*)\"\\s+(?:name|type)=\"(.*)\"\\s*>");
       std::regex weightgroupRwgt("<weightgroup\\s+(?:name|type)=\"(.*)\"\\s*>");
       std::regex endweightgroup("</weightgroup>");
@@ -604,6 +605,9 @@ public:
           for (const auto& line : iter->lines()) {
             if (std::regex_search(line, groups, mgVerRegex)) {
               isMGVer2x = (groups[1].str() == "2");
+              if (lheDebug)
+                std::cout << ">>> Found MG version " << groups[1].str() << "." << groups[2].str() << "."
+                          << groups[3].str() << std::endl;
               break;
             }
           }
@@ -620,6 +624,7 @@ public:
             false;  //Needed because in some of the samples ( produced with MG26X ) a small part of the header info is ordered incorrectly
         bool ismg26x = false;
         bool ismg26xNew = false;
+        bool ismg29x = false;
         for (unsigned int iLine = 0, nLines = lines.size(); iLine < nLines;
              ++iLine) {  //First start looping through the lines to see which weightgroup pattern is matched
           boost::replace_all(lines[iLine], "&lt;", "<");
@@ -629,22 +634,41 @@ public:
           } else if (std::regex_search(lines[iLine], groups, scalewmg26xNew) ||
                      std::regex_search(lines[iLine], groups, pdfwmg26xNew)) {
             ismg26xNew = true;
+          } else if (std::regex_search(lines[iLine], groups, weightgroupmg29x)) {
+            ismg29x = true;
           }
         }
         for (unsigned int iLine = 0, nLines = lines.size(); iLine < nLines; ++iLine) {
+          if (std::all_of(lines[iLine].begin(), lines[iLine].end(), [](unsigned char c) {
+           return std::isspace(c);
+          })) 
+            continue;
           if (lheDebug)
-            std::cout << lines[iLine];
-          auto foundWeightGroup = std::regex_search(lines[iLine], groups, ismg26x ? weightgroupmg26x : weightgroup);
-          if (foundWeightGroup || preScaleVariationGroup) {
-            std::string groupname;
-            if (foundWeightGroup) {
-              groupname = ismg26x ? groups.str(1) : groups.str(2);
-            } else {
+            std::cout << "block 0, line " << iLine << ": " << lines[iLine];
+          bool foundWeightGroup = false;
+          std::string groupname;
+          if (ismg29x && std::regex_search(lines[iLine], groups, weightgroupmg29x)) {
+            groupname = groups.str(1);
+            foundWeightGroup = true;
+          } else if (ismg26x && std::regex_search(lines[iLine], groups, weightgroupmg26x)) {
+            groupname = groups.str(1);
+            foundWeightGroup = true;
+          } else if (std::regex_search(lines[iLine], groups, weightgroup)) {
+            groupname = groups.str(2);
+            foundWeightGroup = true;
+          } else if (std::regex_search(lines[iLine], groups, weightgroupRwgt)) {
+            groupname = groups.str(1);
+            foundWeightGroup = true;
+          }
+          if ((foundWeightGroup || preScaleVariationGroup) && groupname.find("mg_reweighting") == std::string::npos) {
+            if (!foundWeightGroup) {
               // rewind by one line and check later in the inner loop
               --iLine;
             }
             if (lheDebug)
               std::cout << ">>> Looks like the beginning of a weight group for '" << groupname << "'" << std::endl;
+            if (lheDebug && preScaleVariationGroup)
+              std::cout << ">>> I'm still looking for scale variations" << std::endl;
             if (groupname.find("scale_variation") == 0 || groupname == "Central scale variation" ||
                 preScaleVariationGroup) {
               if (lheDebug && groupname.find("scale_variation") != 0 && groupname != "Central scale variation")
@@ -656,7 +680,7 @@ public:
               }
               for (++iLine; iLine < nLines; ++iLine) {
                 if (lheDebug) {
-                  std::cout << "    " << lines[iLine];
+                  std::cout << "    block SV, line " << iLine << ": " << lines[iLine];
                 }
                 if (std::regex_search(
                         lines[iLine], groups, ismg26x ? scalewmg26x : (ismg26xNew ? scalewmg26xNew : scalew))) {
@@ -691,7 +715,7 @@ public:
                 std::cout << ">>> Looks like a new-style block of PDF weights for one or more pdfs" << std::endl;
               for (++iLine; iLine < nLines; ++iLine) {
                 if (lheDebug)
-                  std::cout << "    " << lines[iLine];
+                  std::cout << "    block PDF1, line " << iLine << ": " << lines[iLine];
                 if (std::regex_search(lines[iLine], groups, pdfw)) {
                   unsigned int lhaID = std::stoi(groups.str(2));
                   if (lheDebug)
@@ -724,7 +748,7 @@ public:
               unsigned int lastid = 0;
               for (++iLine; iLine < nLines; ++iLine) {
                 if (lheDebug)
-                  std::cout << "    " << lines[iLine];
+                  std::cout << "    block PDF2, line " << iLine << ": " << lines[iLine];
                 if (std::regex_search(lines[iLine], groups, pdfw)) {
                   unsigned int id = std::stoi(groups.str(1));
                   unsigned int lhaID = std::stoi(groups.str(2));
@@ -762,7 +786,7 @@ public:
               bool first = true;
               for (++iLine; iLine < nLines; ++iLine) {
                 if (lheDebug)
-                  std::cout << "    " << lines[iLine];
+                  std::cout << "    block PDF3, line " << iLine << ": " << lines[iLine];
                 if (std::regex_search(
                         lines[iLine], groups, ismg26x ? pdfwmg26x : (ismg26xNew ? pdfwmg26xNew : pdfwOld))) {
                   unsigned int member = 0;
@@ -812,7 +836,7 @@ public:
                 std::cout << ">>> Looks like an EW parameter weight" << std::endl;
               for (++iLine; iLine < nLines; ++iLine) {
                 if (lheDebug)
-                  std::cout << "    " << lines[iLine];
+                  std::cout << "    block EW, line " << iLine << ": " << lines[iLine];
                 if (std::regex_search(lines[iLine], groups, rwgt)) {
                   std::string rwgtID = groups.str(1);
                   if (lheDebug)
@@ -829,7 +853,7 @@ public:
             } else {
               for (++iLine; iLine < nLines; ++iLine) {
                 if (lheDebug)
-                  std::cout << "    " << lines[iLine];
+                  std::cout << "    block Unknown, line " << iLine << ": " << lines[iLine];
                 if (std::regex_search(lines[iLine], groups, endweightgroup)) {
                   if (lheDebug)
                     std::cout << ">>> Looks like the end of a weight group" << std::endl;
@@ -856,7 +880,7 @@ public:
                 std::cout << ">>> Looks like a LHE weights for reweighting" << std::endl;
               for (++iLine; iLine < nLines; ++iLine) {
                 if (lheDebug)
-                  std::cout << "    " << lines[iLine];
+                  std::cout << "    block Rwg, line " << iLine << ": " << lines[iLine];
                 if (std::regex_search(lines[iLine], groups, rwgt)) {
                   std::string rwgtID = groups.str(1);
                   if (lheDebug)
